@@ -36,7 +36,7 @@ class EnvConfig {
   static const String splashTaglineColor = '${SPLASH_TAGLINE_COLOR:-''}';
   static const String splashAnimation = '${SPLASH_ANIMATION:-''}';
   static const int splashDuration = ${SPLASH_DURATION:-0};
-  static const String bottommenuItems = r'''${BOTTOMMENU_ITEMS:-[]}''';
+  static const String bottommenuItems = r"""${BOTTOMMENU_ITEMS:-[]}""";
   static const String bottommenuBgColor = '${BOTTOMMENU_BG_COLOR:-''}';
   static const String bottommenuIconColor = '${BOTTOMMENU_ICON_COLOR:-''}';
   static const String bottommenuTextColor = '${BOTTOMMENU_TEXT_COLOR:-''}';
