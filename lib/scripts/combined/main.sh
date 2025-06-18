@@ -9,6 +9,10 @@ handle_error() {
 }
 trap 'handle_error "Error occurred at line $LINENO"' ERR
 
+# Email
+ENABLE_EMAIL_NOTIFICATIONS=${ENABLE_EMAIL_NOTIFICATIONS:-"true"}
+export ENABLE_EMAIL_NOTIFICATIONS
+
 chmod +x ./lib/scripts/android/*.sh || true
 chmod +x ./lib/scripts/ios/*.sh || true
 chmod +x ./lib/scripts/utils/*.sh || true

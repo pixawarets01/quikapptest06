@@ -74,6 +74,11 @@ EMAIL_SMTP_SERVER=${EMAIL_SMTP_SERVER:-}
 EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT:-}
 EMAIL_SMTP_USER=${EMAIL_SMTP_USER:-}
 EMAIL_SMTP_PASS=${EMAIL_SMTP_PASS:-}
+ENABLE_EMAIL_NOTIFICATIONS=${ENABLE_EMAIL_NOTIFICATIONS:-"true"}
+
+# Export variables for email script
+export KEY_STORE_URL
+export ENABLE_EMAIL_NOTIFICATIONS
 
 chmod +x ./lib/scripts/android/*.sh || true
 chmod +x ./lib/scripts/utils/*.sh || true
