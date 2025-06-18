@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 # Load environment variables from Codemagic
 # These variables are injected by codemagic.yaml
@@ -91,6 +91,11 @@ handle_error() {
 # Set up error handling
 trap 'handle_error "Error occurred at line $LINENO"' ERR
 
+# Ensure all referenced scripts are executable
+chmod +x ./lib/scripts/android/*.sh || true
+chmod +x ./lib/scripts/ios/*.sh || true
+chmod +x ./lib/scripts/utils/*.sh || true
+
 # Start combined build
 log "Starting combined Android and iOS build for $APP_NAME"
 
@@ -98,10 +103,6 @@ log "Starting combined Android and iOS build for $APP_NAME"
 if [ -z "$APP_NAME" ] || [ -z "$VERSION_NAME" ] || [ -z "$VERSION_CODE" ]; then
     handle_error "Missing required variables"
 fi
-
-# Create necessary directories
-mkdir -p build/android
-mkdir -p build/ios
 
 # Build Android
 log "Building Android app"
@@ -112,7 +113,7 @@ log "Building iOS app"
 ./lib/scripts/ios/main.sh || handle_error "iOS build failed"
 
 # Send email notification
-if [ "$ENABLE_EMAIL_NOTIFICATIONS" = "true" ]; then
+if [ "${ENABLE_EMAIL_NOTIFICATIONS:-false}" = "true" ]; then
     log "Sending email notification"
     ./lib/scripts/utils/send_email.sh "success" || log "Email notification failed"
 fi

@@ -1,8 +1,9 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 # Load environment variables from Codemagic
-# These variables are injected by codemagic.yaml
+echo "[INFO] Loading environment variables..."
+
 APP_ID=${APP_ID}
 WORKFLOW_ID=${WORKFLOW_ID}
 BRANCH=${BRANCH}
@@ -57,9 +58,11 @@ BOTTOMMENU_ICON_POSITION=${BOTTOMMENU_ICON_POSITION}
 BOTTOMMENU_VISIBLE_ON=${BOTTOMMENU_VISIBLE_ON}
 
 # Firebase
+echo "[INFO] Loading Firebase config..."
 FIREBASE_CONFIG_IOS=${FIREBASE_CONFIG_IOS}
 
 # iOS Signing
+echo "[INFO] Loading signing variables..."
 APPLE_TEAM_ID=${APPLE_TEAM_ID}
 APNS_KEY_ID=${APNS_KEY_ID}
 APNS_AUTH_KEY_URL=${APNS_AUTH_KEY_URL}
@@ -74,28 +77,33 @@ log() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
 }
 
-# Error handling function
 handle_error() {
     log "ERROR: $1"
     exit 1
 }
 
-# Set up error handling
 trap 'handle_error "Error occurred at line $LINENO"' ERR
 
-# Start iOS build
+# Ensure all referenced scripts are executable
+chmod +x ./lib/scripts/ios/*.sh || true
+chmod +x ./lib/scripts/utils/*.sh || true
+
 log "Starting iOS build for $APP_NAME"
 
-# Validate required variables
 if [ -z "$BUNDLE_ID" ] || [ -z "$VERSION_NAME" ] || [ -z "$VERSION_CODE" ]; then
     handle_error "Missing required variables"
 fi
 
-# Create necessary directories
+# Validate signing variables if signing is enabled
+if [ -n "$APPLE_TEAM_ID" ] && [ -n "$APNS_KEY_ID" ] && [ -n "$APNS_AUTH_KEY_URL" ] && [ -n "$CERT_PASSWORD" ] && [ -n "$PROFILE_URL" ] && [ -n "$CERT_CER_URL" ] && [ -n "$CERT_KEY_URL" ] && [ -n "$APP_STORE_CONNECT_KEY_IDENTIFIER" ]; then
+    log "All signing variables present."
+else
+    log "[WARN] Some signing variables are missing."
+fi
+
 mkdir -p ios/QuikApp/Resources
 mkdir -p ios/QuikApp/Supporting\ Files
 
-# Run sub-scripts
 log "Running branding script"
 ./lib/scripts/ios/branding.sh || handle_error "Branding script failed"
 
@@ -110,7 +118,6 @@ fi
 log "Running signing script"
 ./lib/scripts/ios/signing.sh || handle_error "Signing script failed"
 
-# Build iOS app
 log "Building iOS app"
 xcodebuild -workspace ios/QuikApp.xcworkspace \
     -scheme QuikApp \
@@ -118,15 +125,13 @@ xcodebuild -workspace ios/QuikApp.xcworkspace \
     -archivePath build/QuikApp.xcarchive \
     archive || handle_error "Archive failed"
 
-# Export IPA
 log "Exporting IPA"
 xcodebuild -exportArchive \
     -archivePath build/QuikApp.xcarchive \
     -exportOptionsPlist ios/exportOptions.plist \
     -exportPath build/ios || handle_error "Export failed"
 
-# Send email notification
-if [ "$ENABLE_EMAIL_NOTIFICATIONS" = "true" ]; then
+if [ "${ENABLE_EMAIL_NOTIFICATIONS:-false}" = "true" ]; then
     log "Sending email notification"
     ./lib/scripts/utils/send_email.sh "success" || log "Email notification failed"
 fi

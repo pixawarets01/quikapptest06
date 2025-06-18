@@ -1,12 +1,9 @@
 #!/bin/bash
-set -e
-set -x  # Enable verbose output
+set -euo pipefail  # Strict mode
 
 # Source admin_config.env to load all required variables
 source "$(dirname "$0")/../config/admin_config.env"
 
-# Load environment variables from Codemagic
-# These variables are injected by codemagic.yaml
 # App Metadata
 APP_ID=${APP_ID}
 VERSION_NAME=${VERSION_NAME}
@@ -63,8 +60,8 @@ fi
 # Firebase Configuration
 FIREBASE_CONFIG_ANDROID=${FIREBASE_CONFIG_ANDROID}
 
-# Android Credentials
-KEY_STORE_URL=${KEY_STORE}
+# Android Credentials (unified)
+KEY_STORE_URL=${KEY_STORE_URL}
 CM_KEYSTORE_PASSWORD=${CM_KEYSTORE_PASSWORD}
 CM_KEY_ALIAS=${CM_KEY_ALIAS}
 CM_KEY_PASSWORD=${CM_KEY_PASSWORD}
@@ -87,24 +84,23 @@ handle_error() {
     exit 1
 }
 
-# Set up error handling
 trap 'handle_error "Error occurred at line $LINENO"' ERR
 
-# Start build process
+# Ensure all referenced scripts are executable
+chmod +x ./lib/scripts/android/*.sh || true
+chmod +x ./lib/scripts/utils/*.sh || true
+
 log "Starting Android build workflow"
 log "App: $APP_NAME ($PKG_NAME)"
 log "Version: $VERSION_NAME ($VERSION_CODE)"
 
-# Validate required variables
 if [ -z "$VERSION_NAME" ] || [ -z "$VERSION_CODE" ] || [ -z "$APP_NAME" ] || [ -z "$PKG_NAME" ]; then
     handle_error "Required variables are missing"
 fi
 
-# Create output directory
 mkdir -p build/app/outputs/flutter-apk
 mkdir -p build/app/outputs/bundle/release
 
-# Run sub-scripts
 log "Running branding script..."
 ./lib/scripts/android/branding.sh || handle_error "Branding script failed"
 
@@ -118,26 +114,16 @@ if [ -n "$KEY_STORE_URL" ]; then
     ./lib/scripts/android/keystore.sh || handle_error "Keystore script failed"
 fi
 
-# Ensure repositories are defined in settings.gradle.kts
 if ! grep -q "dependencyResolutionManagement" android/settings.gradle.kts; then
     echo "dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral(); } }" >> android/settings.gradle.kts
 fi
 
-# Build APK
 log "Building APK..."
 flutter build apk --release || handle_error "APK build failed"
 
-# Build AAB if keystore is provided
 if [ -n "$KEY_STORE_URL" ]; then
     log "Building AAB..."
     flutter build appbundle --release || handle_error "AAB build failed"
-fi
-
-# Copy artifacts
-log "Copying artifacts..."
-cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/
-if [ -n "$KEY_STORE_URL" ]; then
-    cp build/app/outputs/bundle/release/app-release.aab build/app/outputs/bundle/release/
 fi
 
 # Send success email
