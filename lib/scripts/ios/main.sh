@@ -84,6 +84,12 @@ if [ -z "$BUNDLE_ID" ] || [ -z "$VERSION_NAME" ] || [ -z "$VERSION_CODE" ]; then
     handle_error "Missing required variables"
 fi
 
+# Generate env_config.dart for Dart use
+if [ -f ./lib/scripts/utils/gen_env_config.sh ]; then
+    log "Generating Dart env_config.dart from Codemagic env vars..."
+    ./lib/scripts/utils/gen_env_config.sh || handle_error "Failed to generate env_config.dart"
+fi
+
 # Branding
 if [ -f ./lib/scripts/ios/branding.sh ]; then
     log "Running branding script..."
