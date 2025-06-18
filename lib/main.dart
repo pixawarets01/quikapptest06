@@ -32,7 +32,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 Future<String?> getAndroidFirebasePackageName() async {
   try {
-    final jsonStr = await rootBundle.loadString('assets/google-services.json');
+    final jsonStr = await rootBundle.loadString('android/app/google-services.json');
     final data = json.decode(jsonStr);
     return data['client']?[0]?['client_info']?['android_client_info']
         ?['package_name'];
@@ -83,7 +83,7 @@ void main() async {
         final info = await PackageInfo.fromPlatform();
 
         if (defaultTargetPlatform == TargetPlatform.android) {
-          final exists = await assetExists('assets/google-services.json');
+          final exists = await assetExists('android/app/google-services.json');
           if (!exists) {
             runApp(_missingFirebaseFileScreen("google-services.json"));
             return;
