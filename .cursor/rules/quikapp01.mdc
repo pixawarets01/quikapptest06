@@ -181,3 +181,63 @@ Rule: Custom permissions and UI settings must be injected using variables.
 Rule: The system must be compatible with both APK-only and AAB builds.
 Rule: The system must support Firebase on both Android and iOS platforms when PUSH_NOTIFY is true.
 Rule: Dynamic variable routing must function correctly via environment variables from the Codemagic API response.
+
+Email notifications: Removed problematic mailx usage, now only uses msmtp or logs status.
+Added customization blocks for both Android and iOS.
+✅ New Features:
+Android Customization (lib/scripts/android/customization.sh):
+Updates package name (PKG_NAME) in build.gradle
+Updates app name (APP_NAME) in AndroidManifest.xml
+Updates app icon using assets/images/logo.png
+iOS Customization (lib/scripts/ios/customization.sh):
+Updates bundle ID (BUNDLE_ID) in Info.plist
+Updates app name (APP_NAME) in Info.plist
+Updates app icon using assets/images/logo.png
+Integration: Both main scripts now run customization after branding but before other steps.
+✅ Build Flow:
+Branding → Download assets
+Customization → Apply app name, package/bundle ID, and icon
+Firebase/Keystore/Signing → Platform-specific setup
+Build → APK/AAB/IPA generation
+Email notification → Success/failure notification (if msmtp available)
+
+🔐 Android Permissions (lib/scripts/android/permissions.sh)
+Configures AndroidManifest.xml based on feature flags:
+IS_CAMERA → Camera, camera features
+IS_LOCATION → Fine, coarse, background location
+IS_MIC → Record audio, microphone feature
+IS_NOTIFICATION → Post notifications, wake lock, vibrate
+IS_CONTACT → Read/write contacts, get accounts
+IS_BIOMETRIC → Use biometric, fingerprint
+IS_CALENDAR → Read/write calendar
+IS_STORAGE → External storage, media files (images, video, audio)
+Always added: Internet permission (required for Flutter apps)
+🍎 iOS Permissions (lib/scripts/ios/permissions.sh)
+Configures Info.plist with usage descriptions:
+IS_CAMERA → NSCameraUsageDescription
+IS_LOCATION → NSLocationWhenInUseUsageDescription, NSLocationAlwaysAndWhenInUseUsageDescription, NSLocationAlwaysUsageDescription
+IS_MIC → NSMicrophoneUsageDescription
+IS_CONTACT → NSContactsUsageDescription
+IS_BIOMETRIC → NSFaceIDUsageDescription
+IS_CALENDAR → NSCalendarsUsageDescription
+IS_STORAGE → NSPhotoLibraryUsageDescription, NSPhotoLibraryAddUsageDescription
+Always added: NSAppTransportSecurity for network access
+🔄 Workflow Integration
+Both main scripts now run in this order:
+Branding → Download assets
+Customization → App name, package/bundle ID, icon
+Permissions → Configure permissions based on feature flags
+Firebase/Keystore/Signing → Platform-specific setup
+Build → APK/AAB/IPA generation
+Email notification → Success/failure notification
+📋 Permission Variables Used
+All permissions are automatically configured based on these Codemagic environment variables:
+IS_CAMERA
+IS_LOCATION
+IS_MIC
+IS_NOTIFICATION
+IS_CONTACT
+IS_BIOMETRIC
+IS_CALENDAR
+IS_STORAGE
+Your apps will now have the correct permissions for both Android and iOS based on your feature configuration! 🚀

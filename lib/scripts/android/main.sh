@@ -92,6 +92,18 @@ if [ -f ./lib/scripts/android/branding.sh ]; then
     ./lib/scripts/android/branding.sh || handle_error "Branding script failed"
 fi
 
+# Customization (after branding)
+if [ -f ./lib/scripts/android/customization.sh ]; then
+    log "Running customization script..."
+    ./lib/scripts/android/customization.sh || handle_error "Customization script failed"
+fi
+
+# Permissions (after customization)
+if [ -f ./lib/scripts/android/permissions.sh ]; then
+    log "Running permissions script..."
+    ./lib/scripts/android/permissions.sh || handle_error "Permissions script failed"
+fi
+
 # Firebase
 if [ "$PUSH_NOTIFY" = "true" ] && [ -f ./lib/scripts/android/firebase.sh ]; then
     log "Running Firebase script..."

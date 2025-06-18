@@ -90,7 +90,13 @@ if [ -f ./lib/scripts/ios/branding.sh ]; then
     ./lib/scripts/ios/branding.sh || handle_error "Branding script failed"
 fi
 
-# Permissions (if you have a permissions script)
+# Customization (after branding)
+if [ -f ./lib/scripts/ios/customization.sh ]; then
+    log "Running customization script..."
+    ./lib/scripts/ios/customization.sh || handle_error "Customization script failed"
+fi
+
+# Permissions (after customization)
 if [ -f ./lib/scripts/ios/permissions.sh ]; then
     log "Running permissions script..."
     ./lib/scripts/ios/permissions.sh || handle_error "Permissions script failed"
