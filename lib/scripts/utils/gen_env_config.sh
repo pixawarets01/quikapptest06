@@ -51,4 +51,4 @@ class EnvConfig {
   static const String firebaseConfigAndroid = '${FIREBASE_CONFIG_ANDROID:-''}';
   static const String firebaseConfigIos = '${FIREBASE_CONFIG_IOS:-''}';
 }
-EOF 
+EOF
