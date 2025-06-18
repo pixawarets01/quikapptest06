@@ -244,12 +244,12 @@ workflows:
   combined:
     name: Combined Android & iOS Build
     max_build_duration: 120
-    instance_type: mac_mini_m2
-    flutter: 3.32.2
-    java: 17
-    xcode: 15.4
-    cocoapods: 1.16.2 # Specify CocoaPods version for iOS builds
+    instance_type: mac_mini_m1
     environment:
+      flutter: 3.32.1
+      java: 17
+      xcode: 15.4
+      cocoapods: 1.16.2
       vars:
         APP_ID: $APP_ID
         WORKFLOW_ID: "combined"
