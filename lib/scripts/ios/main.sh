@@ -100,6 +100,10 @@ fi
 if [ -n "$FIREBASE_CONFIG_IOS" ] && [ -f ./lib/scripts/ios/firebase.sh ]; then
     log "Running Firebase script..."
     ./lib/scripts/ios/firebase.sh || handle_error "Firebase script failed"
+    if [ -f ios/Runner/GoogleService-Info.plist ]; then
+        mkdir -p assets
+        cp ios/Runner/GoogleService-Info.plist assets/GoogleService-Info.plist || handle_error "Failed to copy GoogleService-Info.plist to assets"
+    fi
 fi
 
 # Signing

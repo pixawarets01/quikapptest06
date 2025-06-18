@@ -10,6 +10,8 @@ log "Starting Firebase configuration"
 if [ -n "$FIREBASE_CONFIG_ANDROID" ]; then
   log "Downloading Firebase configuration from $FIREBASE_CONFIG_ANDROID"
   curl -L "$FIREBASE_CONFIG_ANDROID" -o android/app/google-services.json || handle_error "Failed to download Firebase config"
+  mkdir -p assets
+  cp android/app/google-services.json assets/google-services.json || handle_error "Failed to copy google-services.json to assets"
 else
   log "No Firebase config URL provided; skipping."
 fi
