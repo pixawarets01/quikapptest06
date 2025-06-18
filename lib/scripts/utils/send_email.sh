@@ -45,6 +45,11 @@ CM_PROJECT_ID=${CM_PROJECT_ID:-"Unknown"}
 
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"; }
 
+# Function to convert status to uppercase (compatible with all shells)
+get_status_upper() {
+    echo "$1" | tr '[:lower:]' '[:upper:]'
+}
+
 # Function to get status badge color
 get_status_color() {
     case "$1" in
@@ -109,7 +114,7 @@ create_email_content() {
     
     <!-- Status Banner -->
     <div style="background-color: ${status_color}; color: white; padding: 15px; text-align: center; font-size: 18px; font-weight: bold;">
-        ${status_icon} Build Status: ${status^^}
+        ${status_icon} Build Status: $(get_status_upper "$status")
     </div>
     
     <!-- App Information -->
@@ -231,7 +236,7 @@ if [ -z "$EMAIL_SMTP_SERVER" ] || [ -z "$EMAIL_SMTP_PORT" ] || [ -z "$EMAIL_SMTP
     exit 0
 fi
 
-SUBJECT="[QuikApp Build] $APP_NAME - ${STATUS^^}"
+SUBJECT="[QuikApp Build] $APP_NAME - $(get_status_upper "$STATUS")"
 TO="$EMAIL_ID"
 
 # Try using curl for email sending (more reliable than msmtp)
@@ -268,8 +273,8 @@ EOF
 # Try using msmtp as fallback
 send_email_msmtp() {
     local html_content=$(create_email_content "$STATUS" "$MESSAGE")
-    
-    if command -v msmtp >/dev/null 2>&1; then
+
+if command -v msmtp >/dev/null 2>&1; then
         echo -e "Content-Type: text/html; charset=UTF-8\nSubject: $SUBJECT\nTo: $TO\n\n$html_content" | \
         msmtp --host="$EMAIL_SMTP_SERVER" \
               --port="$EMAIL_SMTP_PORT" \
