@@ -1,8 +1,7 @@
 #!/bin/bash
 set -euo pipefail  # Strict mode
 
-# Source admin_config.env to load all required variables
-source "$(dirname "$0")/../config/admin_config.env"
+# Removed sourcing of admin_config.env for Codemagic compatibility
 
 # App Metadata
 APP_ID=${APP_ID}
