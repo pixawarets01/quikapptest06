@@ -1,122 +1,26 @@
 #!/bin/bash
 set -euo pipefail
 
-# Load environment variables from Codemagic
-# These variables are injected by codemagic.yaml
-APP_ID=${APP_ID}
-WORKFLOW_ID=${WORKFLOW_ID}
-BRANCH=${BRANCH}
-VERSION_NAME=${VERSION_NAME}
-VERSION_CODE=${VERSION_CODE}
-APP_NAME=${APP_NAME}
-ORG_NAME=${ORG_NAME}
-WEB_URL=${WEB_URL}
-EMAIL_ID=${EMAIL_ID}
-PKG_NAME=${PKG_NAME}
-BUNDLE_ID=${BUNDLE_ID}
-
-# Feature flags
-PUSH_NOTIFY=${PUSH_NOTIFY}
-IS_CHATBOT=${IS_CHATBOT}
-IS_DOMAIN_URL=${IS_DOMAIN_URL}
-IS_SPLASH=${IS_SPLASH}
-IS_PULLDOWN=${IS_PULLDOWN}
-IS_BOTTOMMENU=${IS_BOTTOMMENU}
-IS_LOAD_IND=${IS_LOAD_IND}
-
-# Permissions
-IS_CAMERA=${IS_CAMERA}
-IS_LOCATION=${IS_LOCATION}
-IS_MIC=${IS_MIC}
-IS_NOTIFICATION=${IS_NOTIFICATION}
-IS_CONTACT=${IS_CONTACT}
-IS_BIOMETRIC=${IS_BIOMETRIC}
-IS_CALENDAR=${IS_CALENDAR}
-IS_STORAGE=${IS_STORAGE}
-
-# Branding
-LOGO_URL=${LOGO_URL}
-SPLASH_URL=${SPLASH_URL}
-SPLASH_BG_URL=${SPLASH_BG_URL}
-SPLASH_BG_COLOR=${SPLASH_BG_COLOR}
-SPLASH_TAGLINE=${SPLASH_TAGLINE}
-SPLASH_TAGLINE_COLOR=${SPLASH_TAGLINE_COLOR}
-SPLASH_ANIMATION=${SPLASH_ANIMATION}
-SPLASH_DURATION=${SPLASH_DURATION}
-
-# Bottom menu
-BOTTOMMENU_ITEMS=${BOTTOMMENU_ITEMS}
-BOTTOMMENU_BG_COLOR=${BOTTOMMENU_BG_COLOR}
-BOTTOMMENU_ICON_COLOR=${BOTTOMMENU_ICON_COLOR}
-BOTTOMMENU_TEXT_COLOR=${BOTTOMMENU_TEXT_COLOR}
-BOTTOMMENU_FONT=${BOTTOMMENU_FONT}
-BOTTOMMENU_FONT_SIZE=${BOTTOMMENU_FONT_SIZE}
-BOTTOMMENU_FONT_BOLD=${BOTTOMMENU_FONT_BOLD}
-BOTTOMMENU_FONT_ITALIC=${BOTTOMMENU_FONT_ITALIC}
-BOTTOMMENU_ACTIVE_TAB_COLOR=${BOTTOMMENU_ACTIVE_TAB_COLOR}
-BOTTOMMENU_ICON_POSITION=${BOTTOMMENU_ICON_POSITION}
-BOTTOMMENU_VISIBLE_ON=${BOTTOMMENU_VISIBLE_ON}
-
-# Firebase
-FIREBASE_CONFIG_ANDROID=${FIREBASE_CONFIG_ANDROID}
-FIREBASE_CONFIG_IOS=${FIREBASE_CONFIG_IOS}
-
-# Android Signing
-KEY_STORE_URL=${KEY_STORE_URL}
-CM_KEYSTORE_PASSWORD=${CM_KEYSTORE_PASSWORD}
-CM_KEY_ALIAS=${CM_KEY_ALIAS}
-CM_KEY_PASSWORD=${CM_KEY_PASSWORD}
-
-# iOS Signing
-APPLE_TEAM_ID=${APPLE_TEAM_ID}
-APNS_KEY_ID=${APNS_KEY_ID}
-APNS_AUTH_KEY_URL=${APNS_AUTH_KEY_URL}
-CERT_PASSWORD=${CERT_PASSWORD}
-PROFILE_URL=${PROFILE_URL}
-CERT_CER_URL=${CERT_CER_URL}
-CERT_KEY_URL=${CERT_KEY_URL}
-APP_STORE_CONNECT_KEY_IDENTIFIER=${APP_STORE_CONNECT_KEY_IDENTIFIER}
-
-# Logging function
-log() {
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
-}
-
-# Error handling function
+log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"; }
 handle_error() {
-    log "ERROR: $1"
-    exit 1
+  log "ERROR: $1"
+  ./lib/scripts/utils/send_email.sh "failure" "Combined build failed: $1"
+  exit 1
 }
-
-# Set up error handling
 trap 'handle_error "Error occurred at line $LINENO"' ERR
 
-# Ensure all referenced scripts are executable
 chmod +x ./lib/scripts/android/*.sh || true
 chmod +x ./lib/scripts/ios/*.sh || true
 chmod +x ./lib/scripts/utils/*.sh || true
 
-# Start combined build
-log "Starting combined Android and iOS build for $APP_NAME"
+log "Starting combined Android & iOS build workflow"
 
-# Validate required variables
-if [ -z "$APP_NAME" ] || [ -z "$VERSION_NAME" ] || [ -z "$VERSION_CODE" ]; then
-    handle_error "Missing required variables"
-fi
-
-# Build Android
-log "Building Android app"
+log "Running Android build..."
 ./lib/scripts/android/main.sh || handle_error "Android build failed"
 
-# Build iOS
-log "Building iOS app"
+log "Running iOS build..."
 ./lib/scripts/ios/main.sh || handle_error "iOS build failed"
 
-# Send email notification
-if [ "${ENABLE_EMAIL_NOTIFICATIONS:-false}" = "true" ]; then
-    log "Sending email notification"
-    ./lib/scripts/utils/send_email.sh "success" || log "Email notification failed"
-fi
-
+./lib/scripts/utils/send_email.sh "success" "Combined Android & iOS build completed successfully"
 log "Combined build completed successfully"
 exit 0 
