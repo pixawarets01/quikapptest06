@@ -41,11 +41,11 @@ workflows:
         SPLASH_TAGLINE_COLOR: $SPLASH_TAGLINE_COLOR
         SPLASH_ANIMATION: $SPLASH_ANIMATION
         SPLASH_DURATION: $SPLASH_DURATION
-        ENABLE_EMAIL_NOTIFICATIONS: $ENABLE_EMAIL_NOTIFICATIONS
-        EMAIL_SMTP_SERVER: $EMAIL_SMTP_SERVER
-        EMAIL_SMTP_PORT: $EMAIL_SMTP_PORT
-        EMAIL_SMTP_USER: $EMAIL_SMTP_USER
-        EMAIL_SMTP_PASS: $EMAIL_SMTP_PASS
+        ENABLE_EMAIL_NOTIFICATIONS: "true"
+        EMAIL_SMTP_SERVER: "smtp.gmail.com"
+        EMAIL_SMTP_PORT: "587"
+        EMAIL_SMTP_USER: "prasannasrie@gmail.com"
+        EMAIL_SMTP_PASS: "jbbf nzhm zoay lbwb"
     scripts:
       - name: Build Android APK
         script: |
@@ -98,11 +98,11 @@ workflows:
         SPLASH_ANIMATION: $SPLASH_ANIMATION
         SPLASH_DURATION: $SPLASH_DURATION
         FIREBASE_CONFIG_ANDROID: $FIREBASE_CONFIG_ANDROID
-        ENABLE_EMAIL_NOTIFICATIONS: $ENABLE_EMAIL_NOTIFICATIONS
-        EMAIL_SMTP_SERVER: $EMAIL_SMTP_SERVER
-        EMAIL_SMTP_PORT: $EMAIL_SMTP_PORT
-        EMAIL_SMTP_USER: $EMAIL_SMTP_USER
-        EMAIL_SMTP_PASS: $EMAIL_SMTP_PASS
+        ENABLE_EMAIL_NOTIFICATIONS: "true"
+        EMAIL_SMTP_SERVER: "smtp.gmail.com"
+        EMAIL_SMTP_PORT: "587"
+        EMAIL_SMTP_USER: "prasannasrie@gmail.com"
+        EMAIL_SMTP_PASS: "jbbf nzhm zoay lbwb"
     scripts:
       - name: Build Android APK
         script: |
@@ -159,11 +159,11 @@ workflows:
         CM_KEYSTORE_PASSWORD: $CM_KEYSTORE_PASSWORD
         CM_KEY_ALIAS: $CM_KEY_ALIAS
         CM_KEY_PASSWORD: $CM_KEY_PASSWORD
-        ENABLE_EMAIL_NOTIFICATIONS: $ENABLE_EMAIL_NOTIFICATIONS
-        EMAIL_SMTP_SERVER: $EMAIL_SMTP_SERVER
-        EMAIL_SMTP_PORT: $EMAIL_SMTP_PORT
-        EMAIL_SMTP_USER: $EMAIL_SMTP_USER
-        EMAIL_SMTP_PASS: $EMAIL_SMTP_PASS
+        ENABLE_EMAIL_NOTIFICATIONS: "true"
+        EMAIL_SMTP_SERVER: "smtp.gmail.com"
+        EMAIL_SMTP_PORT: "587"
+        EMAIL_SMTP_USER: "prasannasrie@gmail.com"
+        EMAIL_SMTP_PASS: "jbbf nzhm zoay lbwb"
     scripts:
       - name: Build Android APK and AAB
         script: |
@@ -226,12 +226,13 @@ workflows:
         PROFILE_URL: $PROFILE_URL
         CERT_CER_URL: $CERT_CER_URL
         CERT_KEY_URL: $CERT_KEY_URL
+        PROFILE_TYPE: $PROFILE_TYPE
         APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
-        ENABLE_EMAIL_NOTIFICATIONS: $ENABLE_EMAIL_NOTIFICATIONS
-        EMAIL_SMTP_SERVER: $EMAIL_SMTP_SERVER
-        EMAIL_SMTP_PORT: $EMAIL_SMTP_PORT
-        EMAIL_SMTP_USER: $EMAIL_SMTP_USER
-        EMAIL_SMTP_PASS: $EMAIL_SMTP_PASS
+        ENABLE_EMAIL_NOTIFICATIONS: "true"
+        EMAIL_SMTP_SERVER: "smtp.gmail.com"
+        EMAIL_SMTP_PORT: "587"
+        EMAIL_SMTP_USER: "prasannasrie@gmail.com"
+        EMAIL_SMTP_PASS: "jbbf nzhm zoay lbwb"
     scripts:
       - name: Build iOS IPA
         script: |
@@ -299,12 +300,13 @@ workflows:
         PROFILE_URL: $PROFILE_URL
         CERT_CER_URL: $CERT_CER_URL
         CERT_KEY_URL: $CERT_KEY_URL
+        PROFILE_TYPE: $PROFILE_TYPE
         APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
-        ENABLE_EMAIL_NOTIFICATIONS: $ENABLE_EMAIL_NOTIFICATIONS
-        EMAIL_SMTP_SERVER: $EMAIL_SMTP_SERVER
-        EMAIL_SMTP_PORT: $EMAIL_SMTP_PORT
-        EMAIL_SMTP_USER: $EMAIL_SMTP_USER
-        EMAIL_SMTP_PASS: $EMAIL_SMTP_PASS
+        ENABLE_EMAIL_NOTIFICATIONS: "true"
+        EMAIL_SMTP_SERVER: "smtp.gmail.com"
+        EMAIL_SMTP_PORT: "587"
+        EMAIL_SMTP_USER: "prasannasrie@gmail.com"
+        EMAIL_SMTP_PASS: "jbbf nzhm zoay lbwb"
 
     scripts:
       - name: Build Android and iOS
