@@ -9,6 +9,49 @@ APP_NAME=${APP_NAME:-}
 
 log "Starting Android app customization"
 
+# Ensure required Java imports are present in build.gradle.kts for all workflows
+log "Checking and injecting Java imports in build.gradle.kts..."
+
+# Create backup
+cp android/app/build.gradle.kts android/app/build.gradle.kts.backup
+
+# Check if imports are already present
+if grep -q 'import java.util.Properties' android/app/build.gradle.kts && grep -q 'import java.io.FileInputStream' android/app/build.gradle.kts; then
+  log "Java imports already present in build.gradle.kts"
+else
+  log "Java imports missing, injecting them..."
+  
+  # Remove any existing import lines to avoid duplicates
+  sed -i.tmp '/^import java\.util\.Properties$/d' android/app/build.gradle.kts
+  sed -i.tmp '/^import java\.io\.FileInputStream$/d' android/app/build.gradle.kts
+  
+  # Add imports at the very top
+  sed -i.tmp '1i\
+import java.util.Properties\
+import java.io.FileInputStream\
+' android/app/build.gradle.kts
+  
+  # Clean up temp file
+  rm -f android/app/build.gradle.kts.tmp
+  
+  log "Java imports injected successfully"
+fi
+
+# Verify imports are present and file is valid
+if grep -q 'import java.util.Properties' android/app/build.gradle.kts && grep -q 'import java.io.FileInputStream' android/app/build.gradle.kts; then
+  log "✅ Java imports verified in build.gradle.kts"
+  
+  # Show first few lines for debugging
+  log "First 5 lines of build.gradle.kts:"
+  head -5 android/app/build.gradle.kts | while read line; do
+    log "  $line"
+  done
+else
+  log "❌ Java imports verification failed, restoring backup"
+  cp android/app/build.gradle.kts.backup android/app/build.gradle.kts
+  exit 1
+fi
+
 # Update package name in build.gradle
 if [ -n "$PKG_NAME" ]; then
   log "Updating package name to $PKG_NAME"

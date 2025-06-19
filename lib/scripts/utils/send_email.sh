@@ -617,7 +617,13 @@ EOF
 
 # Try to use Python email sender if available
 if command -v python3 >/dev/null 2>&1; then
-    python3 lib/scripts/utils/send_email.py "$@"
+    # Ensure we have the correct number of arguments for the Python script
+    if [ $# -eq 4 ]; then
+        python3 lib/scripts/utils/send_email.py "$1" "$2" "$3" "$4"
+    else
+        # Fallback with default values for missing arguments
+        python3 lib/scripts/utils/send_email.py "${1:-unknown}" "${2:-unknown}" "${3:-unknown}" "${4:-No message provided}"
+    fi
     exit 0
 fi
 
