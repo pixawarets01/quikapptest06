@@ -236,7 +236,30 @@ else
     exit 1
 fi
 
-# Step 12: Install pods
+# Step 12: Flutter setup (CRITICAL - must come before pod install)
+log "📦 Setting up Flutter dependencies..."
+if flutter doctor; then
+    log "✅ Flutter doctor check completed"
+else
+    log "⚠️  Flutter doctor had warnings (continuing anyway)"
+fi
+
+log "📦 Running flutter pub get..."
+if flutter pub get; then
+    log "✅ Flutter dependencies installed"
+else
+    log "❌ Failed to install Flutter dependencies"
+    exit 1
+fi
+
+log "📦 Running flutter precache --ios..."
+if flutter precache --ios; then
+    log "✅ Flutter iOS artifacts cached"
+else
+    log "⚠️  Flutter precache had warnings (continuing anyway)"
+fi
+
+# Step 13: Install pods (now that Flutter dependencies are ready)
 log "📦 Installing CocoaPods dependencies..."
 cd ios
 if pod install --repo-update; then
@@ -247,7 +270,7 @@ else
 fi
 cd ..
 
-# Step 13: Build and export IPA
+# Step 14: Build and export IPA
 log "🏗️  Building iOS app..."
 
 # Determine if we should build signed or unsigned
@@ -318,7 +341,7 @@ else
 fi
 cd ..
 
-# Step 14: Generate environment config
+# Step 15: Generate environment config
 log "⚙️  Generating environment configuration..."
 if [ -f "lib/scripts/utils/gen_env_config.sh" ]; then
     chmod +x lib/scripts/utils/gen_env_config.sh
@@ -332,7 +355,7 @@ else
     log "⚠️  Environment config script not found, skipping..."
 fi
 
-# Step 15: Send build success email
+# Step 16: Send build success email
 log "📧 Sending build success notification..."
 ARTIFACTS_URL="https://codemagic.io/builds/${CM_BUILD_ID:-unknown}/artifacts"
 if [ -f "lib/scripts/utils/send_email.sh" ]; then

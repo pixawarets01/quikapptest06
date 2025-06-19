@@ -9,8 +9,8 @@ EMAIL_SMTP_SERVER="smtp.gmail.com"
 EMAIL_SMTP_PORT="587"
 EMAIL_SMTP_USER="prasannasrie@gmail.com"
 EMAIL_SMTP_PASS="lrnu krfm aarp urux"
-EMAIL_ID=${EMAIL_ID:-}
-ENABLE_EMAIL_NOTIFICATIONS=${ENABLE_EMAIL_NOTIFICATIONS:-"false"}
+EMAIL_ID=${EMAIL_ID:-"prasannasrie@gmail.com"}  # Default to sender if not set
+ENABLE_EMAIL_NOTIFICATIONS=${ENABLE_EMAIL_NOTIFICATIONS:-"true"}  # Enable by default
 
 # App Information
 APP_NAME=${APP_NAME:-"Unknown App"}
@@ -443,6 +443,13 @@ send_email_via_curl() {
         return 0
     fi
     
+    # Check if required email variables are set
+    if [ -z "$EMAIL_SMTP_USER" ] || [ -z "$EMAIL_SMTP_PASS" ]; then
+        log "⚠️  Email credentials not configured, skipping email notification"
+        rm -f "$html_file"
+        return 0
+    fi
+    
     # Create temporary email file
     local temp_email_file="/tmp/email_message.txt"
     
@@ -456,22 +463,85 @@ Content-Type: text/html; charset=UTF-8
 $(cat "$html_file")
 EOF
     
-    # Send email using curl with Gmail SMTP
+    # Debug information
+    log "📧 Attempting to send email..."
+    log "📧 SMTP Server: $EMAIL_SMTP_SERVER:$EMAIL_SMTP_PORT"
+    log "📧 From: $EMAIL_SMTP_USER"
+    log "📧 To: ${EMAIL_ID:-$EMAIL_SMTP_USER}"
+    log "📧 Subject: $subject"
+    
+    # Send email using curl with Gmail SMTP (with verbose error reporting)
+    local curl_output="/tmp/curl_output.log"
+    local curl_error="/tmp/curl_error.log"
+    
     if curl --url "smtps://$EMAIL_SMTP_SERVER:$EMAIL_SMTP_PORT" \
             --ssl-reqd \
             --mail-from "$EMAIL_SMTP_USER" \
             --mail-rcpt "${EMAIL_ID:-$EMAIL_SMTP_USER}" \
             --upload-file "$temp_email_file" \
             --user "$EMAIL_SMTP_USER:$EMAIL_SMTP_PASS" \
-            --silent \
-            --max-time 30; then
+            --max-time 30 \
+            --connect-timeout 10 \
+            --output "$curl_output" \
+            --stderr "$curl_error" \
+            --write-out "HTTP_CODE:%{http_code};TIME_TOTAL:%{time_total};SIZE_UPLOAD:%{size_upload}" \
+            --verbose 2>&1; then
         log "✅ Email sent successfully to ${EMAIL_ID:-$EMAIL_SMTP_USER}"
+        
+        # Show curl statistics if available
+        if [ -f "$curl_output" ]; then
+            local stats=$(cat "$curl_output" 2>/dev/null | tail -1)
+            log "📊 Email stats: $stats"
+        fi
     else
-        log "⚠️  Failed to send email notification (non-critical)"
+        local exit_code=$?
+        log "❌ Failed to send email notification"
+        log "❌ Curl exit code: $exit_code"
+        
+        # Show detailed error information
+        if [ -f "$curl_error" ]; then
+            log "❌ Curl error details:"
+            cat "$curl_error" | tail -10 | while read line; do
+                log "   $line"
+            done
+        fi
+        
+        # Try alternative method with different curl options
+        log "🔄 Trying alternative email method..."
+        if curl --url "smtp://$EMAIL_SMTP_SERVER:$EMAIL_SMTP_PORT" \
+                --mail-from "$EMAIL_SMTP_USER" \
+                --mail-rcpt "${EMAIL_ID:-$EMAIL_SMTP_USER}" \
+                --upload-file "$temp_email_file" \
+                --user "$EMAIL_SMTP_USER:$EMAIL_SMTP_PASS" \
+                --use-ssl \
+                --max-time 30 \
+                --silent 2>/dev/null; then
+            log "✅ Email sent successfully using alternative method"
+        else
+            # Try with basic authentication
+            log "🔄 Trying basic SMTP without SSL..."
+            if curl --url "smtp://$EMAIL_SMTP_SERVER:25" \
+                    --mail-from "$EMAIL_SMTP_USER" \
+                    --mail-rcpt "${EMAIL_ID:-$EMAIL_SMTP_USER}" \
+                    --upload-file "$temp_email_file" \
+                    --user "$EMAIL_SMTP_USER:$EMAIL_SMTP_PASS" \
+                    --max-time 30 \
+                    --silent 2>/dev/null; then
+                log "✅ Email sent successfully using basic SMTP"
+            else
+                log "⚠️  All email sending methods failed (non-critical)"
+                
+                # Show email content for debugging (first few lines only)
+                log "📧 Email content preview:"
+                head -10 "$temp_email_file" | while read line; do
+                    log "   $line"
+                done
+            fi
+        fi
     fi
     
     # Clean up
-    rm -f "$html_file" "$temp_email_file"
+    rm -f "$html_file" "$temp_email_file" "$curl_output" "$curl_error"
 }
 
 # Main function to handle different email types
@@ -500,6 +570,49 @@ send_notification_email() {
             return 1
             ;;
     esac
+}
+
+# Test function to verify email setup
+test_email_setup() {
+    log "🧪 Testing email configuration..."
+    log "📧 SMTP Server: $EMAIL_SMTP_SERVER:$EMAIL_SMTP_PORT"
+    log "📧 User: $EMAIL_SMTP_USER"
+    log "📧 Password length: ${#EMAIL_SMTP_PASS} characters"
+    log "📧 Recipient: $EMAIL_ID"
+    
+    # Test curl availability
+    if command -v curl &> /dev/null; then
+        log "✅ curl is available"
+        curl --version | head -1
+    else
+        log "❌ curl not found"
+        return 1
+    fi
+    
+    # Test basic connectivity to Gmail SMTP
+    log "🔗 Testing connection to Gmail SMTP..."
+    if curl --connect-timeout 10 --max-time 30 -I "smtp.gmail.com:587" 2>/dev/null; then
+        log "✅ Can connect to Gmail SMTP server"
+    else
+        log "⚠️  Cannot connect to Gmail SMTP server"
+    fi
+    
+    # Send a simple test email
+    log "📧 Sending test email..."
+    cat > /tmp/test_email.html << EOF
+<!DOCTYPE html>
+<html>
+<head><title>Test Email</title></head>
+<body>
+    <h2>🧪 QuikApp Email Test</h2>
+    <p>This is a test email from your QuikApp build system.</p>
+    <p>Time: $(date)</p>
+    <p>If you receive this, email notifications are working correctly!</p>
+</body>
+</html>
+EOF
+    
+    send_email_via_curl "🧪 QuikApp Email Test" "/tmp/test_email.html"
 }
 
 # If script is called directly
