@@ -125,6 +125,24 @@ fi
 if [ -n "$KEY_STORE_URL" ] && [ -f ./lib/scripts/android/keystore.sh ]; then
     log "Running keystore script..."
     ./lib/scripts/android/keystore.sh || handle_error "Keystore script failed"
+    
+    # Verify keystore setup for release signing
+    if [ -f android/app/keystore.properties ] && [ -f android/app/keystore.jks ]; then
+        log "✅ Keystore setup verified - release signing will be used"
+    else
+        log "⚠️  WARNING: Keystore files missing - will fallback to debug signing"
+        log "⚠️  WARNING: Debug-signed builds cannot be uploaded to Google Play Store"
+    fi
+else
+    log "⚠️  No keystore configuration - using debug signing"
+    log "⚠️  WARNING: Debug-signed builds cannot be uploaded to Google Play Store"
+fi
+
+# Verify signing configuration before building
+if [ -f ./lib/scripts/android/verify_signing.sh ]; then
+    log "Running signing verification..."
+    chmod +x ./lib/scripts/android/verify_signing.sh
+    ./lib/scripts/android/verify_signing.sh || handle_error "Signing verification failed"
 fi
 
 log "Building APK..."

@@ -135,6 +135,21 @@ log "Running Flutter clean and get dependencies..."
 flutter clean || handle_error "Flutter clean failed"
 flutter pub get || handle_error "Flutter pub get failed"
 
+# Update iOS deployment target to support Firebase
+if [ -f ./lib/scripts/ios/deployment_target.sh ]; then
+    chmod +x ./lib/scripts/ios/deployment_target.sh
+    ./lib/scripts/ios/deployment_target.sh || handle_error "Failed to update iOS deployment target"
+else
+    log "Deployment target script not found, updating manually..."
+    sed -i.bak 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9][0-9]*\.[0-9]/IPHONEOS_DEPLOYMENT_TARGET = 13.0/g' ios/Runner.xcodeproj/project.pbxproj || true
+fi
+
+# Clean iOS build cache
+log "Cleaning iOS build cache..."
+rm -rf ios/Pods || true
+rm -rf ios/.symlinks || true
+rm -rf ios/Podfile.lock || true
+
 # Create Generated.xcconfig if it doesn't exist
 log "Generating Flutter iOS configuration..."
 mkdir -p ios/Flutter

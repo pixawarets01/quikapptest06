@@ -43,6 +43,11 @@ BUILD_DATE=$(date '+%Y-%m-%d %H:%M:%S')
 CM_BUILD_ID=${CM_BUILD_ID:-"Unknown"}
 CM_PROJECT_ID=${CM_PROJECT_ID:-"Unknown"}
 
+# Signing information
+KEY_STORE_URL=${KEY_STORE_URL:-}
+FIREBASE_CONFIG_ANDROID=${FIREBASE_CONFIG_ANDROID:-}
+FIREBASE_CONFIG_IOS=${FIREBASE_CONFIG_IOS:-}
+
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"; }
 
 # Function to convert status to uppercase (compatible with all shells)
@@ -130,6 +135,27 @@ create_email_content() {
             <tr><td style="padding: 5px 0; font-weight: bold;">Build Date:</td><td style="padding: 5px 0;">${BUILD_DATE}</td></tr>
             <tr><td style="padding: 5px 0; font-weight: bold;">Build ID:</td><td style="padding: 5px 0;">${CM_BUILD_ID}</td></tr>
         </table>
+    </div>
+    
+    <!-- Signing Information -->
+    <div style="background-color: #fff3cd; padding: 20px; border-left: 4px solid #ffc107;">
+        <h2 style="margin: 0 0 15px 0; color: #856404;">🔐 Signing Configuration</h2>
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr><td style="padding: 8px 0; font-weight: bold; color: #856404;">Android Signing:</td><td style="padding: 8px 0;">${ANDROID_SIGNING}</td></tr>
+            <tr><td style="padding: 8px 0; font-weight: bold; color: #856404;">Keystore Configured:</td><td style="padding: 8px 0;">${KEY_STORE_URL:+Yes}</td></tr>
+            <tr><td style="padding: 8px 0; font-weight: bold; color: #856404;">Firebase Android:</td><td style="padding: 8px 0;">${FIREBASE_CONFIG_ANDROID:+Configured}</td></tr>
+            <tr><td style="padding: 8px 0; font-weight: bold; color: #856404;">Firebase iOS:</td><td style="padding: 8px 0;">${FIREBASE_CONFIG_IOS:+Configured}</td></tr>
+        </table>
+        
+        $(if [ "$ANDROID_SIGNING" = "Debug" ] && [ -n "$KEY_STORE_URL" ]; then
+            echo "<div style='background-color: #f8d7da; color: #721c24; padding: 15px; border-radius: 5px; margin-top: 15px;'>
+                <strong>⚠️ Warning:</strong> Keystore was provided but Android signing is still in Debug mode. This usually indicates a keystore configuration issue. Debug-signed APKs cannot be uploaded to Google Play Store.
+            </div>"
+        elif [ "$ANDROID_SIGNING" = "Debug" ]; then
+            echo "<div style='background-color: #d1ecf1; color: #0c5460; padding: 15px; border-radius: 5px; margin-top: 15px;'>
+                <strong>ℹ️ Info:</strong> Using debug signing as no keystore was provided. Debug-signed APKs are for testing only and cannot be uploaded to Google Play Store.
+            </div>"
+        fi)
     </div>
     
     <!-- Feature Status -->
