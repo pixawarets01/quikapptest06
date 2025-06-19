@@ -48,6 +48,32 @@ KEY_STORE_URL=${KEY_STORE_URL:-}
 FIREBASE_CONFIG_ANDROID=${FIREBASE_CONFIG_ANDROID:-}
 FIREBASE_CONFIG_IOS=${FIREBASE_CONFIG_IOS:-}
 
+# Determine signing status
+ANDROID_SIGNING="N/A"
+IOS_SIGNING="N/A"
+
+# Check if this is an Android build
+if [ -f android/app/build.gradle.kts ] || [ -f android/app/build.gradle ]; then
+    ANDROID_SIGNING="Debug"
+    if [ -n "$KEY_STORE_URL" ] && [ -f android/app/keystore.properties ] && [ -f android/app/keystore.jks ]; then
+        ANDROID_SIGNING="Release (Production)"
+    elif [ -n "$KEY_STORE_URL" ]; then
+        ANDROID_SIGNING="Release (Failed)"
+    fi
+fi
+
+# Check if this is an iOS build
+if [ -f ios/Runner.xcodeproj/project.pbxproj ] || [ -f ios/Runner.xcworkspace/contents.xcworkspacedata ]; then
+    IOS_SIGNING="Unsigned"
+    if [ -n "${CERT_CER_URL:-}" ] && [ -n "${CERT_KEY_URL:-}" ] && [ -n "${PROFILE_URL:-}" ] && [ -n "${CERT_PASSWORD:-}" ]; then
+        if [ -f ios/certificates/cert.p12 ] || [ -f certs/cert.p12 ]; then
+            IOS_SIGNING="Signed (Production)"
+        else
+            IOS_SIGNING="Signed (Failed)"
+        fi
+    fi
+fi
+
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"; }
 
 # Function to convert status to uppercase (compatible with all shells)
@@ -142,9 +168,11 @@ create_email_content() {
         <h2 style="margin: 0 0 15px 0; color: #856404;">🔐 Signing Configuration</h2>
         <table style="width: 100%; border-collapse: collapse;">
             <tr><td style="padding: 8px 0; font-weight: bold; color: #856404;">Android Signing:</td><td style="padding: 8px 0;">${ANDROID_SIGNING}</td></tr>
-            <tr><td style="padding: 8px 0; font-weight: bold; color: #856404;">Keystore Configured:</td><td style="padding: 8px 0;">${KEY_STORE_URL:+Yes}</td></tr>
-            <tr><td style="padding: 8px 0; font-weight: bold; color: #856404;">Firebase Android:</td><td style="padding: 8px 0;">${FIREBASE_CONFIG_ANDROID:+Configured}</td></tr>
-            <tr><td style="padding: 8px 0; font-weight: bold; color: #856404;">Firebase iOS:</td><td style="padding: 8px 0;">${FIREBASE_CONFIG_IOS:+Configured}</td></tr>
+            <tr><td style="padding: 8px 0; font-weight: bold; color: #856404;">iOS Signing:</td><td style="padding: 8px 0;">${IOS_SIGNING}</td></tr>
+            <tr><td style="padding: 8px 0; font-weight: bold; color: #856404;">Keystore Configured:</td><td style="padding: 8px 0;">$([ -n "$KEY_STORE_URL" ] && echo "Yes" || echo "No")</td></tr>
+            <tr><td style="padding: 8px 0; font-weight: bold; color: #856404;">iOS Certificates:</td><td style="padding: 8px 0;">$([ -n "${CERT_CER_URL:-}" ] && echo "Yes" || echo "No")</td></tr>
+            <tr><td style="padding: 8px 0; font-weight: bold; color: #856404;">Firebase Android:</td><td style="padding: 8px 0;">$([ -n "$FIREBASE_CONFIG_ANDROID" ] && echo "Configured" || echo "Not configured")</td></tr>
+            <tr><td style="padding: 8px 0; font-weight: bold; color: #856404;">Firebase iOS:</td><td style="padding: 8px 0;">$([ -n "$FIREBASE_CONFIG_IOS" ] && echo "Configured" || echo "Not configured")</td></tr>
         </table>
         
         $(if [ "$ANDROID_SIGNING" = "Debug" ] && [ -n "$KEY_STORE_URL" ]; then
