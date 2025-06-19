@@ -8,7 +8,7 @@ MESSAGE=$2
 EMAIL_SMTP_SERVER="smtp.gmail.com"
 EMAIL_SMTP_PORT="587"
 EMAIL_SMTP_USER="prasannasrie@gmail.com"
-EMAIL_SMTP_PASS="jbbf nzhm zoay lbwb"
+EMAIL_SMTP_PASS="lrnu krfm aarp urux"
 EMAIL_ID=${EMAIL_ID:-}
 ENABLE_EMAIL_NOTIFICATIONS=${ENABLE_EMAIL_NOTIFICATIONS:-"false"}
 

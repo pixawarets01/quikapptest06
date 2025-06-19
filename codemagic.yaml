@@ -20,7 +20,7 @@ workflows:
         USER_NAME: $USER_NAME
         PUSH_NOTIFY: "false"
         IS_CHATBOT: $IS_CHATBOT
-        IS_DOMAIN_URL: $IS_DOMAIN_URL
+        IS_DOMAIN_URL: "false"
         IS_SPLASH: $IS_SPLASH
         IS_PULLDOWN: $IS_PULLDOWN
         IS_BOTTOMMENU: $IS_BOTTOMMENU
