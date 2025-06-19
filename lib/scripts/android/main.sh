@@ -79,32 +79,47 @@ else
     log "⚠️  Permissions script not found, skipping..."
 fi
 
+# Detect android-free workflow (no push notify, no keystore)
+ANDROID_FREE_WORKFLOW=false
+if [[ "${PUSH_NOTIFY:-false}" == "false" && -z "${KEY_STORE_URL:-}" ]]; then
+    ANDROID_FREE_WORKFLOW=true
+    log "🟢 Detected android-free workflow: Skipping Firebase and Keystore setup."
+fi
+
 # Step 4: Run Firebase script
-log "🔥 Running Firebase script..."
-if [ -f "lib/scripts/android/firebase.sh" ]; then
-    chmod +x lib/scripts/android/firebase.sh
-    if lib/scripts/android/firebase.sh; then
-        log "✅ Firebase configuration completed"
+if [ "$ANDROID_FREE_WORKFLOW" = false ]; then
+    log "🔥 Running Firebase script..."
+    if [ -f "lib/scripts/android/firebase.sh" ]; then
+        chmod +x lib/scripts/android/firebase.sh
+        if lib/scripts/android/firebase.sh; then
+            log "✅ Firebase configuration completed"
+        else
+            log "❌ Firebase configuration failed"
+            exit 1
+        fi
     else
-        log "❌ Firebase configuration failed"
-        exit 1
+        log "⚠️  Firebase script not found, skipping..."
     fi
 else
-    log "⚠️  Firebase script not found, skipping..."
+    log "⏭️  Skipping Firebase setup for android-free workflow."
 fi
 
 # Step 5: Run keystore script
-log "🔐 Running keystore script..."
-if [ -f "lib/scripts/android/keystore.sh" ]; then
-    chmod +x lib/scripts/android/keystore.sh
-    if lib/scripts/android/keystore.sh; then
-        log "✅ Keystore configuration completed"
+if [ "$ANDROID_FREE_WORKFLOW" = false ]; then
+    log "🔐 Running keystore script..."
+    if [ -f "lib/scripts/android/keystore.sh" ]; then
+        chmod +x lib/scripts/android/keystore.sh
+        if lib/scripts/android/keystore.sh; then
+            log "✅ Keystore configuration completed"
+        else
+            log "❌ Keystore configuration failed"
+            exit 1
+        fi
     else
-        log "❌ Keystore configuration failed"
-        exit 1
+        log "⚠️  Keystore script not found, skipping..."
     fi
 else
-    log "⚠️  Keystore script not found, skipping..."
+    log "⏭️  Skipping keystore setup for android-free workflow."
 fi
 
 # Step 6: Build APK
