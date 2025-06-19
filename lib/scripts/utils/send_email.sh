@@ -615,6 +615,12 @@ EOF
     send_email_via_curl "🧪 QuikApp Email Test" "/tmp/test_email.html"
 }
 
+# Try to use Python email sender if available
+if command -v python3 >/dev/null 2>&1; then
+    python3 lib/scripts/utils/send_email.py "$@"
+    exit 0
+fi
+
 # If script is called directly
 if [ "${BASH_SOURCE[0]}" == "${0}" ]; then
     if [ $# -lt 1 ]; then

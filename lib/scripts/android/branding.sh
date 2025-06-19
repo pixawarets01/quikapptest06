@@ -5,6 +5,8 @@ handle_error() { log "ERROR: $1"; exit 1; }
 trap 'handle_error "Error occurred at line $LINENO"' ERR
 
 # Branding vars
+APP_NAME=${APP_NAME:-"Unknown App"}
+WEB_URL=${WEB_URL:-"https://example.com"}
 LOGO_URL=${LOGO_URL:-}
 SPLASH_URL=${SPLASH_URL:-}
 SPLASH_BG_URL=${SPLASH_BG_URL:-}
