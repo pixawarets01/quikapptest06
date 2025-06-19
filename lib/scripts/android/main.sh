@@ -7,6 +7,133 @@ source lib/scripts/utils/gen_env_config.sh
 # Initialize logging
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"; }
 
+# CRITICAL FIX: Ensure Java imports are present in build.gradle.kts
+log "🔧 Ensuring Java imports in build.gradle.kts..."
+if [ -f "android/app/build.gradle.kts" ]; then
+    if ! grep -q 'import java.util.Properties' android/app/build.gradle.kts; then
+        log "Adding missing Java imports to build.gradle.kts"
+        # Create a temporary file with imports at the top
+        {
+            echo "import java.util.Properties"
+            echo "import java.io.FileInputStream"
+            echo ""
+            cat android/app/build.gradle.kts
+        } > android/app/build.gradle.kts.tmp
+        mv android/app/build.gradle.kts.tmp android/app/build.gradle.kts
+        log "✅ Java imports added to build.gradle.kts"
+    else
+        log "✅ Java imports already present in build.gradle.kts"
+    fi
+else
+    log "⚠️ build.gradle.kts not found"
+fi
+
+# Generate complete build.gradle.kts based on workflow
+log "📝 Generating build.gradle.kts for workflow: ${WORKFLOW_ID:-unknown}"
+
+# Backup original file
+cp android/app/build.gradle.kts android/app/build.gradle.kts.original 2>/dev/null || true
+
+# Determine keystore configuration based on workflow
+KEYSTORE_CONFIG=""
+if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "combined" ]]; then
+    KEYSTORE_CONFIG='
+        create("release") {
+            val keystorePropertiesFile = rootProject.file("app/keystore.properties")
+            if (keystorePropertiesFile.exists()) {
+                val keystoreProperties = Properties()
+                keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+                
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
+        }'
+else
+    KEYSTORE_CONFIG='
+        // No keystore configuration for this workflow'
+fi
+
+# Determine build type configuration
+BUILD_TYPE_CONFIG=""
+if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "combined" ]]; then
+    BUILD_TYPE_CONFIG='
+        release {
+            val keystorePropertiesFile = rootProject.file("app/keystore.properties")
+            if (keystorePropertiesFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            } else {
+                // Fallback to debug signing if keystore not available
+                signingConfig = signingConfigs.getByName("debug")
+            }
+            isMinifyEnabled = false
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }'
+else
+    BUILD_TYPE_CONFIG='
+        release {
+            // Debug signing for free/paid workflows
+            signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = false
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }'
+fi
+
+# Generate complete build.gradle.kts
+cat > android/app/build.gradle.kts <<EOF
+import java.util.Properties
+import java.io.FileInputStream
+
+plugins {
+    id("com.android.application")
+    id("kotlin-android")
+    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    id("dev.flutter.flutter-gradle-plugin")
+}
+
+android {
+    namespace = "com.example.quikapptest06"
+    compileSdk = flutter.compileSdkVersion
+    ndkVersion = "27.0.12077973"
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_11.toString()
+    }
+
+    defaultConfig {
+        // Application ID will be updated by customization script
+        applicationId = "com.example.quikapptest06"
+        minSdk = flutter.minSdkVersion
+        targetSdk = flutter.targetSdkVersion
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
+    }
+
+    signingConfigs {$KEYSTORE_CONFIG
+    }
+
+    buildTypes {$BUILD_TYPE_CONFIG
+    }
+}
+
+flutter {
+    source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+}
+EOF
+
+log "✅ Generated build.gradle.kts for ${WORKFLOW_ID:-unknown} workflow"
+
 # Error handling with email notification
 trap 'handle_error $LINENO $?' ERR
 
