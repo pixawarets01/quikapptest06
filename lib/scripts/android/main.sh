@@ -67,7 +67,8 @@ if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "co
                 // Fallback to debug signing if keystore not available
                 signingConfig = signingConfigs.getByName("debug")
             }
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }'
 else
@@ -76,6 +77,7 @@ else
             // Debug signing for free/paid workflows
             signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }'
 fi

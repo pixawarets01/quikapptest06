@@ -239,7 +239,6 @@ generate_troubleshooting_steps() {
             <ul>
                 <li>Verify certificate (.cer) and private key (.key) files are valid</li>
                 <li>Ensure provisioning profile (.mobileprovision) matches the app</li>
-                <li>Check that CERT_PASSWORD is correct</li>
                 <li>Verify APPLE_TEAM_ID matches your developer account</li>
             </ul>
         </li>
