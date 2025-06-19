@@ -8,7 +8,7 @@ MESSAGE=$2
 EMAIL_SMTP_SERVER="smtp.gmail.com"
 EMAIL_SMTP_PORT="587"
 EMAIL_SMTP_USER="prasannasrie@gmail.com"
-EMAIL_SMTP_PASS="lrnu krfm aarp urux"
+EMAIL_SMTP_PASS="lrnu krfm aarp urux"
 EMAIL_ID=${EMAIL_ID:-}
 ENABLE_EMAIL_NOTIFICATIONS=${ENABLE_EMAIL_NOTIFICATIONS:-"false"}
 
@@ -320,7 +320,7 @@ send_build_started_email() {
 </html>
 EOF
 
-    send_email_via_msmtp "🚀 QuikApp Build Started - ${APP_NAME:-Your App}" "/tmp/email_content.html"
+    send_email_via_curl "🚀 QuikApp Build Started - ${APP_NAME:-Your App}" "/tmp/email_content.html"
 }
 
 # Function to send build success email
@@ -376,7 +376,7 @@ send_build_success_email() {
 </html>
 EOF
 
-    send_email_via_msmtp "🎉 QuikApp Build Successful - ${APP_NAME:-Your App}" "/tmp/email_content.html"
+    send_email_via_curl "🎉 QuikApp Build Successful - ${APP_NAME:-Your App}" "/tmp/email_content.html"
 }
 
 # Function to send build failed email
@@ -428,74 +428,62 @@ send_build_failed_email() {
 </html>
 EOF
 
-    send_email_via_msmtp "❌ QuikApp Build Failed - ${APP_NAME:-Your App}" "/tmp/email_content.html"
+    send_email_via_curl "❌ QuikApp Build Failed - ${APP_NAME:-Your App}" "/tmp/email_content.html"
 }
 
-# Function to send email using msmtp
-send_email_via_msmtp() {
+# Function to send email using curl (lightweight, no installation needed)
+send_email_via_curl() {
     local subject="$1"
     local html_file="$2"
     
-    if ! command -v msmtp &> /dev/null; then
-        log "❌ msmtp not found. Installing..."
-        
-        # Try to install msmtp based on the system
-        if command -v brew &> /dev/null; then
-            brew install msmtp
-        elif command -v apt-get &> /dev/null; then
-            sudo apt-get update && sudo apt-get install -y msmtp msmtp-mta
-        elif command -v yum &> /dev/null; then
-            sudo yum install -y msmtp
-        else
-            log "❌ Cannot install msmtp. Please install it manually."
-            return 1
-        fi
+    # Check if curl is available (it should be on most CI systems)
+    if ! command -v curl &> /dev/null; then
+        log "⚠️  curl not available, skipping email notification"
+        rm -f "$html_file"
+        return 0
     fi
     
-    # Create msmtp configuration
-    cat > ~/.msmtprc << EOF
-defaults
-auth           on
-tls            on
-tls_trust_file /etc/ssl/certs/ca-certificates.crt
+    # Create temporary email file
+    local temp_email_file="/tmp/email_message.txt"
+    
+    # Build email message
+    cat > "$temp_email_file" << EOF
+To: ${EMAIL_ID:-$EMAIL_SMTP_USER}
+From: $EMAIL_SMTP_USER
+Subject: $subject
+Content-Type: text/html; charset=UTF-8
 
-account        gmail
-host           $EMAIL_SMTP_SERVER
-port           $EMAIL_SMTP_PORT
-from           $EMAIL_SMTP_USER
-user           $EMAIL_SMTP_USER
-password       $EMAIL_SMTP_PASS
-
-account default : gmail
+$(cat "$html_file")
 EOF
     
-    chmod 600 ~/.msmtprc
-    
-    # Send email
-    {
-        echo "To: ${EMAIL_ID:-$EMAIL_SMTP_USER}"
-        echo "From: $EMAIL_SMTP_USER"
-        echo "Subject: $subject"
-        echo "Content-Type: text/html; charset=UTF-8"
-        echo ""
-        cat "$html_file"
-    } | msmtp --account=gmail "${EMAIL_ID:-$EMAIL_SMTP_USER}"
-    
-    if [ $? -eq 0 ]; then
+    # Send email using curl with Gmail SMTP
+    if curl --url "smtps://$EMAIL_SMTP_SERVER:$EMAIL_SMTP_PORT" \
+            --ssl-reqd \
+            --mail-from "$EMAIL_SMTP_USER" \
+            --mail-rcpt "${EMAIL_ID:-$EMAIL_SMTP_USER}" \
+            --upload-file "$temp_email_file" \
+            --user "$EMAIL_SMTP_USER:$EMAIL_SMTP_PASS" \
+            --silent \
+            --max-time 30; then
         log "✅ Email sent successfully to ${EMAIL_ID:-$EMAIL_SMTP_USER}"
     else
-        log "❌ Failed to send email"
-        return 1
+        log "⚠️  Failed to send email notification (non-critical)"
     fi
     
     # Clean up
-    rm -f "$html_file"
+    rm -f "$html_file" "$temp_email_file"
 }
 
 # Main function to handle different email types
 send_notification_email() {
     local email_type="$1"
     shift
+    
+    # Skip email if disabled or in testing mode
+    if [ "${ENABLE_EMAIL_NOTIFICATIONS:-true}" = "false" ]; then
+        log "📧 Email notifications disabled, skipping $email_type notification"
+        return 0
+    fi
     
     case "$email_type" in
         "build_started")
