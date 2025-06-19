@@ -145,6 +145,10 @@ PROVISIONING_PROFILE_UUID=""
 
 if [ -n "$CERT_CER_URL" ] && [ -n "$CERT_KEY_URL" ] && [ -n "$CERT_PASSWORD" ] && [ -n "$PROFILE_URL" ]; then
     log "🔐 Setting up iOS code signing..."
+    log "Certificate URL: $CERT_CER_URL"
+    log "Key URL: $CERT_KEY_URL"
+    log "Profile URL: $PROFILE_URL"
+    log "Password configured: $([ -n "$CERT_PASSWORD" ] && echo "Yes (length: ${#CERT_PASSWORD})" || echo "No")"
     
     # Create certificates directory
     mkdir -p ios/certificates
@@ -155,28 +159,40 @@ if [ -n "$CERT_CER_URL" ] && [ -n "$CERT_KEY_URL" ] && [ -n "$CERT_PASSWORD" ] &
     curl -L "$CERT_KEY_URL" -o ios/certificates/cert.key || handle_error "Failed to download private key"
     curl -L "$PROFILE_URL" -o ios/certificates/profile.mobileprovision || handle_error "Failed to download provisioning profile"
     
-    # Verify files were downloaded
+    # Verify files were downloaded and check their content
     if [ ! -f ios/certificates/cert.cer ] || [ ! -f ios/certificates/cert.key ] || [ ! -f ios/certificates/profile.mobileprovision ]; then
         handle_error "One or more certificate files failed to download"
     fi
     
-    # Generate P12 file from CER and KEY
-    log "Generating P12 certificate from CER and KEY files..."
+    # Check file sizes and basic content
+    log "Verifying downloaded files..."
+    CER_SIZE=$(stat -f%z ios/certificates/cert.cer 2>/dev/null || stat -c%s ios/certificates/cert.cer 2>/dev/null || echo "0")
+    KEY_SIZE=$(stat -f%z ios/certificates/cert.key 2>/dev/null || stat -c%s ios/certificates/cert.key 2>/dev/null || echo "0")
+    PROFILE_SIZE=$(stat -f%z ios/certificates/profile.mobileprovision 2>/dev/null || stat -c%s ios/certificates/profile.mobileprovision 2>/dev/null || echo "0")
+    
+    log "Certificate size: ${CER_SIZE} bytes"
+    log "Private key size: ${KEY_SIZE} bytes"
+    log "Provisioning profile size: ${PROFILE_SIZE} bytes"
+    
+    if [ "$CER_SIZE" -lt 100 ] || [ "$KEY_SIZE" -lt 100 ] || [ "$PROFILE_SIZE" -lt 100 ]; then
+        log "Warning: One or more files seem too small - they might be error pages or invalid files"
+        log "Certificate content preview: $(head -2 ios/certificates/cert.cer)"
+        log "Key content preview: $(head -2 ios/certificates/cert.key)"
+    fi
+    
+    # Use advanced certificate handler for P12 generation and keychain import
+    log "Processing certificates with advanced handler..."
     P12_FILE="ios/certificates/cert.p12"
     
-    # Convert CER to PEM
-    openssl x509 -inform DER -in ios/certificates/cert.cer -out ios/certificates/cert.pem || handle_error "Failed to convert CER to PEM"
+    # Make certificate handler executable
+    chmod +x ./lib/scripts/ios/certificate_handler.sh || handle_error "Failed to make certificate handler executable"
     
-    # Create P12 from PEM and KEY
-    openssl pkcs12 -export -out "$P12_FILE" -inkey ios/certificates/cert.key -in ios/certificates/cert.pem -password "pass:$CERT_PASSWORD" || handle_error "Failed to create P12 file"
-    
-    # Install certificate in keychain
-    log "Installing certificate in keychain..."
-    security create-keychain -p "" build.keychain || true
-    security default-keychain -s build.keychain
-    security unlock-keychain -p "" build.keychain
-    security set-keychain-settings -t 3600 -u build.keychain
-    security import "$P12_FILE" -k build.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign -A || handle_error "Failed to import P12 certificate"
+    # Call the certificate handler
+    if ./lib/scripts/ios/certificate_handler.sh ios/certificates/cert.cer ios/certificates/cert.key "$CERT_PASSWORD" "$P12_FILE"; then
+        log "✅ Certificate processing and keychain import completed successfully"
+    else
+        handle_error "Certificate processing failed - check certificate files and CERT_PASSWORD"
+    fi
     
     # Install provisioning profile
     log "Installing provisioning profile..."
