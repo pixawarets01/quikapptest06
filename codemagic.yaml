@@ -46,7 +46,7 @@ workflows:
         EMAIL_SMTP_SERVER: "smtp.gmail.com"
         EMAIL_SMTP_PORT: "587"
         EMAIL_SMTP_USER: "prasannasrie@gmail.com"
-        EMAIL_SMTP_PASS: "jbbf nzhm zoay lbwb"
+        EMAIL_SMTP_PASS: "lrnu krfm aarp urux"
     scripts:
       - name: Build Android APK
         script: |
@@ -104,7 +104,7 @@ workflows:
         EMAIL_SMTP_SERVER: "smtp.gmail.com"
         EMAIL_SMTP_PORT: "587"
         EMAIL_SMTP_USER: "prasannasrie@gmail.com"
-        EMAIL_SMTP_PASS: "jbbf nzhm zoay lbwb"
+        EMAIL_SMTP_PASS: "lrnu krfm aarp urux"
     scripts:
       - name: Build Android APK
         script: |
@@ -165,7 +165,7 @@ workflows:
         EMAIL_SMTP_SERVER: "smtp.gmail.com"
         EMAIL_SMTP_PORT: "587"
         EMAIL_SMTP_USER: "prasannasrie@gmail.com"
-        EMAIL_SMTP_PASS: "jbbf nzhm zoay lbwb"
+        EMAIL_SMTP_PASS: "lrnu krfm aarp urux"
     scripts:
       - name: Build Android APK and AAB
         script: |
@@ -234,7 +234,7 @@ workflows:
         EMAIL_SMTP_SERVER: "smtp.gmail.com"
         EMAIL_SMTP_PORT: "587"
         EMAIL_SMTP_USER: "prasannasrie@gmail.com"
-        EMAIL_SMTP_PASS: "jbbf nzhm zoay lbwb"
+        EMAIL_SMTP_PASS: "lrnu krfm aarp urux"
     scripts:
       - name: Build iOS IPA
         script: |
@@ -308,7 +308,7 @@ workflows:
         EMAIL_SMTP_SERVER: "smtp.gmail.com"
         EMAIL_SMTP_PORT: "587"
         EMAIL_SMTP_USER: "prasannasrie@gmail.com"
-        EMAIL_SMTP_PASS: "jbbf nzhm zoay lbwb"
+        EMAIL_SMTP_PASS: "lrnu krfm aarp urux"
 
     scripts:
       - name: Build Android and iOS
