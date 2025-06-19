@@ -112,6 +112,7 @@ EOF
         if [ -n "$KEY_STORE_URL" ]; then
             echo '            <p style="margin: 5px 0;"><strong>AAB:</strong> <a href="https://api.codemagic.io/artifacts/'${CM_PROJECT_ID}'/'${CM_BUILD_ID}'/app-release.aab" style="color: #007bff;">Download AAB</a></p>'
         fi
+        echo '            <p style="margin: 5px 0;"><strong>IPA:</strong> <a href="https://api.codemagic.io/artifacts/'${CM_PROJECT_ID}'/'${CM_BUILD_ID}'/Runner.ipa" style="color: #007bff;">Download IPA</a></p>'
         echo '        </div>'
     fi
 }
@@ -176,15 +177,15 @@ EOF
 # Function to generate permissions details
 generate_permissions_details() {
     cat << EOF
-<div style="background: #fff3e0; padding: 20px; border-radius: 8px; margin: 20px 0;">
-    <h3 style="color: #f57c00; margin-bottom: 15px;">🔐 Permissions</h3>
+<div style="background: #fce4ec; padding: 20px; border-radius: 8px; margin: 20px 0;">
+    <h3 style="color: #d81b60; margin-bottom: 15px;">🔐 Permissions</h3>
     <table style="width: 100%; border-collapse: collapse;">
-        <tr><td style="padding: 5px 0; font-weight: bold;">Notifications:</td><td>$(get_feature_status "$IS_NOTIFICATION")</td></tr>
-        <tr><td style="padding: 5px 0; font-weight: bold;">Microphone:</td><td>$(get_feature_status "$IS_MIC")</td></tr>
         <tr><td style="padding: 5px 0; font-weight: bold;">Camera:</td><td>$(get_feature_status "$IS_CAMERA")</td></tr>
-        <tr><td style="padding: 5px 0; font-weight: bold;">GPS (Location):</td><td>$(get_feature_status "$IS_LOCATION")</td></tr>
-        <tr><td style="padding: 5px 0; font-weight: bold;">Biometric:</td><td>$(get_feature_status "$IS_BIOMETRIC")</td></tr>
+        <tr><td style="padding: 5px 0; font-weight: bold;">Location:</td><td>$(get_feature_status "$IS_LOCATION")</td></tr>
+        <tr><td style="padding: 5px 0; font-weight: bold;">Microphone:</td><td>$(get_feature_status "$IS_MIC")</td></tr>
+        <tr><td style="padding: 5px 0; font-weight: bold;">Notifications:</td><td>$(get_feature_status "$IS_NOTIFICATION")</td></tr>
         <tr><td style="padding: 5px 0; font-weight: bold;">Contacts:</td><td>$(get_feature_status "$IS_CONTACT")</td></tr>
+        <tr><td style="padding: 5px 0; font-weight: bold;">Biometric:</td><td>$(get_feature_status "$IS_BIOMETRIC")</td></tr>
         <tr><td style="padding: 5px 0; font-weight: bold;">Calendar:</td><td>$(get_feature_status "$IS_CALENDAR")</td></tr>
         <tr><td style="padding: 5px 0; font-weight: bold;">Storage:</td><td>$(get_feature_status "$IS_STORAGE")</td></tr>
     </table>
