@@ -69,16 +69,8 @@ html = f"""
             padding: 20px;
         }}
         
-#         .container {{
-#             max-width: 600px;
-#             margin: 0 auto;
-#             background: white;
-#             border-radius: 20px;
-#             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-#             overflow: hidden;
-#         }}
+
 .container {{
-    /* Styles for all screen sizes (default) */
     width: 90%;
     max-width: 600px;
     margin: 0 auto;
@@ -87,12 +79,10 @@ html = f"""
     box-shadow: 0 20px 40px rgba(0,0,0,0.1);
     overflow: hidden;
 }}
-
-@media (min-width: 992px) {{ /* Adjust this breakpoint as needed (common breakpoints: 768px, 992px, 1200px) */
+@media (min-width: 992px) {{
     .container {{
-        max-width: none; /* Remove the max-width constraint */
-        width: auto;     /* Allow the width to be determined by content or parent */
-        /* You might want to add a new max-width here if you want it to stop growing at a very large size, e.g., max-width: 1200px; */
+        max-width: none;
+        width: auto;
     }}
 }}
         
