@@ -1,30 +1,465 @@
 #!/bin/bash
 set -euo pipefail
 
+# Source environment variables
+source lib/scripts/utils/gen_env_config.sh
+
+# Initialize logging
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"; }
+
+# Error handling with email notification
+trap 'handle_error $LINENO $?' ERR
+
 handle_error() {
-  log "ERROR: $1"
-  ./lib/scripts/utils/send_email.sh "failure" "Combined build failed: $1"
-  exit 1
+    local line_no=$1
+    local exit_code=$2
+    local error_msg="Error occurred at line $line_no. Exit code: $exit_code"
+    
+    log "❌ $error_msg"
+    
+    # Send build failed email
+    if [ -f "lib/scripts/utils/send_email.sh" ]; then
+        chmod +x lib/scripts/utils/send_email.sh
+        lib/scripts/utils/send_email.sh "build_failed" "Android & iOS" "${CM_BUILD_ID:-unknown}" "$error_msg" || true
+    fi
+    
+    exit $exit_code
 }
-trap 'handle_error "Error occurred at line $LINENO"' ERR
 
-# Email
-ENABLE_EMAIL_NOTIFICATIONS=${ENABLE_EMAIL_NOTIFICATIONS:-"true"}
-export ENABLE_EMAIL_NOTIFICATIONS
+log "🚀 Starting Combined Android & iOS build process..."
 
-chmod +x ./lib/scripts/android/*.sh || true
-chmod +x ./lib/scripts/ios/*.sh || true
-chmod +x ./lib/scripts/utils/*.sh || true
+# Send build started email
+if [ -f "lib/scripts/utils/send_email.sh" ]; then
+    chmod +x lib/scripts/utils/send_email.sh
+    lib/scripts/utils/send_email.sh "build_started" "Android & iOS" "${CM_BUILD_ID:-unknown}" || true
+fi
 
-log "Starting combined Android & iOS build workflow"
+# Create necessary directories
+mkdir -p output/android
+mkdir -p output/ios
 
-log "Running Android build..."
-./lib/scripts/android/main.sh || handle_error "Android build failed"
+log "📱 Starting Android Build Phase..."
 
-log "Running iOS build..."
-./lib/scripts/ios/main.sh || handle_error "iOS build failed"
+# Execute Android build logic
+log "🎨 Running Android branding script..."
+if [ -f "lib/scripts/android/branding.sh" ]; then
+    chmod +x lib/scripts/android/branding.sh
+    if lib/scripts/android/branding.sh; then
+        log "✅ Android branding completed"
+    else
+        log "❌ Android branding failed"
+        exit 1
+    fi
+else
+    log "⚠️  Android branding script not found, skipping..."
+fi
 
-./lib/scripts/utils/send_email.sh "success" "Combined Android & iOS build completed successfully"
-log "Combined build completed successfully"
+log "⚙️  Running Android customization script..."
+if [ -f "lib/scripts/android/customization.sh" ]; then
+    chmod +x lib/scripts/android/customization.sh
+    if lib/scripts/android/customization.sh; then
+        log "✅ Android customization completed"
+    else
+        log "❌ Android customization failed"
+        exit 1
+    fi
+else
+    log "⚠️  Android customization script not found, skipping..."
+fi
+
+log "🔒 Running Android permissions script..."
+if [ -f "lib/scripts/android/permissions.sh" ]; then
+    chmod +x lib/scripts/android/permissions.sh
+    if lib/scripts/android/permissions.sh; then
+        log "✅ Android permissions configured"
+    else
+        log "❌ Android permissions configuration failed"
+        exit 1
+    fi
+else
+    log "⚠️  Android permissions script not found, skipping..."
+fi
+
+log "🔥 Running Android Firebase script..."
+if [ -f "lib/scripts/android/firebase.sh" ]; then
+    chmod +x lib/scripts/android/firebase.sh
+    if lib/scripts/android/firebase.sh; then
+        log "✅ Android Firebase configuration completed"
+    else
+        log "❌ Android Firebase configuration failed"
+        exit 1
+    fi
+else
+    log "⚠️  Android Firebase script not found, skipping..."
+fi
+
+log "🔐 Running Android keystore script..."
+if [ -f "lib/scripts/android/keystore.sh" ]; then
+    chmod +x lib/scripts/android/keystore.sh
+    if lib/scripts/android/keystore.sh; then
+        log "✅ Android keystore configuration completed"
+    else
+        log "❌ Android keystore configuration failed"
+        exit 1
+    fi
+else
+    log "⚠️  Android keystore script not found, skipping..."
+fi
+
+log "🏗️  Building Android APK..."
+if flutter build apk --release; then
+    log "✅ Android APK build completed"
+    if [ -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
+        cp build/app/outputs/flutter-apk/app-release.apk output/android/
+        log "✅ Android APK copied to output directory"
+    else
+        log "❌ Android APK file not found after build"
+        exit 1
+    fi
+else
+    log "❌ Android APK build failed"
+    exit 1
+fi
+
+# Build AAB if keystore is configured
+ANDROID_KEYSTORE_CONFIGURED=false
+if [ -f "android/app/keystore.properties" ]; then
+    ANDROID_KEYSTORE_CONFIGURED=true
+    log "🏗️  Building Android App Bundle (AAB)..."
+    if flutter build appbundle --release; then
+        log "✅ Android AAB build completed"
+        if [ -f "build/app/outputs/bundle/release/app-release.aab" ]; then
+            cp build/app/outputs/bundle/release/app-release.aab output/android/
+            log "✅ Android AAB copied to output directory"
+        else
+            log "❌ Android AAB file not found after build"
+            exit 1
+        fi
+    else
+        log "❌ Android AAB build failed"
+        exit 1
+    fi
+else
+    log "⚠️  Android keystore not configured, skipping AAB build"
+fi
+
+log "🔍 Verifying Android build signatures..."
+if [ -f "lib/scripts/android/verify_signing.sh" ]; then
+    chmod +x lib/scripts/android/verify_signing.sh
+    if lib/scripts/android/verify_signing.sh; then
+        log "✅ Android signature verification completed"
+    else
+        log "⚠️  Android signature verification had issues (see logs above)"
+    fi
+else
+    log "⚠️  Android signature verification script not found, skipping..."
+fi
+
+log "🍎 Starting iOS Build Phase..."
+
+# Create iOS directories
+mkdir -p ios/certificates
+
+# Download iOS certificate files
+log "📥 Downloading iOS certificate files (unencrypted)..."
+
+if [ -n "${CERT_CER_URL:-}" ]; then
+    log "Downloading iOS certificate from: $CERT_CER_URL"
+    if curl -L -o ios/certificates/cert.cer "$CERT_CER_URL"; then
+        log "✅ iOS certificate downloaded successfully"
+    else
+        log "❌ Failed to download iOS certificate"
+        exit 1
+    fi
+else
+    log "❌ CERT_CER_URL is required for iOS signing"
+    exit 1
+fi
+
+if [ -n "${CERT_KEY_URL:-}" ]; then
+    log "Downloading iOS private key from: $CERT_KEY_URL"
+    if curl -L -o ios/certificates/cert.key "$CERT_KEY_URL"; then
+        log "✅ iOS private key downloaded successfully"
+    else
+        log "❌ Failed to download iOS private key"
+        exit 1
+    fi
+else
+    log "❌ CERT_KEY_URL is required for iOS signing"
+    exit 1
+fi
+
+if [ -n "${PROFILE_URL:-}" ]; then
+    log "Downloading iOS provisioning profile from: $PROFILE_URL"
+    if curl -L -o ios/certificates/profile.mobileprovision "$PROFILE_URL"; then
+        log "✅ iOS provisioning profile downloaded successfully"
+    else
+        log "❌ Failed to download iOS provisioning profile"
+        exit 1
+    fi
+else
+    log "❌ PROFILE_URL is required for iOS signing"
+    exit 1
+fi
+
+# Validate required iOS variables
+log "🔍 Validating required iOS variables..."
+required_ios_vars=(
+    "CERT_PASSWORD"
+    "APPLE_TEAM_ID"
+    "APNS_KEY_ID"
+    "APNS_AUTH_KEY_URL"
+    "APP_STORE_CONNECT_KEY_IDENTIFIER"
+)
+
+for var in "${required_ios_vars[@]}"; do
+    if [ -z "${!var:-}" ]; then
+        log "❌ Required iOS variable $var is missing"
+        exit 1
+    fi
+done
+
+# Process iOS certificates
+log "🔐 Processing iOS certificates and creating P12 file..."
+if [ -f "lib/scripts/ios/certificate_handler.sh" ]; then
+    chmod +x lib/scripts/ios/certificate_handler.sh
+    if lib/scripts/ios/certificate_handler.sh \
+        "ios/certificates/cert.cer" \
+        "ios/certificates/cert.key" \
+        "$CERT_PASSWORD" \
+        "ios/certificates/cert.p12"; then
+        log "✅ iOS certificate processing completed"
+    else
+        log "❌ iOS certificate processing failed"
+        exit 1
+    fi
+else
+    log "❌ iOS certificate handler script not found"
+    exit 1
+fi
+
+# Install iOS provisioning profile
+log "📱 Installing iOS provisioning profile..."
+if [ -f "ios/certificates/profile.mobileprovision" ]; then
+    mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles/
+    cp ios/certificates/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
+    log "✅ iOS provisioning profile installed"
+else
+    log "❌ iOS provisioning profile not found"
+    exit 1
+fi
+
+# Download APNS auth key
+log "🔑 Downloading APNS auth key..."
+if [ -n "${APNS_AUTH_KEY_URL:-}" ]; then
+    if curl -L -o ios/certificates/AuthKey_${APNS_KEY_ID}.p8 "$APNS_AUTH_KEY_URL"; then
+        log "✅ APNS auth key downloaded"
+    else
+        log "❌ Failed to download APNS auth key"
+        exit 1
+    fi
+else
+    log "❌ APNS_AUTH_KEY_URL is required"
+    exit 1
+fi
+
+# Execute iOS build logic
+log "🎨 Running iOS branding script..."
+if [ -f "lib/scripts/ios/branding.sh" ]; then
+    chmod +x lib/scripts/ios/branding.sh
+    if lib/scripts/ios/branding.sh; then
+        log "✅ iOS branding completed"
+    else
+        log "❌ iOS branding failed"
+        exit 1
+    fi
+else
+    log "⚠️  iOS branding script not found, skipping..."
+fi
+
+log "⚙️  Running iOS customization script..."
+if [ -f "lib/scripts/ios/customization.sh" ]; then
+    chmod +x lib/scripts/ios/customization.sh
+    if lib/scripts/ios/customization.sh; then
+        log "✅ iOS customization completed"
+    else
+        log "❌ iOS customization failed"
+        exit 1
+    fi
+else
+    log "⚠️  iOS customization script not found, skipping..."
+fi
+
+log "🔒 Running iOS permissions script..."
+if [ -f "lib/scripts/ios/permissions.sh" ]; then
+    chmod +x lib/scripts/ios/permissions.sh
+    if lib/scripts/ios/permissions.sh; then
+        log "✅ iOS permissions configured"
+    else
+        log "❌ iOS permissions configuration failed"
+        exit 1
+    fi
+else
+    log "⚠️  iOS permissions script not found, skipping..."
+fi
+
+log "📱 Setting iOS deployment target..."
+if [ -f "lib/scripts/ios/deployment_target.sh" ]; then
+    chmod +x lib/scripts/ios/deployment_target.sh
+    if lib/scripts/ios/deployment_target.sh; then
+        log "✅ iOS deployment target set"
+    else
+        log "❌ iOS deployment target setting failed"
+        exit 1
+    fi
+else
+    log "⚠️  iOS deployment target script not found, skipping..."
+fi
+
+log "🔥 Running iOS Firebase script..."
+if [ -f "lib/scripts/ios/firebase.sh" ]; then
+    chmod +x lib/scripts/ios/firebase.sh
+    if lib/scripts/ios/firebase.sh; then
+        log "✅ iOS Firebase configuration completed"
+    else
+        log "❌ iOS Firebase configuration failed"
+        exit 1
+    fi
+else
+    log "⚠️  iOS Firebase script not found, skipping..."
+fi
+
+# Update Podfile for Firebase compatibility
+log "📦 Updating Podfile for Firebase compatibility..."
+if [ -f "ios/Podfile" ]; then
+    cat >> ios/Podfile << 'EOF'
+
+# Firebase compatibility settings
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'
+      config.build_settings['ENABLE_BITCODE'] = 'NO'
+      config.build_settings['SWIFT_VERSION'] = '5.0'
+      config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
+    end
+  end
+end
+EOF
+    log "✅ Podfile updated"
+else
+    log "❌ Podfile not found"
+    exit 1
+fi
+
+# Install pods
+log "📦 Installing CocoaPods dependencies..."
+cd ios
+if pod install --repo-update; then
+    log "✅ CocoaPods dependencies installed"
+else
+    log "❌ CocoaPods installation failed"
+    exit 1
+fi
+cd ..
+
+# Build iOS app
+log "🏗️  Building iOS app..."
+
+# Determine if we should build signed or unsigned
+IOS_BUILD_SIGNED=true
+if ! security find-identity -v -p codesigning build.keychain 2>/dev/null | grep -q "iPhone Distribution"; then
+    log "⚠️  No valid iOS signing identity found, attempting unsigned build"
+    IOS_BUILD_SIGNED=false
+fi
+
+# Create export options plist
+cat > ios/ExportOptions.plist << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>method</key>
+    <string>${PROFILE_TYPE:-app-store}</string>
+    <key>teamID</key>
+    <string>$APPLE_TEAM_ID</string>
+    <key>signingStyle</key>
+    <string>manual</string>
+    <key>provisioningProfiles</key>
+    <dict>
+        <key>$BUNDLE_ID</key>
+        <string>$(basename ios/certificates/profile.mobileprovision .mobileprovision)</string>
+    </dict>
+    <key>compileBitcode</key>
+    <false/>
+    <key>uploadBitcode</key>
+    <false/>
+    <key>uploadSymbols</key>
+    <false/>
+</dict>
+</plist>
+EOF
+
+# Build the iOS app
+cd ios
+if [ "$IOS_BUILD_SIGNED" = true ]; then
+    log "Building iOS with code signing..."
+    if xcodebuild -workspace Runner.xcworkspace -scheme Runner -configuration Release -destination generic/platform=iOS -archivePath build/Runner.xcarchive archive; then
+        log "✅ iOS archive created successfully"
+        
+        if xcodebuild -exportArchive -archivePath build/Runner.xcarchive -exportPath build/ -exportOptionsPlist ExportOptions.plist; then
+            log "✅ iOS IPA exported successfully"
+            cp build/Runner.ipa ../output/ios/
+        else
+            log "❌ iOS IPA export failed"
+            exit 1
+        fi
+    else
+        log "❌ iOS archive creation failed"
+        exit 1
+    fi
+else
+    log "Building iOS without code signing..."
+    if flutter build ios --release --no-codesign; then
+        log "✅ iOS unsigned build completed"
+        # Create a simple IPA structure for unsigned build
+        mkdir -p Payload/Runner.app
+        cp -r build/ios/Release-iphoneos/Runner.app Payload/
+        zip -r ../output/ios/Runner-unsigned.ipa Payload/
+        rm -rf Payload
+    else
+        log "❌ iOS unsigned build failed"
+        exit 1
+    fi
+fi
+cd ..
+
+# Generate environment config
+log "⚙️  Generating environment configuration..."
+if [ -f "lib/scripts/utils/gen_env_config.sh" ]; then
+    chmod +x lib/scripts/utils/gen_env_config.sh
+    if lib/scripts/utils/gen_env_config.sh; then
+        log "✅ Environment configuration generated"
+    else
+        log "❌ Environment configuration generation failed"
+        exit 1
+    fi
+else
+    log "⚠️  Environment config script not found, skipping..."
+fi
+
+# Send build success email
+log "📧 Sending build success notification..."
+ARTIFACTS_URL="https://codemagic.io/builds/${CM_BUILD_ID:-unknown}/artifacts"
+if [ -f "lib/scripts/utils/send_email.sh" ]; then
+    lib/scripts/utils/send_email.sh "build_success" "Android & iOS" "${CM_BUILD_ID:-unknown}" "$ARTIFACTS_URL" || true
+fi
+
+log "🎉 Combined Android & iOS build process completed successfully!"
+log "📱 Android APK file location: output/android/app-release.apk"
+if [ "$ANDROID_KEYSTORE_CONFIGURED" = true ]; then
+    log "📦 Android AAB file location: output/android/app-release.aab"
+fi
+log "🍎 iOS IPA file location: output/ios/"
+
 exit 0 

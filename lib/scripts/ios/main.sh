@@ -7,10 +7,32 @@ source lib/scripts/utils/gen_env_config.sh
 # Initialize logging
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"; }
 
-# Error handling
-trap 'log "❌ Error occurred at line $LINENO. Exit code: $?" >&2; exit 1' ERR
+# Error handling with email notification
+trap 'handle_error $LINENO $?' ERR
+
+handle_error() {
+    local line_no=$1
+    local exit_code=$2
+    local error_msg="Error occurred at line $line_no. Exit code: $exit_code"
+    
+    log "❌ $error_msg"
+    
+    # Send build failed email
+    if [ -f "lib/scripts/utils/send_email.sh" ]; then
+        chmod +x lib/scripts/utils/send_email.sh
+        lib/scripts/utils/send_email.sh "build_failed" "iOS" "${CM_BUILD_ID:-unknown}" "$error_msg" || true
+    fi
+    
+    exit $exit_code
+}
 
 log "🚀 Starting iOS build process..."
+
+# Send build started email
+if [ -f "lib/scripts/utils/send_email.sh" ]; then
+    chmod +x lib/scripts/utils/send_email.sh
+    lib/scripts/utils/send_email.sh "build_started" "iOS" "${CM_BUILD_ID:-unknown}" || true
+fi
 
 # Create necessary directories
 mkdir -p ios/certificates
@@ -310,17 +332,11 @@ else
     log "⚠️  Environment config script not found, skipping..."
 fi
 
-# Step 15: Send email notification
-log "📧 Sending email notification..."
+# Step 15: Send build success email
+log "📧 Sending build success notification..."
+ARTIFACTS_URL="https://codemagic.io/builds/${CM_BUILD_ID:-unknown}/artifacts"
 if [ -f "lib/scripts/utils/send_email.sh" ]; then
-    chmod +x lib/scripts/utils/send_email.sh
-    if lib/scripts/utils/send_email.sh "iOS Build Completed" "iOS build process completed successfully. Check the output/ios directory for the IPA file."; then
-        log "✅ Email notification sent"
-    else
-        log "⚠️  Email notification failed"
-    fi
-else
-    log "⚠️  Email script not found, skipping..."
+    lib/scripts/utils/send_email.sh "build_success" "iOS" "${CM_BUILD_ID:-unknown}" "$ARTIFACTS_URL" || true
 fi
 
 log "🎉 iOS build process completed successfully!"

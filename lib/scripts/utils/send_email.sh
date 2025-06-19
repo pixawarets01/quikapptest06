@@ -4,11 +4,11 @@ set -euo pipefail
 STATUS=$1
 MESSAGE=$2
 
-# Email configuration
-EMAIL_SMTP_SERVER=${EMAIL_SMTP_SERVER:-}
-EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT:-}
-EMAIL_SMTP_USER=${EMAIL_SMTP_USER:-}
-EMAIL_SMTP_PASS=${EMAIL_SMTP_PASS:-}
+# Email configuration with provided Gmail credentials
+EMAIL_SMTP_SERVER="smtp.gmail.com"
+EMAIL_SMTP_PORT="587"
+EMAIL_SMTP_USER="prasannasrie@gmail.com"
+EMAIL_SMTP_PASS="jbbf nzhm zoay lbwb"
 EMAIL_ID=${EMAIL_ID:-}
 ENABLE_EMAIL_NOTIFICATIONS=${ENABLE_EMAIL_NOTIFICATIONS:-"false"}
 
@@ -116,246 +116,411 @@ EOF
     fi
 }
 
-# Create HTML email content
-create_email_content() {
-    local status=$1
-    local message=$2
-    local status_color=$(get_status_color "$status")
-    local status_icon
-    
-    case "$status" in
-        "success") status_icon="✅" ;;
-        "failure") status_icon="❌" ;;
-        *) status_icon="ℹ️" ;;
-    esac
+# Function to get feature status
+get_feature_status() {
+    local feature="$1"
+    if [ "${feature:-false}" = "true" ]; then
+        echo "✅ Enabled"
+    else
+        echo "❌ Disabled"
+    fi
+}
 
+# Function to generate app details section
+generate_app_details() {
     cat << EOF
+<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+    <h3 style="color: #2c3e50; margin-bottom: 15px;">📱 App Details</h3>
+    <table style="width: 100%; border-collapse: collapse;">
+        <tr><td style="padding: 5px 0; font-weight: bold;">App Name:</td><td>${APP_NAME:-N/A}</td></tr>
+        <tr><td style="padding: 5px 0; font-weight: bold;">Version:</td><td>${VERSION_NAME:-N/A} (${VERSION_CODE:-N/A})</td></tr>
+        <tr><td style="padding: 5px 0; font-weight: bold;">Package Name (Android):</td><td>${PKG_NAME:-N/A}</td></tr>
+        <tr><td style="padding: 5px 0; font-weight: bold;">Bundle ID (iOS):</td><td>${BUNDLE_ID:-N/A}</td></tr>
+        <tr><td style="padding: 5px 0; font-weight: bold;">Organization:</td><td>${ORG_NAME:-N/A}</td></tr>
+        <tr><td style="padding: 5px 0; font-weight: bold;">Website:</td><td>${WEB_URL:-N/A}</td></tr>
+    </table>
+</div>
+EOF
+}
+
+# Function to generate customization details
+generate_customization_details() {
+    cat << EOF
+<div style="background: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0;">
+    <h3 style="color: #27ae60; margin-bottom: 15px;">🎨 Customization Features</h3>
+    <table style="width: 100%; border-collapse: collapse;">
+        <tr><td style="padding: 5px 0; font-weight: bold;">Custom Logo:</td><td>$(get_feature_status "${LOGO_URL:+true}")</td></tr>
+        <tr><td style="padding: 5px 0; font-weight: bold;">Splash Screen:</td><td>$(get_feature_status "$IS_SPLASH")</td></tr>
+        <tr><td style="padding: 5px 0; font-weight: bold;">Pull to Refresh:</td><td>$(get_feature_status "$IS_PULLDOWN")</td></tr>
+        <tr><td style="padding: 5px 0; font-weight: bold;">Loading Indicator:</td><td>$(get_feature_status "$IS_LOAD_IND")</td></tr>
+        <tr><td style="padding: 5px 0; font-weight: bold;">Bottom Navigation Bar:</td><td>$(get_feature_status "$IS_BOTTOMMENU")</td></tr>
+    </table>
+</div>
+EOF
+}
+
+# Function to generate integration details
+generate_integration_details() {
+    cat << EOF
+<div style="background: #e3f2fd; padding: 20px; border-radius: 8px; margin: 20px 0;">
+    <h3 style="color: #1976d2; margin-bottom: 15px;">🔗 Integration Features</h3>
+    <table style="width: 100%; border-collapse: collapse;">
+        <tr><td style="padding: 5px 0; font-weight: bold;">Push Notifications:</td><td>$(get_feature_status "$PUSH_NOTIFY")</td></tr>
+        <tr><td style="padding: 5px 0; font-weight: bold;">Chat Bot:</td><td>$(get_feature_status "$IS_CHATBOT")</td></tr>
+        <tr><td style="padding: 5px 0; font-weight: bold;">Deep Linking:</td><td>$(get_feature_status "$IS_DOMAIN_URL")</td></tr>
+    </table>
+</div>
+EOF
+}
+
+# Function to generate permissions details
+generate_permissions_details() {
+    cat << EOF
+<div style="background: #fff3e0; padding: 20px; border-radius: 8px; margin: 20px 0;">
+    <h3 style="color: #f57c00; margin-bottom: 15px;">🔐 Permissions</h3>
+    <table style="width: 100%; border-collapse: collapse;">
+        <tr><td style="padding: 5px 0; font-weight: bold;">Notifications:</td><td>$(get_feature_status "$IS_NOTIFICATION")</td></tr>
+        <tr><td style="padding: 5px 0; font-weight: bold;">Microphone:</td><td>$(get_feature_status "$IS_MIC")</td></tr>
+        <tr><td style="padding: 5px 0; font-weight: bold;">Camera:</td><td>$(get_feature_status "$IS_CAMERA")</td></tr>
+        <tr><td style="padding: 5px 0; font-weight: bold;">GPS (Location):</td><td>$(get_feature_status "$IS_LOCATION")</td></tr>
+        <tr><td style="padding: 5px 0; font-weight: bold;">Biometric:</td><td>$(get_feature_status "$IS_BIOMETRIC")</td></tr>
+        <tr><td style="padding: 5px 0; font-weight: bold;">Contacts:</td><td>$(get_feature_status "$IS_CONTACT")</td></tr>
+        <tr><td style="padding: 5px 0; font-weight: bold;">Calendar:</td><td>$(get_feature_status "$IS_CALENDAR")</td></tr>
+        <tr><td style="padding: 5px 0; font-weight: bold;">Storage:</td><td>$(get_feature_status "$IS_STORAGE")</td></tr>
+    </table>
+</div>
+EOF
+}
+
+# Function to generate QuikApp branding footer
+generate_branding_footer() {
+    cat << EOF
+<div style="background: #263238; color: #ffffff; padding: 30px; border-radius: 8px; margin: 30px 0; text-align: center;">
+    <h3 style="color: #4fc3f7; margin-bottom: 20px;">🚀 Powered by QuikApp</h3>
+    <p style="margin: 10px 0; color: #b0bec5;">Build mobile apps faster with QuikApp's no-code platform</p>
+    
+    <div style="margin: 20px 0;">
+        <a href="https://quikapp.io" style="color: #4fc3f7; text-decoration: none; margin: 0 15px;">🌐 Website</a>
+        <a href="https://docs.quikapp.io" style="color: #4fc3f7; text-decoration: none; margin: 0 15px;">📚 Documentation</a>
+        <a href="https://support.quikapp.io" style="color: #4fc3f7; text-decoration: none; margin: 0 15px;">🎧 Support</a>
+        <a href="https://community.quikapp.io" style="color: #4fc3f7; text-decoration: none; margin: 0 15px;">👥 Community</a>
+    </div>
+    
+    <hr style="border: none; border-top: 1px solid #37474f; margin: 20px 0;">
+    
+    <p style="margin: 10px 0; font-size: 12px; color: #78909c;">
+        © 2024 QuikApp Technologies. All rights reserved.<br>
+        This email was sent automatically by the QuikApp Build System.
+    </p>
+</div>
+EOF
+}
+
+# Function to generate troubleshooting steps for failures
+generate_troubleshooting_steps() {
+    local platform="$1"
+    local error_type="$2"
+    
+    cat << EOF
+<div style="background: #ffebee; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f44336;">
+    <h3 style="color: #c62828; margin-bottom: 15px;">🔧 Troubleshooting Steps</h3>
+    
+    <h4 style="color: #d32f2f;">Common Solutions:</h4>
+    <ol style="color: #424242; line-height: 1.6;">
+        <li><strong>Check Environment Variables:</strong>
+            <ul>
+                <li>Verify all required variables are set correctly</li>
+                <li>Ensure URLs are accessible and files are downloadable</li>
+                <li>Check API credentials and keys</li>
+            </ul>
+        </li>
+        
+        <li><strong>Certificate Issues (iOS):</strong>
+            <ul>
+                <li>Verify certificate (.cer) and private key (.key) files are valid</li>
+                <li>Ensure provisioning profile (.mobileprovision) matches the app</li>
+                <li>Check that CERT_PASSWORD is correct</li>
+                <li>Verify APPLE_TEAM_ID matches your developer account</li>
+            </ul>
+        </li>
+        
+        <li><strong>Keystore Issues (Android):</strong>
+            <ul>
+                <li>Verify keystore file is accessible at KEY_STORE_URL</li>
+                <li>Check CM_KEYSTORE_PASSWORD and CM_KEY_PASSWORD are correct</li>
+                <li>Ensure CM_KEY_ALIAS exists in the keystore</li>
+            </ul>
+        </li>
+        
+        <li><strong>Firebase Configuration:</strong>
+            <ul>
+                <li>Verify google-services.json (Android) or GoogleService-Info.plist (iOS) are valid</li>
+                <li>Check Firebase project settings match your app</li>
+                <li>Ensure package name/bundle ID matches Firebase configuration</li>
+            </ul>
+        </li>
+        
+        <li><strong>Build Dependencies:</strong>
+            <ul>
+                <li>Check Flutter and Dart SDK versions</li>
+                <li>Verify Gradle and Android build tools versions</li>
+                <li>Clear build cache and regenerate dependencies</li>
+            </ul>
+        </li>
+    </ol>
+    
+    <h4 style="color: #d32f2f;">Next Steps:</h4>
+    <ul style="color: #424242; line-height: 1.6;">
+        <li>📋 Check the build logs in Codemagic for detailed error messages</li>
+        <li>🔄 Fix the identified issues and restart the build</li>
+        <li>📞 Contact support if the issue persists</li>
+    </ul>
+</div>
+EOF
+}
+
+# Function to send build started email
+send_build_started_email() {
+    local platform="$1"
+    local build_id="$2"
+    
+    cat << EOF > /tmp/email_content.html
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>QuikApp Build Notification</title>
+    <title>QuikApp Build Started</title>
 </head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+<body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px;">
     
-    <!-- Header -->
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px 10px 0 0; text-align: center;">
-        <h1 style="color: white; margin: 0; font-size: 24px;">🚀 QuikApp Build Notification</h1>
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 30px;">
+        <h1 style="margin: 0; font-size: 28px;">🚀 Build Started</h1>
+        <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Your QuikApp build process has begun</p>
     </div>
     
-    <!-- Status Banner -->
-    <div style="background-color: ${status_color}; color: white; padding: 15px; text-align: center; font-size: 18px; font-weight: bold;">
-        ${status_icon} Build Status: $(get_status_upper "$status")
+    <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+        <h3 style="color: #1976d2; margin: 0;">📱 Platform: ${platform}</h3>
+        <p style="margin: 10px 0 0 0; color: #424242;">Build ID: ${build_id}</p>
     </div>
     
-    <!-- App Information -->
-    <div style="background-color: #f8f9fa; padding: 20px; border-left: 4px solid #007bff;">
-        <h2 style="margin: 0 0 15px 0; color: #007bff;">📱 App Information</h2>
-        <table style="width: 100%; border-collapse: collapse;">
-            <tr><td style="padding: 5px 0; font-weight: bold;">App Name:</td><td style="padding: 5px 0;">${APP_NAME}</td></tr>
-            <tr><td style="padding: 5px 0; font-weight: bold;">Organization:</td><td style="padding: 5px 0;">${ORG_NAME}</td></tr>
-            <tr><td style="padding: 5px 0; font-weight: bold;">Version:</td><td style="padding: 5px 0;">${VERSION_NAME} (${VERSION_CODE})</td></tr>
-            <tr><td style="padding: 5px 0; font-weight: bold;">Package Name:</td><td style="padding: 5px 0;">${PKG_NAME}</td></tr>
-            <tr><td style="padding: 5px 0; font-weight: bold;">Bundle ID:</td><td style="padding: 5px 0;">${BUNDLE_ID}</td></tr>
-            <tr><td style="padding: 5px 0; font-weight: bold;">Built by:</td><td style="padding: 5px 0;">${USER_NAME}</td></tr>
-            <tr><td style="padding: 5px 0; font-weight: bold;">Build Date:</td><td style="padding: 5px 0;">${BUILD_DATE}</td></tr>
-            <tr><td style="padding: 5px 0; font-weight: bold;">Build ID:</td><td style="padding: 5px 0;">${CM_BUILD_ID}</td></tr>
-        </table>
+    $(generate_app_details)
+    $(generate_customization_details)
+    $(generate_integration_details)
+    $(generate_permissions_details)
+    
+    <div style="background: #f0f8ff; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+        <h3 style="color: #1976d2;">⏱️ Build Progress</h3>
+        <p>Your app is currently being built. You will receive another email when the build completes.</p>
+        <p><strong>Estimated Time:</strong> 5-15 minutes</p>
     </div>
     
-    <!-- Signing Information -->
-    <div style="background-color: #fff3cd; padding: 20px; border-left: 4px solid #ffc107;">
-        <h2 style="margin: 0 0 15px 0; color: #856404;">🔐 Signing Configuration</h2>
-        <table style="width: 100%; border-collapse: collapse;">
-            <tr><td style="padding: 8px 0; font-weight: bold; color: #856404;">Android Signing:</td><td style="padding: 8px 0;">${ANDROID_SIGNING}</td></tr>
-            <tr><td style="padding: 8px 0; font-weight: bold; color: #856404;">iOS Signing:</td><td style="padding: 8px 0;">${IOS_SIGNING}</td></tr>
-            <tr><td style="padding: 8px 0; font-weight: bold; color: #856404;">Keystore Configured:</td><td style="padding: 8px 0;">$([ -n "$KEY_STORE_URL" ] && echo "Yes" || echo "No")</td></tr>
-            <tr><td style="padding: 8px 0; font-weight: bold; color: #856404;">iOS Certificates:</td><td style="padding: 8px 0;">$([ -n "${CERT_CER_URL:-}" ] && echo "Yes" || echo "No")</td></tr>
-            <tr><td style="padding: 8px 0; font-weight: bold; color: #856404;">Firebase Android:</td><td style="padding: 8px 0;">$([ -n "$FIREBASE_CONFIG_ANDROID" ] && echo "Configured" || echo "Not configured")</td></tr>
-            <tr><td style="padding: 8px 0; font-weight: bold; color: #856404;">Firebase iOS:</td><td style="padding: 8px 0;">$([ -n "$FIREBASE_CONFIG_IOS" ] && echo "Configured" || echo "Not configured")</td></tr>
-        </table>
-        
-        $(if [ "$ANDROID_SIGNING" = "Debug" ] && [ -n "$KEY_STORE_URL" ]; then
-            echo "<div style='background-color: #f8d7da; color: #721c24; padding: 15px; border-radius: 5px; margin-top: 15px;'>
-                <strong>⚠️ Warning:</strong> Keystore was provided but Android signing is still in Debug mode. This usually indicates a keystore configuration issue. Debug-signed APKs cannot be uploaded to Google Play Store.
-            </div>"
-        elif [ "$ANDROID_SIGNING" = "Debug" ]; then
-            echo "<div style='background-color: #d1ecf1; color: #0c5460; padding: 15px; border-radius: 5px; margin-top: 15px;'>
-                <strong>ℹ️ Info:</strong> Using debug signing as no keystore was provided. Debug-signed APKs are for testing only and cannot be uploaded to Google Play Store.
-            </div>"
-        fi)
-    </div>
-    
-    <!-- Feature Status -->
-    <div style="background-color: white; padding: 20px; border: 1px solid #dee2e6;">
-        <h2 style="margin: 0 0 15px 0; color: #6f42c1;">⚙️ Feature Configuration</h2>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background-color: #f8f9fa; border-radius: 4px;">
-                <span><strong>Push Notifications:</strong></span>
-                $(get_feature_badge "$PUSH_NOTIFY")
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background-color: #f8f9fa; border-radius: 4px;">
-                <span><strong>Chatbot:</strong></span>
-                $(get_feature_badge "$IS_CHATBOT")
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background-color: #f8f9fa; border-radius: 4px;">
-                <span><strong>Domain URL:</strong></span>
-                $(get_feature_badge "$IS_DOMAIN_URL")
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background-color: #f8f9fa; border-radius: 4px;">
-                <span><strong>Splash Screen:</strong></span>
-                $(get_feature_badge "$IS_SPLASH")
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background-color: #f8f9fa; border-radius: 4px;">
-                <span><strong>Pull to Refresh:</strong></span>
-                $(get_feature_badge "$IS_PULLDOWN")
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background-color: #f8f9fa; border-radius: 4px;">
-                <span><strong>Bottom Menu:</strong></span>
-                $(get_feature_badge "$IS_BOTTOMMENU")
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background-color: #f8f9fa; border-radius: 4px;">
-                <span><strong>Load Indicator:</strong></span>
-                $(get_feature_badge "$IS_LOAD_IND")
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background-color: #f8f9fa; border-radius: 4px;">
-                <span><strong>Camera:</strong></span>
-                $(get_feature_badge "$IS_CAMERA")
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background-color: #f8f9fa; border-radius: 4px;">
-                <span><strong>Location:</strong></span>
-                $(get_feature_badge "$IS_LOCATION")
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background-color: #f8f9fa; border-radius: 4px;">
-                <span><strong>Microphone:</strong></span>
-                $(get_feature_badge "$IS_MIC")
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background-color: #f8f9fa; border-radius: 4px;">
-                <span><strong>Notifications:</strong></span>
-                $(get_feature_badge "$IS_NOTIFICATION")
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background-color: #f8f9fa; border-radius: 4px;">
-                <span><strong>Contacts:</strong></span>
-                $(get_feature_badge "$IS_CONTACT")
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background-color: #f8f9fa; border-radius: 4px;">
-                <span><strong>Biometric:</strong></span>
-                $(get_feature_badge "$IS_BIOMETRIC")
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background-color: #f8f9fa; border-radius: 4px;">
-                <span><strong>Calendar:</strong></span>
-                $(get_feature_badge "$IS_CALENDAR")
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background-color: #f8f9fa; border-radius: 4px;">
-                <span><strong>Storage:</strong></span>
-                $(get_feature_badge "$IS_STORAGE")
-            </div>
-        </div>
-    </div>
-    
-    <!-- Build Message -->
-    <div style="background-color: #e9ecef; padding: 20px; border: 1px solid #dee2e6;">
-        <h3 style="margin: 0 0 10px 0; color: #495057;">📝 Build Details</h3>
-        <p style="margin: 0; font-family: monospace; background-color: white; padding: 10px; border-radius: 4px;">${message}</p>
-    </div>
-    
-    $(get_artifact_urls "$status")
-    
-    <!-- Action Buttons -->
-    <div style="background-color: #f8f9fa; padding: 20px; text-align: center; border-radius: 0 0 10px 10px;">
-        <a href="https://codemagic.io/app/${CM_PROJECT_ID}/build/${CM_BUILD_ID}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin: 0 5px; display: inline-block;">View Build Logs</a>
-        <a href="https://codemagic.io/app/${CM_PROJECT_ID}" style="background-color: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin: 0 5px; display: inline-block;">View Project</a>
-    </div>
-    
-    <!-- Footer -->
-    <div style="text-align: center; padding: 15px; color: #6c757d; font-size: 12px;">
-        <p style="margin: 0;">Generated by QuikApp Build System</p>
-        <p style="margin: 5px 0 0 0;">© 2025 QuikApp. All rights reserved.</p>
-    </div>
+    $(generate_branding_footer)
     
 </body>
 </html>
 EOF
+
+    send_email_via_msmtp "🚀 QuikApp Build Started - ${APP_NAME:-Your App}" "/tmp/email_content.html"
 }
 
-# Check if email notifications are enabled
-if [ "$ENABLE_EMAIL_NOTIFICATIONS" != "true" ]; then
-    log "Email notifications are disabled. Status: $STATUS - $MESSAGE"
-    exit 0
-fi
-
-# Check if required email configuration is available
-if [ -z "$EMAIL_SMTP_SERVER" ] || [ -z "$EMAIL_SMTP_PORT" ] || [ -z "$EMAIL_SMTP_USER" ] || [ -z "$EMAIL_SMTP_PASS" ] || [ -z "$EMAIL_ID" ]; then
-    log "Email configuration incomplete. Status: $STATUS - $MESSAGE"
-    exit 0
-fi
-
-SUBJECT="[QuikApp Build] $APP_NAME - $(get_status_upper "$STATUS")"
-TO="$EMAIL_ID"
-
-# Try using curl for email sending (more reliable than msmtp)
-send_email_curl() {
-    local html_content=$(create_email_content "$STATUS" "$MESSAGE")
-    local temp_file=$(mktemp)
+# Function to send build success email
+send_build_success_email() {
+    local platform="$1"
+    local build_id="$2"
+    local artifacts_url="$3"
     
-    cat > "$temp_file" << EOF
-To: $TO
-From: $EMAIL_SMTP_USER
-Subject: $SUBJECT
-Content-Type: text/html; charset=UTF-8
-
-$html_content
+    cat << EOF > /tmp/email_content.html
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>QuikApp Build Successful</title>
+</head>
+<body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px;">
+    
+    <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 30px;">
+        <h1 style="margin: 0; font-size: 28px;">🎉 Build Successful!</h1>
+        <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Your QuikApp has been built successfully</p>
+    </div>
+    
+    <div style="background: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+        <h3 style="color: #27ae60; margin: 0;">✅ Platform: ${platform}</h3>
+        <p style="margin: 10px 0 0 0; color: #424242;">Build ID: ${build_id}</p>
+    </div>
+    
+    $(generate_app_details)
+    $(generate_customization_details)
+    $(generate_integration_details)
+    $(generate_permissions_details)
+    
+    <div style="background: #e8f5e8; padding: 25px; border-radius: 8px; margin: 20px 0; text-align: center; border: 2px solid #27ae60;">
+        <h3 style="color: #27ae60; margin-bottom: 20px;">📦 Download Your App</h3>
+        <p style="margin-bottom: 20px;">Your app artifacts are ready for download:</p>
+        <a href="${artifacts_url}" style="display: inline-block; background: #27ae60; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 5px;">📱 Download App Files</a>
+        <p style="margin-top: 15px; font-size: 14px; color: #666;">Files include: APK/AAB (Android) or IPA (iOS)</p>
+    </div>
+    
+    <div style="background: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
+        <h3 style="color: #856404;">📋 Next Steps</h3>
+        <ul style="color: #856404; line-height: 1.8;">
+            <li><strong>Android (APK):</strong> Install directly on device or distribute</li>
+            <li><strong>Android (AAB):</strong> Upload to Google Play Store</li>
+            <li><strong>iOS (IPA):</strong> Upload to App Store Connect or TestFlight</li>
+            <li><strong>Testing:</strong> Test the app thoroughly before publishing</li>
+        </ul>
+    </div>
+    
+    $(generate_branding_footer)
+    
+</body>
+</html>
 EOF
 
-    if command -v curl >/dev/null 2>&1; then
-        curl --url "smtps://$EMAIL_SMTP_SERVER:$EMAIL_SMTP_PORT" \
-             --ssl-reqd \
-             --mail-from "$EMAIL_SMTP_USER" \
-             --mail-rcpt "$TO" \
-             --upload-file "$temp_file" \
-             --user "$EMAIL_SMTP_USER:$EMAIL_SMTP_PASS" \
-             --silent
-        local exit_code=$?
-        rm -f "$temp_file"
-        return $exit_code
-    else
-        rm -f "$temp_file"
-        return 1
-    fi
+    send_email_via_msmtp "🎉 QuikApp Build Successful - ${APP_NAME:-Your App}" "/tmp/email_content.html"
 }
 
-# Try using msmtp as fallback
-send_email_msmtp() {
-    local html_content=$(create_email_content "$STATUS" "$MESSAGE")
+# Function to send build failed email
+send_build_failed_email() {
+    local platform="$1"
+    local build_id="$2"
+    local error_message="$3"
+    
+    cat << EOF > /tmp/email_content.html
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>QuikApp Build Failed</title>
+</head>
+<body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px;">
+    
+    <div style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); color: white; padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 30px;">
+        <h1 style="margin: 0; font-size: 28px;">❌ Build Failed</h1>
+        <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">There was an issue with your QuikApp build</p>
+    </div>
+    
+    <div style="background: #ffebee; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+        <h3 style="color: #c62828; margin: 0;">🔴 Platform: ${platform}</h3>
+        <p style="margin: 10px 0 0 0; color: #424242;">Build ID: ${build_id}</p>
+    </div>
+    
+    $(generate_app_details)
+    
+    <div style="background: #ffebee; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f44336;">
+        <h3 style="color: #c62828; margin-bottom: 15px;">⚠️ Error Details</h3>
+        <div style="background: #fff; padding: 15px; border-radius: 4px; border: 1px solid #e0e0e0;">
+            <code style="color: #d32f2f; font-family: 'Courier New', monospace; white-space: pre-wrap;">${error_message}</code>
+        </div>
+    </div>
+    
+    $(generate_troubleshooting_steps "$platform" "build_failed")
+    
+    <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+        <h3 style="color: #1976d2;">🔄 Ready to Try Again?</h3>
+        <p>After fixing the issues above, you can restart your build.</p>
+        <a href="https://codemagic.io" style="display: inline-block; background: #1976d2; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 5px;">🚀 Restart Build</a>
+        <a href="https://codemagic.io/builds/${build_id}" style="display: inline-block; background: #757575; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 5px;">📋 View Logs</a>
+    </div>
+    
+    $(generate_branding_footer)
+    
+</body>
+</html>
+EOF
 
-if command -v msmtp >/dev/null 2>&1; then
-        echo -e "Content-Type: text/html; charset=UTF-8\nSubject: $SUBJECT\nTo: $TO\n\n$html_content" | \
-        msmtp --host="$EMAIL_SMTP_SERVER" \
-              --port="$EMAIL_SMTP_PORT" \
-              --auth=on \
-              --user="$EMAIL_SMTP_USER" \
-              --passwordeval="echo $EMAIL_SMTP_PASS" \
-              --from="$EMAIL_SMTP_USER" \
-              --tls=on \
-              "$TO"
-        return $?
-    else
-        return 1
-    fi
+    send_email_via_msmtp "❌ QuikApp Build Failed - ${APP_NAME:-Your App}" "/tmp/email_content.html"
 }
 
-# Attempt to send email
-log "Attempting to send email notification to $TO"
+# Function to send email using msmtp
+send_email_via_msmtp() {
+    local subject="$1"
+    local html_file="$2"
+    
+    if ! command -v msmtp &> /dev/null; then
+        log "❌ msmtp not found. Installing..."
+        
+        # Try to install msmtp based on the system
+        if command -v brew &> /dev/null; then
+            brew install msmtp
+        elif command -v apt-get &> /dev/null; then
+            sudo apt-get update && sudo apt-get install -y msmtp msmtp-mta
+        elif command -v yum &> /dev/null; then
+            sudo yum install -y msmtp
+        else
+            log "❌ Cannot install msmtp. Please install it manually."
+            return 1
+        fi
+    fi
+    
+    # Create msmtp configuration
+    cat > ~/.msmtprc << EOF
+defaults
+auth           on
+tls            on
+tls_trust_file /etc/ssl/certs/ca-certificates.crt
 
-if send_email_curl; then
-    log "✅ Email notification sent successfully via curl"
-elif send_email_msmtp; then
-    log "✅ Email notification sent successfully via msmtp"
-else
-    log "❌ Failed to send email notification. Both curl and msmtp failed."
-    log "Email would have been sent to: $TO"
-    log "Subject: $SUBJECT"
-    log "Status: $STATUS - $MESSAGE"
-fi
+account        gmail
+host           $EMAIL_SMTP_SERVER
+port           $EMAIL_SMTP_PORT
+from           $EMAIL_SMTP_USER
+user           $EMAIL_SMTP_USER
+password       $EMAIL_SMTP_PASS
 
-exit 0 
+account default : gmail
+EOF
+    
+    chmod 600 ~/.msmtprc
+    
+    # Send email
+    {
+        echo "To: ${EMAIL_ID:-$EMAIL_SMTP_USER}"
+        echo "From: $EMAIL_SMTP_USER"
+        echo "Subject: $subject"
+        echo "Content-Type: text/html; charset=UTF-8"
+        echo ""
+        cat "$html_file"
+    } | msmtp --account=gmail "${EMAIL_ID:-$EMAIL_SMTP_USER}"
+    
+    if [ $? -eq 0 ]; then
+        log "✅ Email sent successfully to ${EMAIL_ID:-$EMAIL_SMTP_USER}"
+    else
+        log "❌ Failed to send email"
+        return 1
+    fi
+    
+    # Clean up
+    rm -f "$html_file"
+}
+
+# Main function to handle different email types
+send_notification_email() {
+    local email_type="$1"
+    shift
+    
+    case "$email_type" in
+        "build_started")
+            send_build_started_email "$@"
+            ;;
+        "build_success")
+            send_build_success_email "$@"
+            ;;
+        "build_failed")
+            send_build_failed_email "$@"
+            ;;
+        *)
+            log "❌ Unknown email type: $email_type"
+            return 1
+            ;;
+    esac
+}
+
+# If script is called directly
+if [ "${BASH_SOURCE[0]}" == "${0}" ]; then
+    if [ $# -lt 1 ]; then
+        echo "Usage: $0 <email_type> [arguments...]"
+        echo "Email types: build_started, build_success, build_failed"
+        exit 1
+    fi
+    
+    send_notification_email "$@"
+fi 

@@ -1,158 +1,190 @@
 #!/bin/bash
 set -euo pipefail
 
+# Source environment variables
+source lib/scripts/utils/gen_env_config.sh
+
+# Initialize logging
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"; }
+
+# Error handling with email notification
+trap 'handle_error $LINENO $?' ERR
+
 handle_error() {
-  log "ERROR: $1"
-  ./lib/scripts/utils/send_email.sh "failure" "Android build failed: $1"
-  exit 1
-}
-trap 'handle_error "Error occurred at line $LINENO"' ERR
-
-# App Metadata
-APP_ID=${APP_ID:-}
-VERSION_NAME=${VERSION_NAME:-}
-VERSION_CODE=${VERSION_CODE:-}
-APP_NAME=${APP_NAME:-}
-ORG_NAME=${ORG_NAME:-}
-WEB_URL=${WEB_URL:-}
-PKG_NAME=${PKG_NAME:-}
-EMAIL_ID=${EMAIL_ID:-}
-USER_NAME=${USER_NAME:-}
-
-# Feature Flags
-PUSH_NOTIFY=${PUSH_NOTIFY:-"false"}
-IS_CHATBOT=${IS_CHATBOT:-"false"}
-IS_DOMAIN_URL=${IS_DOMAIN_URL:-"false"}
-IS_SPLASH=${IS_SPLASH:-"false"}
-IS_PULLDOWN=${IS_PULLDOWN:-"false"}
-IS_BOTTOMMENU=${IS_BOTTOMMENU:-"false"}
-IS_LOAD_IND=${IS_LOAD_IND:-"false"}
-IS_CAMERA=${IS_CAMERA:-"false"}
-IS_LOCATION=${IS_LOCATION:-"false"}
-IS_MIC=${IS_MIC:-"false"}
-IS_NOTIFICATION=${IS_NOTIFICATION:-"false"}
-IS_CONTACT=${IS_CONTACT:-"false"}
-IS_BIOMETRIC=${IS_BIOMETRIC:-"false"}
-IS_CALENDAR=${IS_CALENDAR:-"false"}
-IS_STORAGE=${IS_STORAGE:-"false"}
-
-# Branding
-LOGO_URL=${LOGO_URL:-}
-SPLASH_URL=${SPLASH_URL:-}
-SPLASH_BG_URL=${SPLASH_BG_URL:-}
-SPLASH_BG_COLOR=${SPLASH_BG_COLOR:-}
-SPLASH_TAGLINE=${SPLASH_TAGLINE:-}
-SPLASH_TAGLINE_COLOR=${SPLASH_TAGLINE_COLOR:-}
-SPLASH_ANIMATION=${SPLASH_ANIMATION:-}
-SPLASH_DURATION=${SPLASH_DURATION:-}
-
-# Bottom Menu
-BOTTOMMENU_ITEMS=${BOTTOMMENU_ITEMS:-}
-BOTTOMMENU_BG_COLOR=${BOTTOMMENU_BG_COLOR:-}
-BOTTOMMENU_ICON_COLOR=${BOTTOMMENU_ICON_COLOR:-}
-BOTTOMMENU_TEXT_COLOR=${BOTTOMMENU_TEXT_COLOR:-}
-BOTTOMMENU_FONT=${BOTTOMMENU_FONT:-}
-BOTTOMMENU_FONT_SIZE=${BOTTOMMENU_FONT_SIZE:-}
-BOTTOMMENU_FONT_BOLD=${BOTTOMMENU_FONT_BOLD:-}
-BOTTOMMENU_FONT_ITALIC=${BOTTOMMENU_FONT_ITALIC:-}
-BOTTOMMENU_ACTIVE_TAB_COLOR=${BOTTOMMENU_ACTIVE_TAB_COLOR:-}
-BOTTOMMENU_ICON_POSITION=${BOTTOMMENU_ICON_POSITION:-}
-BOTTOMMENU_VISIBLE_ON=${BOTTOMMENU_VISIBLE_ON:-}
-
-# Firebase
-FIREBASE_CONFIG_ANDROID=${FIREBASE_CONFIG_ANDROID:-}
-
-# Android Signing
-KEY_STORE_URL=${KEY_STORE_URL:-}
-CM_KEYSTORE_PASSWORD=${CM_KEYSTORE_PASSWORD:-}
-CM_KEY_ALIAS=${CM_KEY_ALIAS:-}
-CM_KEY_PASSWORD=${CM_KEY_PASSWORD:-}
-
-# Email
-EMAIL_SMTP_SERVER=${EMAIL_SMTP_SERVER:-}
-EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT:-}
-EMAIL_SMTP_USER=${EMAIL_SMTP_USER:-}
-EMAIL_SMTP_PASS=${EMAIL_SMTP_PASS:-}
-ENABLE_EMAIL_NOTIFICATIONS=${ENABLE_EMAIL_NOTIFICATIONS:-"true"}
-
-# Export variables for email script
-export KEY_STORE_URL
-export ENABLE_EMAIL_NOTIFICATIONS
-
-chmod +x ./lib/scripts/android/*.sh || true
-chmod +x ./lib/scripts/utils/*.sh || true
-
-log "Starting Android build workflow"
-log "App: $APP_NAME ($PKG_NAME)"
-log "Version: $VERSION_NAME ($VERSION_CODE)"
-
-if [ -z "$VERSION_NAME" ] || [ -z "$VERSION_CODE" ] || [ -z "$APP_NAME" ] || [ -z "$PKG_NAME" ]; then
-    handle_error "Required variables are missing"
-fi
-
-# Generate env_config.dart for Dart use
-if [ -f ./lib/scripts/utils/gen_env_config.sh ]; then
-    log "Generating Dart env_config.dart from Codemagic env vars..."
-    ./lib/scripts/utils/gen_env_config.sh || handle_error "Failed to generate env_config.dart"
-fi
-
-# Branding
-if [ -f ./lib/scripts/android/branding.sh ]; then
-    log "Running branding script..."
-    ./lib/scripts/android/branding.sh || handle_error "Branding script failed"
-fi
-
-# Customization (after branding)
-if [ -f ./lib/scripts/android/customization.sh ]; then
-    log "Running customization script..."
-    ./lib/scripts/android/customization.sh || handle_error "Customization script failed"
-fi
-
-# Permissions (after customization)
-if [ -f ./lib/scripts/android/permissions.sh ]; then
-    log "Running permissions script..."
-    ./lib/scripts/android/permissions.sh || handle_error "Permissions script failed"
-fi
-
-# Firebase
-if [ "$PUSH_NOTIFY" = "true" ] && [ -f ./lib/scripts/android/firebase.sh ]; then
-    log "Running Firebase script..."
-    ./lib/scripts/android/firebase.sh || handle_error "Firebase script failed"
-fi
-
-# Keystore
-if [ -n "$KEY_STORE_URL" ] && [ -f ./lib/scripts/android/keystore.sh ]; then
-    log "Running keystore script..."
-    ./lib/scripts/android/keystore.sh || handle_error "Keystore script failed"
+    local line_no=$1
+    local exit_code=$2
+    local error_msg="Error occurred at line $line_no. Exit code: $exit_code"
     
-    # Verify keystore setup for release signing
-    if [ -f android/app/keystore.properties ] && [ -f android/app/keystore.jks ]; then
-        log "✅ Keystore setup verified - release signing will be used"
+    log "❌ $error_msg"
+    
+    # Send build failed email
+    if [ -f "lib/scripts/utils/send_email.sh" ]; then
+        chmod +x lib/scripts/utils/send_email.sh
+        lib/scripts/utils/send_email.sh "build_failed" "Android" "${CM_BUILD_ID:-unknown}" "$error_msg" || true
+    fi
+    
+    exit $exit_code
+}
+
+log "🚀 Starting Android build process..."
+
+# Send build started email
+if [ -f "lib/scripts/utils/send_email.sh" ]; then
+    chmod +x lib/scripts/utils/send_email.sh
+    lib/scripts/utils/send_email.sh "build_started" "Android" "${CM_BUILD_ID:-unknown}" || true
+fi
+
+# Create necessary directories
+mkdir -p output/android
+
+# Step 1: Run branding script
+log "🎨 Running branding script..."
+if [ -f "lib/scripts/android/branding.sh" ]; then
+    chmod +x lib/scripts/android/branding.sh
+    if lib/scripts/android/branding.sh; then
+        log "✅ Branding completed"
     else
-        log "⚠️  WARNING: Keystore files missing - will fallback to debug signing"
-        log "⚠️  WARNING: Debug-signed builds cannot be uploaded to Google Play Store"
+        log "❌ Branding failed"
+        exit 1
     fi
 else
-    log "⚠️  No keystore configuration - using debug signing"
-    log "⚠️  WARNING: Debug-signed builds cannot be uploaded to Google Play Store"
+    log "⚠️  Branding script not found, skipping..."
 fi
 
-# Verify signing configuration before building
-if [ -f ./lib/scripts/android/verify_signing.sh ]; then
-    log "Running signing verification..."
-    chmod +x ./lib/scripts/android/verify_signing.sh
-    ./lib/scripts/android/verify_signing.sh || handle_error "Signing verification failed"
+# Step 2: Run customization script
+log "⚙️  Running customization script..."
+if [ -f "lib/scripts/android/customization.sh" ]; then
+    chmod +x lib/scripts/android/customization.sh
+    if lib/scripts/android/customization.sh; then
+        log "✅ Customization completed"
+    else
+        log "❌ Customization failed"
+        exit 1
+    fi
+else
+    log "⚠️  Customization script not found, skipping..."
 fi
 
-log "Building APK..."
-flutter build apk --release || handle_error "APK build failed"
-
-if [ -n "$KEY_STORE_URL" ]; then
-    log "Building AAB..."
-    flutter build appbundle --release || handle_error "AAB build failed"
+# Step 3: Run permissions script
+log "🔒 Running permissions script..."
+if [ -f "lib/scripts/android/permissions.sh" ]; then
+    chmod +x lib/scripts/android/permissions.sh
+    if lib/scripts/android/permissions.sh; then
+        log "✅ Permissions configured"
+    else
+        log "❌ Permissions configuration failed"
+        exit 1
+    fi
+else
+    log "⚠️  Permissions script not found, skipping..."
 fi
 
-./lib/scripts/utils/send_email.sh "success" "Android build completed successfully"
-log "Build completed successfully"
+# Step 4: Run Firebase script
+log "🔥 Running Firebase script..."
+if [ -f "lib/scripts/android/firebase.sh" ]; then
+    chmod +x lib/scripts/android/firebase.sh
+    if lib/scripts/android/firebase.sh; then
+        log "✅ Firebase configuration completed"
+    else
+        log "❌ Firebase configuration failed"
+        exit 1
+    fi
+else
+    log "⚠️  Firebase script not found, skipping..."
+fi
+
+# Step 5: Run keystore script
+log "🔐 Running keystore script..."
+if [ -f "lib/scripts/android/keystore.sh" ]; then
+    chmod +x lib/scripts/android/keystore.sh
+    if lib/scripts/android/keystore.sh; then
+        log "✅ Keystore configuration completed"
+    else
+        log "❌ Keystore configuration failed"
+        exit 1
+    fi
+else
+    log "⚠️  Keystore script not found, skipping..."
+fi
+
+# Step 6: Build APK
+log "🏗️  Building Android APK..."
+if flutter build apk --release; then
+    log "✅ APK build completed"
+    # Copy APK to output directory
+    if [ -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
+        cp build/app/outputs/flutter-apk/app-release.apk output/android/
+        log "✅ APK copied to output directory"
+    else
+        log "❌ APK file not found after build"
+        exit 1
+    fi
+else
+    log "❌ APK build failed"
+    exit 1
+fi
+
+# Step 7: Build AAB (if keystore is configured)
+KEYSTORE_CONFIGURED=false
+if [ -f "android/app/keystore.properties" ]; then
+    KEYSTORE_CONFIGURED=true
+    log "🏗️  Building Android App Bundle (AAB)..."
+    if flutter build appbundle --release; then
+        log "✅ AAB build completed"
+        # Copy AAB to output directory
+        if [ -f "build/app/outputs/bundle/release/app-release.aab" ]; then
+            cp build/app/outputs/bundle/release/app-release.aab output/android/
+            log "✅ AAB copied to output directory"
+        else
+            log "❌ AAB file not found after build"
+            exit 1
+        fi
+    else
+        log "❌ AAB build failed"
+        exit 1
+    fi
+else
+    log "⚠️  Keystore not configured, skipping AAB build"
+fi
+
+# Step 8: Verify signing
+log "🔍 Verifying build signatures..."
+if [ -f "lib/scripts/android/verify_signing.sh" ]; then
+    chmod +x lib/scripts/android/verify_signing.sh
+    if lib/scripts/android/verify_signing.sh; then
+        log "✅ Signature verification completed"
+    else
+        log "⚠️  Signature verification had issues (see logs above)"
+    fi
+else
+    log "⚠️  Signature verification script not found, skipping..."
+fi
+
+# Step 9: Generate environment config
+log "⚙️  Generating environment configuration..."
+if [ -f "lib/scripts/utils/gen_env_config.sh" ]; then
+    chmod +x lib/scripts/utils/gen_env_config.sh
+    if lib/scripts/utils/gen_env_config.sh; then
+        log "✅ Environment configuration generated"
+    else
+        log "❌ Environment configuration generation failed"
+        exit 1
+    fi
+else
+    log "⚠️  Environment config script not found, skipping..."
+fi
+
+# Step 10: Send build success email
+log "📧 Sending build success notification..."
+ARTIFACTS_URL="https://codemagic.io/builds/${CM_BUILD_ID:-unknown}/artifacts"
+if [ -f "lib/scripts/utils/send_email.sh" ]; then
+    lib/scripts/utils/send_email.sh "build_success" "Android" "${CM_BUILD_ID:-unknown}" "$ARTIFACTS_URL" || true
+fi
+
+log "🎉 Android build process completed successfully!"
+log "📱 APK file location: output/android/app-release.apk"
+if [ "$KEYSTORE_CONFIGURED" = true ]; then
+    log "📦 AAB file location: output/android/app-release.aab"
+fi
+
 exit 0 
