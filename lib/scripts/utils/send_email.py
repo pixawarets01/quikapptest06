@@ -337,15 +337,27 @@ class QuikAppEmailNotifier:
                     
                     {self.generate_feature_badges()}
                     
-                    <div style="background: #fff3cd; padding: 25px; border-radius: 12px; margin: 20px 0;">
-                        <h3 style="color: #856404; margin: 0 0 15px 0;">📋 Next Steps</h3>
-                        <ul style="color: #856404; line-height: 1.8; margin: 0; padding-left: 20px;">
-                            <li><strong>Android APK:</strong> Download and install directly on device for testing</li>
-                            <li><strong>Android AAB:</strong> Upload to Google Play Console for store distribution</li>
-                            <li><strong>iOS IPA:</strong> Upload to App Store Connect or distribute via TestFlight</li>
-                            <li><strong>Testing:</strong> Test the app thoroughly on different devices before publishing</li>
-                        </ul>
-                    </div>
+                                         <div style="background: #fff3cd; padding: 25px; border-radius: 12px; margin: 20px 0;">
+                         <h3 style="color: #856404; margin: 0 0 15px 0;">📋 Next Steps</h3>
+                         <ul style="color: #856404; line-height: 1.8; margin: 0; padding-left: 20px;">
+                             <li><strong>Android APK:</strong> Download and install directly on device for testing</li>
+                             <li><strong>Android AAB:</strong> Upload to Google Play Console for store distribution</li>
+                             <li><strong>iOS IPA:</strong> Upload to App Store Connect or distribute via TestFlight</li>
+                             <li><strong>Testing:</strong> Test the app thoroughly on different devices before publishing</li>
+                         </ul>
+                     </div>
+                     
+                     <div style="background: #e3f2fd; padding: 25px; border-radius: 12px; margin: 20px 0;">
+                         <h3 style="color: #1976d2; margin: 0 0 15px 0;">🔧 Installation Conflict Resolution</h3>
+                         <p style="color: #424242; margin: 0 0 15px 0;">If you get "package conflicts with existing package" error:</p>
+                         <ul style="color: #424242; line-height: 1.8; margin: 0; padding-left: 20px;">
+                             <li><strong>Method 1:</strong> Uninstall existing app first → Install new APK</li>
+                             <li><strong>Method 2:</strong> Use ADB: <code>adb install -r app-release.apk</code></li>
+                             <li><strong>Method 3:</strong> Force uninstall: <code>adb uninstall package.name</code></li>
+                             <li><strong>Different Versions:</strong> Debug and Release APKs have different signatures</li>
+                         </ul>
+                         <p style="color: #666; margin: 15px 0 0 0; font-size: 14px;">💡 Check your download for detailed installation guides with your specific package information.</p>
+                     </div>
                     
                     <div class="actions">
                         <h3 style="color: #27ae60; margin: 0 0 20px 0;">🔗 Quick Actions</h3>

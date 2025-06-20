@@ -52,9 +52,21 @@ else
   exit 1
 fi
 
-# Update package name in build.gradle
+# Update package name in build.gradle.kts (already handled by version management)
 if [ -n "$PKG_NAME" ]; then
-  log "Updating package name to $PKG_NAME"
+  log "Package name already updated by version management: $PKG_NAME"
+  
+  # Verify the package name is correctly set in build.gradle.kts
+  if [ -f android/app/build.gradle.kts ]; then
+    if grep -q "applicationId = \"$PKG_NAME\"" android/app/build.gradle.kts; then
+      log "✅ Package name verified in build.gradle.kts: $PKG_NAME"
+    else
+      log "⚠️ Package name mismatch in build.gradle.kts, updating..."
+      sed -i.bak "s/applicationId = \".*\"/applicationId = \"$PKG_NAME\"/" android/app/build.gradle.kts
+    fi
+  fi
+  
+  # Also update legacy build.gradle if it exists
   if [ -f android/app/build.gradle ]; then
     sed -i.bak "s/applicationId .*/applicationId \"$PKG_NAME\"/" android/app/build.gradle
   fi
