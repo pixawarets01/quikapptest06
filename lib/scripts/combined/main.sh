@@ -40,6 +40,24 @@ mkdir -p output/ios
 
 log "📱 Starting Android Build Phase..."
 
+# Memory cleanup and monitoring before Android build
+log "🧠 Memory cleanup and monitoring before Android build..."
+# Clear system caches
+sync 2>/dev/null || true
+echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
+
+# Monitor available memory
+if command -v free >/dev/null 2>&1; then
+    AVAILABLE_MEM=$(free -m | awk 'NR==2{printf "%.0f", $7}')
+    log "📊 Available memory: ${AVAILABLE_MEM}MB"
+    
+    if [ "$AVAILABLE_MEM" -lt 4000 ]; then
+        log "⚠️  Low memory detected (${AVAILABLE_MEM}MB), performing aggressive cleanup..."
+        # Force garbage collection
+        java -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Xmx1G -version 2>/dev/null || true
+    fi
+fi
+
 # Execute Android build logic
 log "🎨 Running Android branding script..."
 if [ -f "lib/scripts/android/branding.sh" ]; then
@@ -120,17 +138,49 @@ else
 fi
 
 log "🏗️  Building Android APK..."
-if flutter build apk --release; then
-    log "✅ Android APK build completed"
-    if [ -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
-        cp build/app/outputs/flutter-apk/app-release.apk output/android/
-        log "✅ Android APK copied to output directory"
+# Build with retry logic
+log "🏗️ Attempting Android APK build with memory optimizations..."
+BUILD_SUCCESS=false
+MAX_RETRIES=3
+
+for attempt in $(seq 1 $MAX_RETRIES); do
+    log "🔄 Android APK build attempt $attempt/$MAX_RETRIES"
+    
+    if flutter build apk --release --no-tree-shake-icons --target-platform android-arm64,android-arm; then
+        log "✅ Android APK build completed successfully on attempt $attempt"
+        if [ -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
+            cp build/app/outputs/flutter-apk/app-release.apk output/android/
+            log "✅ Android APK copied to output directory"
+            BUILD_SUCCESS=true
+            break
+        else
+            log "❌ Android APK file not found after build"
+        fi
     else
-        log "❌ Android APK file not found after build"
-        exit 1
+        log "❌ Android APK build attempt $attempt failed"
+        
+        if [ $attempt -lt $MAX_RETRIES ]; then
+            log "🧹 Cleaning and retrying Android build..."
+            flutter clean
+            cd android
+            ./gradlew --stop --no-daemon || true
+            ./gradlew clean --no-daemon --max-workers=1 || true
+            cd ..
+            
+            # Wait for memory to be freed
+            sleep 10
+            
+            # Try with even more aggressive memory settings
+            if [ $attempt -eq 2 ]; then
+                log "🔧 Applying aggressive memory optimizations for Android..."
+                export GRADLE_OPTS="-Xmx8G -XX:MaxMetaspaceSize=4G -XX:+UseG1GC -XX:MaxGCPauseMillis=100"
+            fi
+        fi
     fi
-else
-    log "❌ Android APK build failed"
+done
+
+if [ "$BUILD_SUCCESS" = false ]; then
+    log "❌ All Android APK build attempts failed"
     exit 1
 fi
 
@@ -139,17 +189,48 @@ ANDROID_KEYSTORE_CONFIGURED=false
 if [ -f "android/app/src/keystore.properties" ]; then
     ANDROID_KEYSTORE_CONFIGURED=true
     log "🏗️  Building Android App Bundle (AAB)..."
-    if flutter build appbundle --release; then
-        log "✅ Android AAB build completed"
-        if [ -f "build/app/outputs/bundle/release/app-release.aab" ]; then
-            cp build/app/outputs/bundle/release/app-release.aab output/android/
-            log "✅ Android AAB copied to output directory"
+    # Build AAB with retry logic
+    AAB_BUILD_SUCCESS=false
+    MAX_AAB_RETRIES=3
+
+    for attempt in $(seq 1 $MAX_AAB_RETRIES); do
+        log "🔄 Android AAB build attempt $attempt/$MAX_AAB_RETRIES"
+        
+        if flutter build appbundle --release --no-tree-shake-icons --target-platform android-arm64,android-arm; then
+            log "✅ Android AAB build completed successfully on attempt $attempt"
+            if [ -f "build/app/outputs/bundle/release/app-release.aab" ]; then
+                cp build/app/outputs/bundle/release/app-release.aab output/android/
+                log "✅ Android AAB copied to output directory"
+                AAB_BUILD_SUCCESS=true
+                break
+            else
+                log "❌ Android AAB file not found after build"
+            fi
         else
-            log "❌ Android AAB file not found after build"
-            exit 1
+            log "❌ Android AAB build attempt $attempt failed"
+            
+            if [ $attempt -lt $MAX_AAB_RETRIES ]; then
+                log "🧹 Cleaning and retrying Android AAB build..."
+                flutter clean
+                cd android
+                ./gradlew --stop --no-daemon || true
+                ./gradlew clean --no-daemon --max-workers=1 || true
+                cd ..
+                
+                # Wait for memory to be freed
+                sleep 10
+                
+                # Try with even more aggressive memory settings
+                if [ $attempt -eq 2 ]; then
+                    log "🔧 Applying aggressive memory optimizations for Android AAB..."
+                    export GRADLE_OPTS="-Xmx8G -XX:MaxMetaspaceSize=4G -XX:+UseG1GC -XX:MaxGCPauseMillis=100"
+                fi
+            fi
         fi
-    else
-        log "❌ Android AAB build failed"
+    done
+
+    if [ "$AAB_BUILD_SUCCESS" = false ]; then
+        log "❌ All Android AAB build attempts failed"
         exit 1
     fi
 else
@@ -400,6 +481,24 @@ log "📦 Setting up Flutter for iOS..."
 flutter clean
 flutter pub get
 
+# Memory cleanup and monitoring before iOS build
+log "🧠 Memory cleanup and monitoring before iOS build..."
+# Clear system caches
+sync 2>/dev/null || true
+echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
+
+# Monitor available memory
+if command -v free >/dev/null 2>&1; then
+    AVAILABLE_MEM=$(free -m | awk 'NR==2{printf "%.0f", $7}')
+    log "📊 Available memory: ${AVAILABLE_MEM}MB"
+    
+    if [ "$AVAILABLE_MEM" -lt 4000 ]; then
+        log "⚠️  Low memory detected (${AVAILABLE_MEM}MB), performing aggressive cleanup..."
+        # Force garbage collection
+        java -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Xmx1G -version 2>/dev/null || true
+    fi
+fi
+
 # Install pods
 log "📦 Installing CocoaPods dependencies..."
 cd ios
@@ -472,41 +571,72 @@ cd ios
 rm -rf build/Runner.xcarchive
 rm -rf build/ios/ipa
 
-if [ "$IOS_BUILD_SIGNED" = true ]; then
-    log "Building iOS with code signing..."
-    if xcodebuild -workspace Runner.xcworkspace -scheme Runner -configuration Release -destination generic/platform=iOS -archivePath build/Runner.xcarchive archive | xcpretty; then
-        log "✅ iOS archive created successfully"
-        
-        if xcodebuild -exportArchive -archivePath build/Runner.xcarchive -exportPath build/ios/ipa -exportOptionsPlist ExportOptions.plist | xcpretty; then
-            log "✅ iOS IPA exported successfully"
-            if [ -f "build/ios/ipa/Runner.ipa" ]; then
-                cp build/ios/ipa/Runner.ipa ../output/ios/
-                log "✅ IPA copied to output directory"
+# Build with retry logic
+log "🏗️ Attempting iOS build with memory optimizations..."
+BUILD_SUCCESS=false
+MAX_RETRIES=3
+
+for attempt in $(seq 1 $MAX_RETRIES); do
+    log "🔄 iOS build attempt $attempt/$MAX_RETRIES"
+    
+    if [ "$IOS_BUILD_SIGNED" = true ]; then
+        log "Building iOS with code signing..."
+        if xcodebuild -workspace Runner.xcworkspace -scheme Runner -configuration Release -destination generic/platform=iOS -archivePath build/Runner.xcarchive archive | xcpretty; then
+            log "✅ iOS archive created successfully"
+            
+            if xcodebuild -exportArchive -archivePath build/Runner.xcarchive -exportPath build/ios/ipa -exportOptionsPlist ExportOptions.plist | xcpretty; then
+                log "✅ iOS IPA exported successfully"
+                if [ -f "build/ios/ipa/Runner.ipa" ]; then
+                    cp build/ios/ipa/Runner.ipa ../output/ios/
+                    log "✅ IPA copied to output directory"
+                    BUILD_SUCCESS=true
+                    break
+                else
+                    log "❌ IPA file not found after export"
+                fi
             else
-                log "❌ IPA file not found after export"
-                exit 1
+                log "❌ iOS IPA export failed"
             fi
         else
-            log "❌ iOS IPA export failed"
-            exit 1
+            log "❌ iOS archive creation failed"
         fi
     else
-        log "❌ iOS archive creation failed"
-        exit 1
+        log "Building iOS without code signing..."
+        if flutter build ios --release --no-codesign; then
+            log "✅ iOS unsigned build completed"
+            # Create a simple IPA structure for unsigned build
+            mkdir -p Payload/Runner.app
+            cp -r build/ios/Release-iphoneos/Runner.app Payload/
+            zip -r ../output/ios/Runner-unsigned.ipa Payload/
+            rm -rf Payload
+            BUILD_SUCCESS=true
+            break
+        else
+            log "❌ iOS unsigned build failed"
+        fi
     fi
-else
-    log "Building iOS without code signing..."
-    if flutter build ios --release --no-codesign; then
-        log "✅ iOS unsigned build completed"
-        # Create a simple IPA structure for unsigned build
-        mkdir -p Payload/Runner.app
-        cp -r build/ios/Release-iphoneos/Runner.app Payload/
-        zip -r ../output/ios/Runner-unsigned.ipa Payload/
-        rm -rf Payload
-    else
-        log "❌ iOS unsigned build failed"
-        exit 1
+    
+    if [ $attempt -lt $MAX_RETRIES ]; then
+        log "🧹 Cleaning and retrying iOS build..."
+        # Clean build artifacts
+        rm -rf build/Runner.xcarchive
+        rm -rf build/ios/ipa
+        
+        # Wait for memory to be freed
+        sleep 10
+        
+        # Try with reduced parallel jobs on retry
+        if [ $attempt -eq 2 ]; then
+            log "🔧 Applying aggressive memory optimizations for iOS..."
+            export XCODE_PARALLEL_JOBS=2
+        fi
     fi
+done
+
+if [ "$BUILD_SUCCESS" = false ]; then
+    log "❌ All iOS build attempts failed"
+    cd ..
+    exit 1
 fi
 cd ..
 

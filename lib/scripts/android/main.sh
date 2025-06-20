@@ -347,20 +347,70 @@ flutter clean
 flutter pub get
 log "✅ Flutter dependencies updated"
 
-# Step 7: Build APK
-log "🏗️  Building Android APK..."
-if flutter build apk --release --no-tree-shake-icons; then
-    log "✅ APK build completed"
-    # Copy APK to output directory
-    if [ -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
-        cp build/app/outputs/flutter-apk/app-release.apk output/android/
-        log "✅ APK copied to output directory"
-    else
-        log "❌ APK file not found after build"
-        exit 1
+# Memory cleanup and monitoring
+log "🧠 Memory cleanup and monitoring..."
+# Clear system caches
+sync 2>/dev/null || true
+echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
+
+# Monitor available memory
+if command -v free >/dev/null 2>&1; then
+    AVAILABLE_MEM=$(free -m | awk 'NR==2{printf "%.0f", $7}')
+    log "📊 Available memory: ${AVAILABLE_MEM}MB"
+    
+    if [ "$AVAILABLE_MEM" -lt 4000 ]; then
+        log "⚠️  Low memory detected (${AVAILABLE_MEM}MB), performing aggressive cleanup..."
+        # Force garbage collection
+        java -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Xmx1G -version 2>/dev/null || true
     fi
+fi
+
+# Step 7: Build APK
+log "🏗️  Attempting APK build with memory optimizations..."
+BUILD_SUCCESS=false
+MAX_RETRIES=3
+
+for attempt in $(seq 1 $MAX_RETRIES); do
+    log "🔄 Build attempt $attempt/$MAX_RETRIES"
+    
+    if flutter build apk --release --no-tree-shake-icons --target-platform android-arm64,android-arm; then
+        log "✅ APK build completed successfully on attempt $attempt"
+        BUILD_SUCCESS=true
+        break
+    else
+        log "❌ Build attempt $attempt failed"
+        
+        if [ $attempt -lt $MAX_RETRIES ]; then
+            log "🧹 Cleaning and retrying..."
+            flutter clean
+            cd android
+            ./gradlew --stop --no-daemon || true
+            ./gradlew clean --no-daemon --max-workers=1 || true
+            cd ..
+            
+            # Wait for memory to be freed
+            sleep 10
+            
+            # Try with even more aggressive memory settings
+            if [ $attempt -eq 2 ]; then
+                log "🔧 Applying aggressive memory optimizations..."
+                export GRADLE_OPTS="-Xmx8G -XX:MaxMetaspaceSize=4G -XX:+UseG1GC -XX:MaxGCPauseMillis=100"
+            fi
+        fi
+    fi
+done
+
+if [ "$BUILD_SUCCESS" = false ]; then
+    log "❌ All build attempts failed"
+    exit 1
+fi
+
+# Copy APK to output directory
+if [ -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
+    cp build/app/outputs/flutter-apk/app-release.apk output/android/
+    log "✅ APK copied to output directory"
 else
-    log "❌ APK build failed"
+    log "❌ APK file not found after build"
     exit 1
 fi
 
@@ -369,7 +419,16 @@ KEYSTORE_CONFIGURED=false
 if [ -f "android/app/src/keystore.properties" ]; then
     KEYSTORE_CONFIGURED=true
     log "🏗️  Building Android App Bundle (AAB)..."
-    if flutter build appbundle --release --no-tree-shake-icons; then
+    
+    # Clean before AAB build
+    log "🧹 Cleaning before AAB build..."
+    flutter clean
+    cd android
+    ./gradlew --stop --no-daemon || true
+    ./gradlew clean --no-daemon --max-workers=2 || true
+    cd ..
+    
+    if flutter build appbundle --release --no-tree-shake-icons --target-platform android-arm64,android-arm; then
         log "✅ AAB build completed"
         # Copy AAB to output directory
         if [ -f "build/app/outputs/bundle/release/app-release.aab" ]; then
@@ -384,7 +443,7 @@ if [ -f "android/app/src/keystore.properties" ]; then
         exit 1
     fi
 else
-    log "⚠️  Keystore not configured, skipping AAB build"
+    log "⚠️  Android keystore not configured, skipping AAB build"
 fi
 
 # Step 9: Verify signing

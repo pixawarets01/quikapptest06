@@ -459,6 +459,24 @@ main() {
     flutter clean
     flutter pub get
 
+    # Memory cleanup and monitoring
+    log "🧠 Memory cleanup and monitoring..."
+    # Clear system caches
+    sync 2>/dev/null || true
+    echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
+
+    # Monitor available memory
+    if command -v free >/dev/null 2>&1; then
+        AVAILABLE_MEM=$(free -m | awk 'NR==2{printf "%.0f", $7}')
+        log "📊 Available memory: ${AVAILABLE_MEM}MB"
+        
+        if [ "$AVAILABLE_MEM" -lt 4000 ]; then
+            log "⚠️  Low memory detected (${AVAILABLE_MEM}MB), performing aggressive cleanup..."
+            # Force garbage collection
+            java -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Xmx1G -version 2>/dev/null || true
+        fi
+    fi
+
     # Setup and install pods
     setup_podfile
     cd ios
@@ -473,45 +491,72 @@ main() {
     rm -rf build/Runner.xcarchive
     rm -rf build/ios/ipa
     
-    # Archive
-    log "📦 Creating archive..."
-    if xcodebuild -workspace Runner.xcworkspace \
-        -scheme Runner \
-        -configuration Release \
-        -destination generic/platform=iOS \
-        -archivePath build/Runner.xcarchive \
-        archive | xcpretty; then
-        log "✅ Archive created successfully"
-    else
-        log "❌ Archive creation failed"
+    # Build with retry logic
+    log "🏗️ Attempting iOS build with memory optimizations..."
+    BUILD_SUCCESS=false
+    MAX_RETRIES=3
+
+    for attempt in $(seq 1 $MAX_RETRIES); do
+        log "🔄 Build attempt $attempt/$MAX_RETRIES"
+        
+        # Archive
+        log "📦 Creating archive..."
+        if xcodebuild -workspace Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -destination generic/platform=iOS \
+            -archivePath build/Runner.xcarchive \
+            archive | xcpretty; then
+            log "✅ Archive created successfully"
+            
+            # Export IPA
+            log "📤 Exporting IPA..."
+            if xcodebuild -exportArchive \
+                -archivePath build/Runner.xcarchive \
+                -exportOptionsPlist ExportOptions.plist \
+                -exportPath build/ios/ipa | xcpretty; then
+                log "✅ IPA exported successfully"
+                
+                # Copy IPA to output directory
+                mkdir -p ../output/ios
+                if [ -f "build/ios/ipa/Runner.ipa" ]; then
+                    cp build/ios/ipa/Runner.ipa ../output/ios/
+                    log "✅ IPA copied to output directory"
+                    BUILD_SUCCESS=true
+                    break
+                else
+                    log "❌ IPA file not found after export"
+                fi
+            else
+                log "❌ IPA export failed"
+            fi
+        else
+            log "❌ Archive creation failed"
+        fi
+        
+        if [ $attempt -lt $MAX_RETRIES ]; then
+            log "🧹 Cleaning and retrying..."
+            # Clean build artifacts
+            rm -rf build/Runner.xcarchive
+            rm -rf build/ios/ipa
+            
+            # Wait for memory to be freed
+            sleep 10
+            
+            # Try with reduced parallel jobs on retry
+            if [ $attempt -eq 2 ]; then
+                log "🔧 Applying aggressive memory optimizations..."
+                export XCODE_PARALLEL_JOBS=2
+            fi
+        fi
+    done
+
+    if [ "$BUILD_SUCCESS" = false ]; then
+        log "❌ All iOS build attempts failed"
         cd ..
         return 1
     fi
 
-    # Export IPA
-    log "📤 Exporting IPA..."
-    if xcodebuild -exportArchive \
-        -archivePath build/Runner.xcarchive \
-        -exportOptionsPlist ExportOptions.plist \
-        -exportPath build/ios/ipa | xcpretty; then
-        log "✅ IPA exported successfully"
-    else
-        log "❌ IPA export failed"
-        cd ..
-        return 1
-    fi
-
-    # Copy IPA to output directory
-    mkdir -p ../output/ios
-    if [ -f "build/ios/ipa/Runner.ipa" ]; then
-        cp build/ios/ipa/Runner.ipa ../output/ios/
-        log "✅ IPA copied to output directory"
-    else
-        log "❌ IPA file not found after export"
-        cd ..
-        return 1
-    fi
-    
     # Generate manifest for ad-hoc distribution if needed
     if [ "$PROFILE_TYPE" = "ad-hoc" ] && [ -n "${INSTALL_URL:-}" ]; then
         log "📝 Generating manifest for OTA installation..."

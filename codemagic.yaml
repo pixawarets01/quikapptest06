@@ -7,6 +7,11 @@ workflows:
       flutter: 3.32.2
       java: 17
       vars:
+        # Memory optimization variables
+        GRADLE_OPTS: "-Xmx16G -XX:MaxMetaspaceSize=8G -XX:ReservedCodeCacheSize=2G -XX:+HeapDumpOnOutOfMemoryError -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat"
+        XCODE_PARALLEL_JOBS: "4"
+        FLUTTER_BUILD_ARGS: "--no-tree-shake-icons --target-platform android-arm64,android-arm"
+
         APP_ID: $APP_ID
         WORKFLOW_ID: "android-free"
         BRANCH: $BRANCH
@@ -64,6 +69,11 @@ workflows:
       flutter: 3.32.2
       java: 17
       vars:
+        # Memory optimization variables
+        GRADLE_OPTS: "-Xmx16G -XX:MaxMetaspaceSize=8G -XX:ReservedCodeCacheSize=2G -XX:+HeapDumpOnOutOfMemoryError -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat"
+        XCODE_PARALLEL_JOBS: "4"
+        FLUTTER_BUILD_ARGS: "--no-tree-shake-icons --target-platform android-arm64,android-arm"
+
         APP_ID: $APP_ID
         WORKFLOW_ID: "android-paid"
         BRANCH: $BRANCH
@@ -122,6 +132,11 @@ workflows:
       flutter: 3.32.2
       java: 17
       vars:
+        # Memory optimization variables
+        GRADLE_OPTS: "-Xmx16G -XX:MaxMetaspaceSize=8G -XX:ReservedCodeCacheSize=2G -XX:+HeapDumpOnOutOfMemoryError -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat"
+        XCODE_PARALLEL_JOBS: "4"
+        FLUTTER_BUILD_ARGS: "--no-tree-shake-icons --target-platform android-arm64,android-arm"
+
         APP_ID: $APP_ID
         WORKFLOW_ID: "android-publish"
         BRANCH: $BRANCH
@@ -186,6 +201,11 @@ workflows:
       xcode: 15.4
       cocoapods: 1.16.2
       vars:
+        # Memory optimization variables
+        GRADLE_OPTS: "-Xmx16G -XX:MaxMetaspaceSize=8G -XX:ReservedCodeCacheSize=2G -XX:+HeapDumpOnOutOfMemoryError -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat"
+        XCODE_PARALLEL_JOBS: "4"
+        FLUTTER_BUILD_ARGS: "--no-tree-shake-icons"
+
         APP_ID: $APP_ID
         WORKFLOW_ID: "ios-only"
         BRANCH: $BRANCH
@@ -260,6 +280,11 @@ workflows:
       xcode: 15.4
       cocoapods: 1.16.2
       vars:
+        # Memory optimization variables
+        GRADLE_OPTS: "-Xmx16G -XX:MaxMetaspaceSize=8G -XX:ReservedCodeCacheSize=2G -XX:+HeapDumpOnOutOfMemoryError -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat"
+        XCODE_PARALLEL_JOBS: "4"
+        FLUTTER_BUILD_ARGS: "--no-tree-shake-icons --target-platform android-arm64,android-arm"
+
         APP_ID: $APP_ID
         WORKFLOW_ID: "combined"
         BRANCH: $BRANCH
