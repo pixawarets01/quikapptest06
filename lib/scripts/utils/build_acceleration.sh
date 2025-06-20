@@ -120,9 +120,9 @@ kotlin.incremental.useClasspathSnapshot=true
 kotlin.caching.enabled=true
 kotlin.parallel.tasks.in.project=true
 
-# Build optimization
-org.gradle.unsafe.configuration-cache=true
-org.gradle.unsafe.configuration-cache-problems=warn
+# Build optimization (disabled configuration cache due to Java module access issues)
+# org.gradle.unsafe.configuration-cache=true
+# org.gradle.unsafe.configuration-cache-problems=warn
 EOF
     
     # Pre-warm Gradle daemon (if gradlew exists)

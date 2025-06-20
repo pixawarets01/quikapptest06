@@ -389,7 +389,7 @@ log "🧹 Clearing Gradle caches..."
 if [ -d "android" ]; then
     cd android
     if [ -f "gradlew" ]; then
-        ./gradlew clean --no-daemon 2>/dev/null || true
+        ./gradlew clean --no-daemon --no-configuration-cache 2>/dev/null || true
         ./gradlew --stop 2>/dev/null || true
     fi
     cd ..
@@ -559,11 +559,11 @@ if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "co
     
     # Build APK first
     log "📱 Building APK with environment variables..."
-    if flutter build apk --release $ENV_ARGS; then
+    if flutter build apk --release --no-configuration-cache $ENV_ARGS; then
         log "✅ APK build completed successfully"
     else
         log "❌ APK build with environment variables failed, trying without..."
-        if flutter build apk --release; then
+        if flutter build apk --release --no-configuration-cache; then
             log "✅ APK build completed successfully (without environment variables)"
         else
             log "❌ APK build failed completely"
@@ -573,11 +573,11 @@ if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "co
     
     # Build AAB second
     log "📦 Building AAB..."
-    if flutter build appbundle --release $ENV_ARGS; then
+    if flutter build appbundle --release --no-configuration-cache $ENV_ARGS; then
         log "✅ AAB build completed successfully"
     else
         log "❌ AAB build with environment variables failed, trying without..."
-        if flutter build appbundle --release; then
+        if flutter build appbundle --release --no-configuration-cache; then
             log "✅ AAB build completed successfully (without environment variables)"
         else
             log "❌ AAB build failed completely"
@@ -591,11 +591,11 @@ else
     # Set GRADLE_OPTS for the flutter build command
     export GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx4G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Dfile.encoding=UTF-8"
     
-    if flutter build apk --release $ENV_ARGS; then
+    if flutter build apk --release --no-configuration-cache $ENV_ARGS; then
         log "✅ APK build completed successfully"
     else
         log "❌ APK build with environment variables failed, trying without..."
-        if flutter build apk --release; then
+        if flutter build apk --release --no-configuration-cache; then
             log "✅ APK build completed successfully (without environment variables)"
         else
             log "❌ APK build failed completely"
