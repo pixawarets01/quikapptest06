@@ -370,19 +370,57 @@ fi
 # Enhanced iOS build with acceleration
 log "📱 Starting enhanced iOS build..."
 
+# Configure JVM options for CocoaPods and Xcode
+log "🔧 Configuring JVM options..."
+export JAVA_TOOL_OPTIONS="-Xmx2048m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError"
+
+# Configure CocoaPods environment
+log "🔧 Configuring CocoaPods environment..."
+export LANG=en_US.UTF-8
+export LANGUAGE=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+
 # Pre-install CocoaPods dependencies
 log "📦 Pre-installing CocoaPods dependencies..."
-    cd ios
-if [ "${COCOAPODS_FAST_INSTALL:-true}" = "true" ]; then
-    pod install --repo-update --verbose || pod install --verbose
-else
-    pod install --verbose
+cd ios
+
+# Clean CocoaPods cache if needed
+if [ "${CLEAN_PODS_CACHE:-false}" = "true" ]; then
+    log "🧹 Cleaning CocoaPods cache..."
+    rm -rf "${HOME}/Library/Caches/CocoaPods"
+    rm -rf "Pods/"
+    rm -f "Podfile.lock"
 fi
+
+# Install pods with optimized settings
+if [ "${COCOAPODS_FAST_INSTALL:-true}" = "true" ]; then
+    log "📦 Fast installing pods with repo update..."
+    if ! pod install --repo-update --verbose; then
+        log "⚠️ Fast pod install failed, trying regular install..."
+        if ! pod install --verbose; then
+            log "❌ Pod installation failed"
+            exit 1
+        fi
+    fi
+else
+    log "📦 Regular pod installation..."
+    if ! pod install --verbose; then
+        log "❌ Pod installation failed"
+        exit 1
+    fi
+fi
+
 cd ..
+
+# Clean Flutter build cache first
+log "🧹 Cleaning Flutter build cache..."
+flutter clean
 
 # Build iOS app with optimizations
 log "🔨 Building iOS app with optimizations..."
-if flutter build ios --release --no-codesign; then
+if flutter build ios --release --no-codesign \
+    --dart-define=ENABLE_BITCODE=NO \
+    --dart-define=STRIP_STYLE=non-global; then
     log "✅ iOS build completed successfully"
 else
     log "❌ iOS build failed"
@@ -391,25 +429,43 @@ fi
 
 # Archive and export IPA with optimizations
 log "📦 Archiving and exporting IPA with optimizations..."
-    cd ios
-    
-# Create archive
-if xcodebuild -workspace Runner.xcworkspace -scheme Runner -configuration Release -archivePath build/Runner.xcarchive archive; then
+cd ios
+
+# Create archive with optimized settings
+log "📦 Creating archive..."
+if xcodebuild -workspace Runner.xcworkspace \
+    -scheme Runner \
+    -configuration Release \
+    -archivePath build/Runner.xcarchive \
+    -destination 'generic/platform=iOS' \
+    -allowProvisioningUpdates \
+    ENABLE_BITCODE=NO \
+    STRIP_STYLE=non-global \
+    COMPILER_INDEX_STORE_ENABLE=NO \
+    archive; then
     log "✅ Archive created successfully"
 else
     log "❌ Archive creation failed"
     exit 1
 fi
 
-    # Export IPA
-if xcodebuild -exportArchive -archivePath build/Runner.xcarchive -exportPath build/ios/ipa -exportOptionsPlist ExportOptions.plist; then
+# Export IPA with optimized settings
+log "📦 Exporting IPA..."
+if xcodebuild -exportArchive \
+    -archivePath build/Runner.xcarchive \
+    -exportPath build/ios/ipa \
+    -exportOptionsPlist ExportOptions.plist \
+    -allowProvisioningUpdates \
+    ENABLE_BITCODE=NO \
+    STRIP_STYLE=non-global \
+    COMPILER_INDEX_STORE_ENABLE=NO; then
     log "✅ IPA exported successfully"
 else
     log "❌ IPA export failed"
     exit 1
-    fi
-    
-    cd ..
+fi
+
+cd ..
 
 # Copy artifacts to output directory
 log "📁 Copying artifacts to output directory..."

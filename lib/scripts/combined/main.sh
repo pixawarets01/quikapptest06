@@ -189,6 +189,38 @@ else
     log "⚠️ One or both Firebase scripts not found, skipping..."
 fi
 
+# Configure global build optimizations
+log "⚙️ Configuring global build optimizations..."
+
+# Configure JVM options
+log "🔧 Configuring JVM options..."
+export JAVA_TOOL_OPTIONS="-Xmx2048m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError"
+
+# Configure environment
+log "🔧 Configuring build environment..."
+export LANG=en_US.UTF-8
+export LANGUAGE=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+
+# Create optimized gradle.properties
+log "📝 Creating optimized gradle.properties..."
+if [ ! -f android/gradle.properties ] || ! grep -q "org.gradle.jvmargs" android/gradle.properties; then
+    cat >> android/gradle.properties << EOF
+org.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+org.gradle.parallel=true
+org.gradle.daemon=true
+org.gradle.caching=true
+android.useAndroidX=true
+android.enableJetifier=true
+android.enableR8.fullMode=true
+kotlin.code.style=official
+EOF
+fi
+
+# Clean build environment
+log "🧹 Cleaning build environment..."
+flutter clean
+
 # Run platform-specific setup
 log "🔧 Running platform-specific setup..."
 
@@ -224,7 +256,8 @@ fi
 log "📱 Starting Android build with acceleration..."
 if [ -f "lib/scripts/android/main.sh" ]; then
     chmod +x lib/scripts/android/main.sh
-    if lib/scripts/android/main.sh; then
+    if GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=512m" \
+       lib/scripts/android/main.sh; then
         log "✅ Android build completed successfully"
     else
         log "❌ Android build failed"
@@ -277,6 +310,14 @@ if [ -f "output/ios/Runner.ipa" ]; then
 else
     log "❌ iOS IPA not found in output directory"
     exit 1
+fi
+
+# Clean up Gradle daemon
+log "🧹 Cleaning up Gradle daemon..."
+if [ -f "android/gradlew" ]; then
+    cd android
+    ./gradlew --stop || true
+    cd ..
 fi
 
 # Send build success email
