@@ -11,78 +11,135 @@ CM_KEY_PASSWORD=${CM_KEY_PASSWORD:-}
 
 log "Starting keystore configuration"
 
-if [ -n "$KEY_STORE_URL" ]; then
-  log "Downloading keystore from $KEY_STORE_URL"
-  curl -L "$KEY_STORE_URL" -o android/app/keystore.jks || handle_error "Failed to download keystore"
-  
-  # Verify keystore file was downloaded
-  if [ ! -f android/app/keystore.jks ]; then
-    handle_error "Keystore file was not created after download"
-  fi
-  
-  # Check file size (should be > 1KB for a valid keystore)
-  KEYSTORE_SIZE=$(stat -f%z android/app/keystore.jks 2>/dev/null || stat -c%s android/app/keystore.jks 2>/dev/null || echo "0")
-  if [ "$KEYSTORE_SIZE" -lt 1024 ]; then
-    log "Warning: Keystore file seems too small ($KEYSTORE_SIZE bytes). This might be an error page or invalid file."
-  fi
-  
-  log "Verifying keystore integrity..."
-  # Test keystore access
-  if command -v keytool >/dev/null 2>&1; then
-    log "Listing keystore contents:"
-    keytool -list -v -keystore android/app/keystore.jks -storepass "$CM_KEYSTORE_PASSWORD" | head -20 || handle_error "Failed to access keystore with provided password"
+# Function to update build.gradle.kts
+update_gradle_config() {
+    local BUILD_GRADLE="android/app/build.gradle.kts"
+    log "Updating $BUILD_GRADLE for release signing..."
     
-    log "Getting certificate fingerprint for alias '$CM_KEY_ALIAS':"
-    FINGERPRINT_OUTPUT=$(keytool -list -v -alias "$CM_KEY_ALIAS" -keystore android/app/keystore.jks -storepass "$CM_KEYSTORE_PASSWORD" 2>/dev/null | grep "SHA1:" || echo "")
+    # Backup original file
+    cp "$BUILD_GRADLE" "${BUILD_GRADLE}.bak"
     
-    if [ -n "$FINGERPRINT_OUTPUT" ]; then
-      log "📋 Certificate fingerprint for Google Play Console:"
-      echo "$FINGERPRINT_OUTPUT" | while read -r line; do
-        log "   $line"
-      done
-      log "ℹ️  Use this fingerprint in your Google Play Console app signing configuration"
-    else
-      log "Warning: Could not get fingerprint for alias '$CM_KEY_ALIAS'"
+    # Check if Java imports exist
+    if ! grep -q "import java.util.Properties" "$BUILD_GRADLE"; then
+        log "Adding Java imports..."
+        sed -i.tmp '1i\
+import java.util.Properties\
+import java.io.FileInputStream\
+' "$BUILD_GRADLE"
     fi
-  else
-    log "keytool not available for fingerprint verification"
-  fi
-  
-  log "Creating keystore.properties for Gradle"
-  cat > android/app/keystore.properties <<EOF
+    
+    # Update signingConfigs block
+    if grep -q "signingConfigs {" "$BUILD_GRADLE"; then
+        log "Updating existing signingConfigs block..."
+        awk -v RS='' -v ORS='\n\n' '
+        /signingConfigs {/ {
+            print "    signingConfigs {\n        create(\"release\") {\n            val keystorePropertiesFile = rootProject.file(\"app/src/keystore.properties\")\n            if (keystorePropertiesFile.exists()) {\n                val keystoreProperties = Properties()\n                keystoreProperties.load(FileInputStream(keystorePropertiesFile))\n                \n                keyAlias = keystoreProperties[\"keyAlias\"] as String\n                keyPassword = keystoreProperties[\"keyPassword\"] as String\n                storeFile = file(keystoreProperties[\"storeFile\"] as String)\n                storePassword = keystoreProperties[\"storePassword\"] as String\n            }\n        }"
+            next
+        }
+        { print }' "$BUILD_GRADLE" > "${BUILD_GRADLE}.tmp"
+        mv "${BUILD_GRADLE}.tmp" "$BUILD_GRADLE"
+    else
+        log "Adding signingConfigs block..."
+        sed -i.tmp '/android {/a\
+    signingConfigs {\n        create("release") {\n            val keystorePropertiesFile = rootProject.file("app/src/keystore.properties")\n            if (keystorePropertiesFile.exists()) {\n                val keystoreProperties = Properties()\n                keystoreProperties.load(FileInputStream(keystorePropertiesFile))\n                \n                keyAlias = keystoreProperties["keyAlias"] as String\n                keyPassword = keystoreProperties["keyPassword"] as String\n                storeFile = file(keystoreProperties["storeFile"] as String)\n                storePassword = keystoreProperties["storePassword"] as String\n            }\n        }\n    }' "$BUILD_GRADLE"
+    fi
+    
+    # Update buildTypes block
+    if grep -q "buildTypes {" "$BUILD_GRADLE"; then
+        log "Updating existing buildTypes block..."
+        awk -v RS='' -v ORS='\n\n' '
+        /buildTypes {/ {
+            print "    buildTypes {\n        release {\n            val keystorePropertiesFile = rootProject.file(\"app/src/keystore.properties\")\n            if (keystorePropertiesFile.exists()) {\n                signingConfig = signingConfigs.getByName(\"release\")\n            } else {\n                signingConfig = signingConfigs.getByName(\"debug\")\n            }\n            isMinifyEnabled = true\n            isShrinkResources = true\n            proguardFiles(getDefaultProguardFile(\"proguard-android-optimize.txt\"), \"proguard-rules.pro\")\n        }"
+            next
+        }
+        { print }' "$BUILD_GRADLE" > "${BUILD_GRADLE}.tmp"
+        mv "${BUILD_GRADLE}.tmp" "$BUILD_GRADLE"
+    fi
+    
+    # Clean up temporary files
+    rm -f "${BUILD_GRADLE}.tmp" "${BUILD_GRADLE}.bak"
+    
+    log "✅ Successfully updated $BUILD_GRADLE for release signing"
+}
+
+if [ -n "$KEY_STORE_URL" ]; then
+    # Create necessary directories
+    mkdir -p android/app/src
+    
+    log "Downloading keystore from $KEY_STORE_URL"
+    curl -L "$KEY_STORE_URL" -o android/app/src/keystore.jks || handle_error "Failed to download keystore"
+    
+    # Verify keystore file was downloaded
+    if [ ! -f android/app/src/keystore.jks ]; then
+        handle_error "Keystore file was not created after download"
+    fi
+    
+    # Check file size (should be > 1KB for a valid keystore)
+    KEYSTORE_SIZE=$(stat -f%z android/app/src/keystore.jks 2>/dev/null || stat -c%s android/app/src/keystore.jks 2>/dev/null || echo "0")
+    if [ "$KEYSTORE_SIZE" -lt 1024 ]; then
+        log "Warning: Keystore file seems too small ($KEYSTORE_SIZE bytes). This might be an error page or invalid file."
+    fi
+    
+    log "Verifying keystore integrity..."
+    # Test keystore access
+    if command -v keytool >/dev/null 2>&1; then
+        log "Listing keystore contents:"
+        keytool -list -v -keystore android/app/src/keystore.jks -storepass "$CM_KEYSTORE_PASSWORD" | head -20 || handle_error "Failed to access keystore with provided password"
+        
+        log "Getting certificate fingerprint for alias '$CM_KEY_ALIAS':"
+        FINGERPRINT_OUTPUT=$(keytool -list -v -alias "$CM_KEY_ALIAS" -keystore android/app/src/keystore.jks -storepass "$CM_KEYSTORE_PASSWORD" 2>/dev/null | grep "SHA1:" || echo "")
+        
+        if [ -n "$FINGERPRINT_OUTPUT" ]; then
+            log "📋 Certificate fingerprint for Google Play Console:"
+            echo "$FINGERPRINT_OUTPUT" | while read -r line; do
+                log "   $line"
+            done
+            log "ℹ️  Use this fingerprint in your Google Play Console app signing configuration"
+        else
+            log "Warning: Could not get fingerprint for alias '$CM_KEY_ALIAS'"
+        fi
+    else
+        log "keytool not available for fingerprint verification"
+    fi
+    
+    log "Creating keystore.properties for Gradle"
+    cat > android/app/src/keystore.properties <<EOF
 storeFile=keystore.jks
 storePassword=$CM_KEYSTORE_PASSWORD
 keyAlias=$CM_KEY_ALIAS
 keyPassword=$CM_KEY_PASSWORD
 EOF
 
-  # Verify keystore.properties was created
-  if [ ! -f android/app/keystore.properties ]; then
-    handle_error "Failed to create keystore.properties file"
-  fi
+    # Verify keystore.properties was created
+    if [ ! -f android/app/src/keystore.properties ]; then
+        handle_error "Failed to create keystore.properties file"
+    fi
 
-  log "Keystore configuration:"
-  log "- Store file: android/app/keystore.jks ($(ls -lh android/app/keystore.jks | awk '{print $5}'))"
-  log "- Key alias: $CM_KEY_ALIAS"
-  log "- Store password: [PROTECTED]"
-  log "- Key password: [PROTECTED]"
-  log "- Properties file: android/app/keystore.properties"
-  
-  # Validate Gradle can read the keystore properties
-  log "Validating keystore.properties format..."
-  if grep -q "storeFile=" android/app/keystore.properties && \
-     grep -q "storePassword=" android/app/keystore.properties && \
-     grep -q "keyAlias=" android/app/keystore.properties && \
-     grep -q "keyPassword=" android/app/keystore.properties; then
-    log "✅ Keystore properties file is valid"
-  else
-    handle_error "Invalid keystore.properties format"
-  fi
-  
+    log "Keystore configuration:"
+    log "- Store file: android/app/src/keystore.jks ($(ls -lh android/app/src/keystore.jks | awk '{print $5}'))"
+    log "- Key alias: $CM_KEY_ALIAS"
+    log "- Store password: [PROTECTED]"
+    log "- Key password: [PROTECTED]"
+    log "- Properties file: android/app/src/keystore.properties"
+    
+    # Validate Gradle can read the keystore properties
+    log "Validating keystore.properties format..."
+    if grep -q "storeFile=" android/app/src/keystore.properties && \
+       grep -q "storePassword=" android/app/src/keystore.properties && \
+       grep -q "keyAlias=" android/app/src/keystore.properties && \
+       grep -q "keyPassword=" android/app/src/keystore.properties; then
+        log "✅ Keystore properties file is valid"
+    else
+        handle_error "Invalid keystore.properties format"
+    fi
+    
+    # Update build.gradle.kts with signing configuration
+    update_gradle_config
+    
 else
-  log "No keystore URL provided; skipping keystore setup"
-  log "⚠️  WARNING: Without keystore, the build will use DEBUG SIGNING"
-  log "⚠️  WARNING: Debug-signed APKs cannot be uploaded to Google Play Store"
+    log "No keystore URL provided; skipping keystore setup"
+    log "⚠️  WARNING: Without keystore, the build will use DEBUG SIGNING"
+    log "⚠️  WARNING: Debug-signed APKs cannot be uploaded to Google Play Store"
 fi
 
 log "Keystore configuration completed successfully"
