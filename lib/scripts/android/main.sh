@@ -173,12 +173,56 @@ fi
 # Create necessary directories
 mkdir -p output/android
 
+# Ensure assets directories exist and have content
+log "📁 Setting up assets directories..."
+mkdir -p assets/icons
+mkdir -p assets/images
+
+# Create placeholder files if directories are empty
+if [ ! -f "assets/icons/.gitkeep" ]; then
+    echo "# This file ensures the assets/icons directory is tracked by git" > assets/icons/.gitkeep
+    log "✅ Created assets/icons/.gitkeep"
+fi
+
+if [ ! -f "assets/images/.gitkeep" ]; then
+    echo "# This file ensures the assets/images directory is tracked by git" > assets/images/.gitkeep
+    log "✅ Created assets/images/.gitkeep"
+fi
+
+# Verify assets are properly configured
+if [ -f "pubspec.yaml" ]; then
+    if grep -q "assets/icons/" pubspec.yaml && [ -d "assets/icons" ]; then
+        log "✅ assets/icons/ directory exists and is referenced in pubspec.yaml"
+    else
+        log "⚠️ assets/icons/ directory or pubspec.yaml reference missing"
+    fi
+    
+    if grep -q "assets/images/" pubspec.yaml && [ -d "assets/images" ]; then
+        log "✅ assets/images/ directory exists and is referenced in pubspec.yaml"
+    else
+        log "⚠️ assets/images/ directory or pubspec.yaml reference missing"
+    fi
+fi
+
 # Step 1: Run branding script
 log "🎨 Running branding script..."
 if [ -f "lib/scripts/android/branding.sh" ]; then
     chmod +x lib/scripts/android/branding.sh
     if lib/scripts/android/branding.sh; then
         log "✅ Branding completed"
+        
+        # Validate required assets after branding
+        log "🔍 Validating required assets..."
+        required_assets=("assets/images/logo.png" "assets/images/splash.png")
+        for asset in "${required_assets[@]}"; do
+            if [ -f "$asset" ] && [ -s "$asset" ]; then
+                log "✅ $asset exists and has content"
+            else
+                log "❌ $asset is missing or empty after branding"
+                exit 1
+            fi
+        done
+        log "✅ All required assets validated"
     else
         log "❌ Branding failed"
         exit 1
@@ -297,9 +341,15 @@ else
     fi
 fi
 
-# Step 6: Build APK
+# Step 6: Flutter setup and dependencies
+log "📦 Setting up Flutter dependencies..."
+flutter clean
+flutter pub get
+log "✅ Flutter dependencies updated"
+
+# Step 7: Build APK
 log "🏗️  Building Android APK..."
-if flutter build apk --release; then
+if flutter build apk --release --no-tree-shake-icons; then
     log "✅ APK build completed"
     # Copy APK to output directory
     if [ -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
@@ -314,12 +364,12 @@ else
     exit 1
 fi
 
-# Step 7: Build AAB (if keystore is configured)
+# Step 8: Build AAB (if keystore is configured)
 KEYSTORE_CONFIGURED=false
-if [ -f "android/app/keystore.properties" ]; then
+if [ -f "android/app/src/keystore.properties" ]; then
     KEYSTORE_CONFIGURED=true
     log "🏗️  Building Android App Bundle (AAB)..."
-    if flutter build appbundle --release; then
+    if flutter build appbundle --release --no-tree-shake-icons; then
         log "✅ AAB build completed"
         # Copy AAB to output directory
         if [ -f "build/app/outputs/bundle/release/app-release.aab" ]; then
@@ -337,7 +387,7 @@ else
     log "⚠️  Keystore not configured, skipping AAB build"
 fi
 
-# Step 8: Verify signing
+# Step 9: Verify signing
 log "🔍 Verifying build signatures..."
 if [ -f "lib/scripts/android/verify_signing.sh" ]; then
     chmod +x lib/scripts/android/verify_signing.sh
@@ -350,7 +400,7 @@ else
     log "⚠️  Signature verification script not found, skipping..."
 fi
 
-# Step 9: Generate environment config
+# Step 10: Generate environment config
 log "⚙️  Generating environment configuration..."
 if [ -f "lib/scripts/utils/gen_env_config.sh" ]; then
     chmod +x lib/scripts/utils/gen_env_config.sh
@@ -364,7 +414,7 @@ else
     log "⚠️  Environment config script not found, skipping..."
 fi
 
-# Step 10: Send build success email
+# Step 11: Send build success email
 log "📧 Sending build success notification..."
 ARTIFACTS_URL="https://codemagic.io/builds/${CM_BUILD_ID:-unknown}/artifacts"
 if [ -f "lib/scripts/utils/send_email.sh" ]; then

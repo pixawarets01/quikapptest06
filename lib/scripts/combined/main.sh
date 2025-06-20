@@ -46,6 +46,19 @@ if [ -f "lib/scripts/android/branding.sh" ]; then
     chmod +x lib/scripts/android/branding.sh
     if lib/scripts/android/branding.sh; then
         log "✅ Android branding completed"
+        
+        # Validate required assets after branding
+        log "🔍 Validating Android assets..."
+        required_assets=("assets/images/logo.png" "assets/images/splash.png")
+        for asset in "${required_assets[@]}"; do
+            if [ -f "$asset" ] && [ -s "$asset" ]; then
+                log "✅ $asset exists and has content"
+            else
+                log "❌ $asset is missing or empty after branding"
+                exit 1
+            fi
+        done
+        log "✅ All Android assets validated"
     else
         log "❌ Android branding failed"
         exit 1
@@ -281,6 +294,19 @@ if [ -f "lib/scripts/ios/branding.sh" ]; then
     chmod +x lib/scripts/ios/branding.sh
     if lib/scripts/ios/branding.sh; then
         log "✅ iOS branding completed"
+        
+        # Validate required assets after branding
+        log "🔍 Validating iOS assets..."
+        required_assets=("assets/images/logo.png" "assets/images/splash.png")
+        for asset in "${required_assets[@]}"; do
+            if [ -f "$asset" ] && [ -s "$asset" ]; then
+                log "✅ $asset exists and has content"
+            else
+                log "❌ $asset is missing or empty after branding"
+                exit 1
+            fi
+        done
+        log "✅ All iOS assets validated"
     else
         log "❌ iOS branding failed"
         exit 1

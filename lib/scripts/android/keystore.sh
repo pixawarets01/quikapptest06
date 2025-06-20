@@ -28,32 +28,92 @@ import java.io.FileInputStream\
 ' "$BUILD_GRADLE"
     fi
     
-    # Update signingConfigs block
-    if grep -q "signingConfigs {" "$BUILD_GRADLE"; then
-        log "Updating existing signingConfigs block..."
-        awk -v RS='' -v ORS='\n\n' '
-        /signingConfigs {/ {
-            print "    signingConfigs {\n        create(\"release\") {\n            val keystorePropertiesFile = rootProject.file(\"app/src/keystore.properties\")\n            if (keystorePropertiesFile.exists()) {\n                val keystoreProperties = Properties()\n                keystoreProperties.load(FileInputStream(keystorePropertiesFile))\n                \n                keyAlias = keystoreProperties[\"keyAlias\"] as String\n                keyPassword = keystoreProperties[\"keyPassword\"] as String\n                storeFile = file(keystoreProperties[\"storeFile\"] as String)\n                storePassword = keystoreProperties[\"storePassword\"] as String\n            }\n        }"
-            next
-        }
-        { print }' "$BUILD_GRADLE" > "${BUILD_GRADLE}.tmp"
-        mv "${BUILD_GRADLE}.tmp" "$BUILD_GRADLE"
-    else
-        log "Adding signingConfigs block..."
-        sed -i.tmp '/android {/a\
-    signingConfigs {\n        create("release") {\n            val keystorePropertiesFile = rootProject.file("app/src/keystore.properties")\n            if (keystorePropertiesFile.exists()) {\n                val keystoreProperties = Properties()\n                keystoreProperties.load(FileInputStream(keystorePropertiesFile))\n                \n                keyAlias = keystoreProperties["keyAlias"] as String\n                keyPassword = keystoreProperties["keyPassword"] as String\n                storeFile = file(keystoreProperties["storeFile"] as String)\n                storePassword = keystoreProperties["storePassword"] as String\n            }\n        }\n    }' "$BUILD_GRADLE"
-    fi
+    # Since the build.gradle.kts already has the correct structure, just validate it
+    log "Validating existing build.gradle.kts structure..."
     
-    # Update buildTypes block
-    if grep -q "buildTypes {" "$BUILD_GRADLE"; then
-        log "Updating existing buildTypes block..."
-        awk -v RS='' -v ORS='\n\n' '
-        /buildTypes {/ {
-            print "    buildTypes {\n        release {\n            val keystorePropertiesFile = rootProject.file(\"app/src/keystore.properties\")\n            if (keystorePropertiesFile.exists()) {\n                signingConfig = signingConfigs.getByName(\"release\")\n            } else {\n                signingConfig = signingConfigs.getByName(\"debug\")\n            }\n            isMinifyEnabled = true\n            isShrinkResources = true\n            proguardFiles(getDefaultProguardFile(\"proguard-android-optimize.txt\"), \"proguard-rules.pro\")\n        }"
-            next
+    # Check if the file has proper keystore configuration
+    if grep -q "keystorePropertiesFile.exists()" "$BUILD_GRADLE" && \
+       grep -q "app/src/keystore.properties" "$BUILD_GRADLE"; then
+        log "✅ build.gradle.kts already has correct keystore configuration"
+    else
+        log "⚠️ build.gradle.kts needs keystore configuration update"
+        
+        # Instead of complex AWK, use a safer approach - regenerate the file
+        cat > "$BUILD_GRADLE" << 'EOF'
+import java.util.Properties
+import java.io.FileInputStream
+
+plugins {
+    id("com.android.application")
+    id("kotlin-android")
+    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    id("dev.flutter.flutter-gradle-plugin")
+}
+
+android {
+    namespace = "com.example.quikapptest06"
+    compileSdk = flutter.compileSdkVersion
+    ndkVersion = "27.0.12077973"
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_11.toString()
+    }
+
+    defaultConfig {
+        // Application ID will be updated by customization script
+        applicationId = "com.example.quikapptest06"
+        minSdk = flutter.minSdkVersion
+        targetSdk = flutter.targetSdkVersion
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
+    }
+
+    signingConfigs {
+        create("release") {
+            val keystorePropertiesFile = rootProject.file("app/src/keystore.properties")
+            if (keystorePropertiesFile.exists()) {
+                val keystoreProperties = Properties()
+                keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+                
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
         }
-        { print }' "$BUILD_GRADLE" > "${BUILD_GRADLE}.tmp"
-        mv "${BUILD_GRADLE}.tmp" "$BUILD_GRADLE"
+    }
+
+    buildTypes {
+        release {
+            val keystorePropertiesFile = rootProject.file("app/src/keystore.properties")
+            if (keystorePropertiesFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            } else {
+                // Fallback to debug signing if keystore not available
+                signingConfig = signingConfigs.getByName("debug")
+            }
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+}
+
+flutter {
+    source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+}
+EOF
+        log "✅ Generated new build.gradle.kts with keystore configuration"
     fi
     
     # Clean up temporary files
