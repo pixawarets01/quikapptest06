@@ -459,14 +459,48 @@ class _MainHomeState extends State<MainHome> {
                             var uri = navigationAction.request.url!;
                             var url = uri.toString();
 
-                            if (url.startsWith('tel:') ||
-                                url.startsWith('mailto:') ||
-                                url.startsWith('whatsapp:') ||
-                                url.startsWith('sms:')) {
+                            // Handle special scheme URLs (always allowed)
+                            if (isSpecialSchemeUrl(url)) {
                               if (await canLaunchUrl(uri)) {
                                 await launchUrl(uri);
                                 return NavigationActionPolicy.CANCEL;
                               }
+                            }
+
+                            // Handle URLs based on domain rules
+                            if (isUrlFromSameDomain(url) ||
+                                (EnvConfig.pushNotify &&
+                                    isPushNotificationUrl(url))) {
+                              // Allow navigation within the app for same domain or push notification URLs
+                              return NavigationActionPolicy.ALLOW;
+                            }
+
+                            // Allow trusted payment domains regardless of IS_DOMAIN_URL setting
+                            if (isUrlFromTrustedDomain(url)) {
+                              // Open in external browser
+                              if (await canLaunchUrl(uri)) {
+                                await launchUrl(uri,
+                                    mode: LaunchMode.externalApplication);
+                                return NavigationActionPolicy.CANCEL;
+                              }
+                            }
+
+                            // Check if external URLs are allowed for non-trusted domains
+                            if (!EnvConfig.isDomainUrl) {
+                              // IS_DOMAIN_URL is false - block non-trusted external URLs
+                              if (kDebugMode) {
+                                print(
+                                    "🚫 External URL blocked (IS_DOMAIN_URL=false): $url");
+                              }
+                              return NavigationActionPolicy.CANCEL;
+                            }
+
+                            // IS_DOMAIN_URL is true - allow all other external URLs
+                            // For all other external domains (when IS_DOMAIN_URL is true)
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(uri,
+                                  mode: LaunchMode.externalApplication);
+                              return NavigationActionPolicy.CANCEL;
                             }
 
                             return NavigationActionPolicy.ALLOW;
@@ -700,6 +734,54 @@ class _MainHomeState extends State<MainHome> {
   // Update URL parsing methods
   void _loadUrl(String url) {
     webViewController?.loadUrl(urlRequest: URLRequest(url: _parseWebUri(url)));
+  }
+
+  bool isUrlFromSameDomain(String url) {
+    try {
+      Uri uri = Uri.parse(url);
+      String domain = uri.host;
+      if (domain.startsWith('www.')) {
+        domain = domain.substring(4);
+      }
+      return domain == myDomain;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  bool isUrlFromTrustedDomain(String url) {
+    try {
+      Uri uri = Uri.parse(url);
+      String domain = uri.host;
+      if (domain.startsWith('www.')) {
+        domain = domain.substring(4);
+      }
+      return trustedDomains
+          .any((gateway) => domain.endsWith(gateway['domain']!));
+    } catch (e) {
+      return false;
+    }
+  }
+
+  bool isSpecialSchemeUrl(String url) {
+    return url.startsWith('tel:') ||
+        url.startsWith('mailto:') ||
+        url.startsWith('whatsapp:') ||
+        url.startsWith('sms:');
+  }
+
+  bool isPushNotificationUrl(String url) {
+    if (!EnvConfig.pushNotify) return false;
+    try {
+      Uri uri = Uri.parse(url);
+      String domain = uri.host;
+      if (domain.startsWith('www.')) {
+        domain = domain.substring(4);
+      }
+      return domain == myDomain;
+    } catch (e) {
+      return false;
+    }
   }
 }
 
