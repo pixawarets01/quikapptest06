@@ -193,9 +193,12 @@ handle_error() {
     log "🚨 Performing emergency cleanup..."
     
     # Stop all Gradle processes
-    cd android
-    ./gradlew --stop --no-daemon 2>/dev/null || true
-    cd ..
+    if [ -d "android" ]; then
+        cd android
+        chmod +x gradlew 2>/dev/null || true
+        ./gradlew --stop --no-daemon 2>/dev/null || true
+        cd ..
+    fi
     
     # Clear all caches
     flutter clean 2>/dev/null || true
@@ -325,6 +328,9 @@ fi
 log "📱 Starting enhanced Flutter build..."
 cd android
 
+# Ensure gradlew has execute permissions
+chmod +x gradlew
+
 # Pre-warm Gradle daemon
 log "🔥 Pre-warming Gradle daemon for faster build..."
 ./gradlew --version --no-daemon >/dev/null 2>&1 || true
@@ -389,6 +395,7 @@ fi
 # Send build success email
 if [ -f "lib/scripts/utils/send_email.sh" ]; then
     chmod +x lib/scripts/utils/send_email.sh
+    # Pass platform and build ID for individual artifact URL generation
     lib/scripts/utils/send_email.sh "build_success" "Android" "${CM_BUILD_ID:-unknown}" || true
 fi
 

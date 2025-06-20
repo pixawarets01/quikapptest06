@@ -251,7 +251,8 @@ fi
 # Send build success email
 if [ -f "lib/scripts/utils/send_email.sh" ]; then
     chmod +x lib/scripts/utils/send_email.sh
-    lib/scripts/utils/send_email.sh "build_success" "Combined" "${CM_BUILD_ID:-unknown}" || true
+    # Pass platform and build ID for individual artifact URL generation
+    lib/scripts/utils/send_email.sh "build_success" "Combined (Android & iOS)" "${CM_BUILD_ID:-unknown}" || true
 fi
 
 log "🎉 Combined Android & iOS build completed successfully with acceleration!"

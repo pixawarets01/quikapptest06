@@ -279,6 +279,155 @@ generate_troubleshooting_steps() {
 EOF
 }
 
+# Function to generate individual artifact download URLs
+generate_individual_artifact_urls() {
+    local platform="$1"
+    local build_id="$2"
+    
+    # Base URL for Codemagic artifacts
+    local base_url="https://api.codemagic.io/artifacts"
+    local project_id="${CM_PROJECT_ID:-unknown}"
+    
+    # Scan output directories for actual files
+    local artifacts_found=""
+    local artifacts_html=""
+    
+    cat << EOF
+    <div style="background: #e8f5e8; padding: 25px; border-radius: 8px; margin: 20px 0; border: 2px solid #27ae60;">
+        <h3 style="color: #27ae60; margin-bottom: 20px;">📦 Download Individual Files</h3>
+        <p style="margin-bottom: 20px;">Click the links below to download specific app files:</p>
+        
+        <div style="display: grid; gap: 15px; margin: 20px 0;">
+EOF
+
+    # Check for Android artifacts
+    if [ -f "output/android/app-release.apk" ]; then
+        local apk_size=$(du -h output/android/app-release.apk 2>/dev/null | cut -f1)
+        artifacts_found="true"
+        cat << EOF
+            <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #27ae60; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h4 style="margin: 0; color: #27ae60;">📱 Android APK</h4>
+                    <p style="margin: 5px 0; color: #666; font-size: 14px;">Install directly on Android devices</p>
+                    <p style="margin: 0; color: #999; font-size: 12px;">Size: ${apk_size:-Unknown}</p>
+                </div>
+                <a href="${base_url}/${project_id}/${build_id}/app-release.apk" 
+                   style="background: #27ae60; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                   📥 Download APK
+                </a>
+            </div>
+EOF
+    fi
+
+    if [ -f "output/android/app-release.aab" ]; then
+        local aab_size=$(du -h output/android/app-release.aab 2>/dev/null | cut -f1)
+        artifacts_found="true"
+        cat << EOF
+            <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #4caf50; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h4 style="margin: 0; color: #4caf50;">📦 Android AAB</h4>
+                    <p style="margin: 5px 0; color: #666; font-size: 14px;">Upload to Google Play Store</p>
+                    <p style="margin: 0; color: #999; font-size: 12px;">Size: ${aab_size:-Unknown}</p>
+                </div>
+                <a href="${base_url}/${project_id}/${build_id}/app-release.aab" 
+                   style="background: #4caf50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                   📥 Download AAB
+                </a>
+            </div>
+EOF
+    fi
+
+    # Check for iOS artifacts
+    if [ -f "output/ios/Runner.ipa" ]; then
+        local ipa_size=$(du -h output/ios/Runner.ipa 2>/dev/null | cut -f1)
+        artifacts_found="true"
+        cat << EOF
+            <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #2196f3; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h4 style="margin: 0; color: #2196f3;">🍎 iOS IPA</h4>
+                    <p style="margin: 5px 0; color: #666; font-size: 14px;">Upload to App Store Connect or TestFlight</p>
+                    <p style="margin: 0; color: #999; font-size: 12px;">Size: ${ipa_size:-Unknown}</p>
+                </div>
+                <a href="${base_url}/${project_id}/${build_id}/Runner.ipa" 
+                   style="background: #2196f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                   📥 Download IPA
+                </a>
+            </div>
+EOF
+    fi
+
+    # Check for any other files in output directories
+    if [ -d "output/android" ]; then
+        for file in output/android/*; do
+            if [ -f "$file" ] && [[ "$file" != *"app-release.apk" ]] && [[ "$file" != *"app-release.aab" ]]; then
+                local filename=$(basename "$file")
+                local filesize=$(du -h "$file" 2>/dev/null | cut -f1)
+                artifacts_found="true"
+                cat << EOF
+            <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ff9800; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h4 style="margin: 0; color: #ff9800;">📄 ${filename}</h4>
+                    <p style="margin: 5px 0; color: #666; font-size: 14px;">Additional Android artifact</p>
+                    <p style="margin: 0; color: #999; font-size: 12px;">Size: ${filesize:-Unknown}</p>
+                </div>
+                <a href="${base_url}/${project_id}/${build_id}/${filename}" 
+                   style="background: #ff9800; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                   📥 Download
+                </a>
+            </div>
+EOF
+            fi
+        done
+    fi
+
+    if [ -d "output/ios" ]; then
+        for file in output/ios/*; do
+            if [ -f "$file" ] && [[ "$file" != *"Runner.ipa" ]]; then
+                local filename=$(basename "$file")
+                local filesize=$(du -h "$file" 2>/dev/null | cut -f1)
+                artifacts_found="true"
+                cat << EOF
+            <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #9c27b0; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h4 style="margin: 0; color: #9c27b0;">📄 ${filename}</h4>
+                    <p style="margin: 5px 0; color: #666; font-size: 14px;">Additional iOS artifact</p>
+                    <p style="margin: 0; color: #999; font-size: 12px;">Size: ${filesize:-Unknown}</p>
+                </div>
+                <a href="${base_url}/${project_id}/${build_id}/${filename}" 
+                   style="background: #9c27b0; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                   📥 Download
+                </a>
+            </div>
+EOF
+            fi
+        done
+    fi
+
+    cat << EOF
+        </div>
+        
+        <div style="background: #f0f8ff; padding: 15px; border-radius: 6px; margin-top: 20px;">
+            <h4 style="margin: 0 0 10px 0; color: #1976d2;">📋 Download Instructions:</h4>
+            <ul style="margin: 0; padding-left: 20px; color: #424242; line-height: 1.6;">
+                <li><strong>APK:</strong> Right-click → "Save As" to download, then install on Android device</li>
+                <li><strong>AAB:</strong> Upload directly to Google Play Console for store distribution</li>
+                <li><strong>IPA:</strong> Upload to App Store Connect using Xcode or Transporter app</li>
+            </ul>
+        </div>
+    </div>
+EOF
+
+    # Add fallback if no artifacts found
+    if [ "$artifacts_found" != "true" ]; then
+        cat << EOF
+        <div style="background: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
+            <h4 style="color: #856404; margin: 0 0 10px 0;">⚠️ No Artifacts Found</h4>
+            <p style="color: #856404; margin: 0;">Build completed but no output files were detected. Please check the build logs.</p>
+        </div>
+EOF
+    fi
+}
+
 # Function to send build started email
 send_build_started_email() {
     local platform="$1"
@@ -323,11 +472,11 @@ EOF
     send_email_via_curl "🚀 QuikApp Build Started - ${APP_NAME:-Your App}" "/tmp/email_content.html"
 }
 
-# Function to send build success email
+# Function to send build success email with individual URLs
 send_build_success_email() {
     local platform="$1"
     local build_id="$2"
-    local artifacts_url="$3"
+    local artifacts_url="$3"  # This is now optional, we generate individual URLs
     
     cat << EOF > /tmp/email_content.html
 <!DOCTYPE html>
@@ -346,6 +495,7 @@ send_build_success_email() {
     <div style="background: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
         <h3 style="color: #27ae60; margin: 0;">✅ Platform: ${platform}</h3>
         <p style="margin: 10px 0 0 0; color: #424242;">Build ID: ${build_id}</p>
+        <p style="margin: 5px 0 0 0; color: #424242;">Build Time: $(date '+%Y-%m-%d %H:%M:%S UTC')</p>
     </div>
     
     $(generate_app_details)
@@ -353,21 +503,25 @@ send_build_success_email() {
     $(generate_integration_details)
     $(generate_permissions_details)
     
-    <div style="background: #e8f5e8; padding: 25px; border-radius: 8px; margin: 20px 0; text-align: center; border: 2px solid #27ae60;">
-        <h3 style="color: #27ae60; margin-bottom: 20px;">📦 Download Your App</h3>
-        <p style="margin-bottom: 20px;">Your app artifacts are ready for download:</p>
-        <a href="${artifacts_url}" style="display: inline-block; background: #27ae60; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 5px;">📱 Download App Files</a>
-        <p style="margin-top: 15px; font-size: 14px; color: #666;">Files include: APK/AAB (Android) or IPA (iOS)</p>
-    </div>
+    $(generate_individual_artifact_urls "$platform" "$build_id")
     
     <div style="background: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
         <h3 style="color: #856404;">📋 Next Steps</h3>
         <ul style="color: #856404; line-height: 1.8;">
-            <li><strong>Android (APK):</strong> Install directly on device or distribute</li>
-            <li><strong>Android (AAB):</strong> Upload to Google Play Store</li>
-            <li><strong>iOS (IPA):</strong> Upload to App Store Connect or TestFlight</li>
-            <li><strong>Testing:</strong> Test the app thoroughly before publishing</li>
+            <li><strong>Android (APK):</strong> Download and install directly on device for testing</li>
+            <li><strong>Android (AAB):</strong> Upload to Google Play Console for store distribution</li>
+            <li><strong>iOS (IPA):</strong> Upload to App Store Connect or distribute via TestFlight</li>
+            <li><strong>Testing:</strong> Test the app thoroughly on different devices before publishing</li>
+            <li><strong>Distribution:</strong> Share APK files directly or publish to app stores</li>
         </ul>
+    </div>
+    
+    <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+        <h3 style="color: #1976d2;">🔗 Quick Actions</h3>
+        <div style="margin: 15px 0;">
+            <a href="https://codemagic.io/builds/${build_id}" style="display: inline-block; background: #1976d2; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 5px;">📋 View Build Logs</a>
+            <a href="https://codemagic.io" style="display: inline-block; background: #27ae60; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 5px;">🚀 Start New Build</a>
+        </div>
     </div>
     
     $(generate_branding_footer)
@@ -615,17 +769,29 @@ EOF
     send_email_via_curl "🧪 QuikApp Email Test" "/tmp/test_email.html"
 }
 
-# Try to use Python email sender if available
+# Try to use enhanced Python email sender if available
 if command -v python3 >/dev/null 2>&1; then
+    log "📧 Using enhanced Python email system..."
     # Ensure we have the correct number of arguments for the Python script
     if [ $# -eq 4 ]; then
-        python3 lib/scripts/utils/send_email.py "$1" "$2" "$3" "$4"
+        if python3 lib/scripts/utils/send_email.py "$1" "$2" "$3" "$4"; then
+            log "✅ Enhanced Python email sent successfully"
+            exit 0
+        else
+            log "⚠️ Python email failed, falling back to shell version..."
+        fi
     else
         # Fallback with default values for missing arguments
-        python3 lib/scripts/utils/send_email.py "${1:-unknown}" "${2:-unknown}" "${3:-unknown}" "${4:-No message provided}"
+        if python3 lib/scripts/utils/send_email.py "${1:-unknown}" "${2:-unknown}" "${3:-unknown}" "${4:-No message provided}"; then
+            log "✅ Enhanced Python email sent successfully"
+            exit 0
+        else
+            log "⚠️ Python email failed, falling back to shell version..."
+        fi
     fi
-    exit 0
 fi
+
+log "📧 Using shell-based email system as fallback..."
 
 # If script is called directly
 if [ "${BASH_SOURCE[0]}" == "${0}" ]; then

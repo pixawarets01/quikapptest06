@@ -73,6 +73,7 @@ workflows:
           ./lib/scripts/android/main.sh
     artifacts:
       - build/app/outputs/flutter-apk/app-release.apk
+      - output/android/app-release.apk
 
   android-paid:
     name: Android Paid Build
@@ -149,6 +150,7 @@ workflows:
           ./lib/scripts/android/main.sh
     artifacts:
       - build/app/outputs/flutter-apk/app-release.apk
+      - output/android/app-release.apk
 
   android-publish:
     name: Android Publish Build
@@ -229,6 +231,8 @@ workflows:
     artifacts:
       - build/app/outputs/flutter-apk/app-release.apk
       - build/app/outputs/bundle/release/app-release.aab
+      - output/android/app-release.apk
+      - output/android/app-release.aab
 
   ios-only:
     name: iOS Build
@@ -319,6 +323,8 @@ workflows:
           ./lib/scripts/ios/main.sh
     artifacts:
       - build/ios/ipa/*.ipa
+      - ios/build/ios/ipa/*.ipa
+      - output/ios/Runner.ipa
 
   combined:
     name: Combined Android & iOS Build
@@ -421,3 +427,7 @@ workflows:
       - build/app/outputs/flutter-apk/app-release.apk
       - build/app/outputs/bundle/release/app-release.aab
       - build/ios/ipa/*.ipa
+      - ios/build/ios/ipa/*.ipa
+      - output/android/app-release.apk
+      - output/android/app-release.aab
+      - output/ios/Runner.ipa

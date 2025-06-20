@@ -398,6 +398,7 @@ fi
 # Send build success email
 if [ -f "lib/scripts/utils/send_email.sh" ]; then
     chmod +x lib/scripts/utils/send_email.sh
+    # Pass platform and build ID for individual artifact URL generation
     lib/scripts/utils/send_email.sh "build_success" "iOS" "${CM_BUILD_ID:-unknown}" || true
 fi
 

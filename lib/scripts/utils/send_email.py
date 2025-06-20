@@ -1,334 +1,538 @@
 #!/usr/bin/env python3
+"""
+Enhanced QuikApp Email Notification System
+Provides professional email notifications with individual download URLs
+"""
+
 import os
 import sys
 import smtplib
+import glob
+from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.header import Header
+import logging
 
-# Read arguments
-if len(sys.argv) < 5:
-    print("Usage: send_email.py <status> <platform> <build_id> <message>")
-    sys.exit(1)
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(levelname)s: %(message)s')
+logger = logging.getLogger(__name__)
 
-status = sys.argv[1]
-platform = sys.argv[2]
-build_id = sys.argv[3]
-message = sys.argv[4]
-
-# Read environment variables
-EMAIL_SMTP_SERVER = os.environ.get("EMAIL_SMTP_SERVER", "smtp.gmail.com")
-EMAIL_SMTP_PORT = int(os.environ.get("EMAIL_SMTP_PORT", "587"))
-EMAIL_SMTP_USER = os.environ.get("EMAIL_SMTP_USER")
-EMAIL_SMTP_PASS = os.environ.get("EMAIL_SMTP_PASS")
-EMAIL_ID = os.environ.get("EMAIL_ID", EMAIL_SMTP_USER)
-APP_NAME = os.environ.get("APP_NAME", "Unknown App")
-ORG_NAME = os.environ.get("ORG_NAME", "Unknown Organization")
-USER_NAME = os.environ.get("USER_NAME", "Unknown User")
-VERSION_NAME = os.environ.get("VERSION_NAME", "1.0.0")
-VERSION_CODE = os.environ.get("VERSION_CODE", "1")
-WEB_URL = os.environ.get("WEB_URL", "https://example.com")
-
-if not EMAIL_SMTP_USER or not EMAIL_SMTP_PASS:
-    print("[send_email.py] Missing EMAIL_SMTP_USER or EMAIL_SMTP_PASS. Skipping email.")
-    sys.exit(0)
-
-# Determine status colors and icons
-status_config = {
-    "build_started": {"color": "#667eea", "icon": "🧱", "title": "Build Started", "icon2": "🏗️"},
-    "build_success": {"color": "#11998e", "icon": "🏆", "title": "Build Successful", "icon2": "👑"},
-    "build_failed": {"color": "#ff6b6b", "icon": "🚫", "title": "Build Failed", "icon2": "🛑"}
-}
-
-config = status_config.get(status, {"color": "#6c757d", "icon": "ℹ️", "title": "Build Update"})
-
-# Compose email with QuikApp styling
-subject = f"{config['icon2']} QuikApp {config['title']} - {APP_NAME}"
-from_addr = EMAIL_SMTP_USER
-to_addr = EMAIL_ID
-
-html = f"""
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QuikApp {config['title']}</title>
-    <style>
-        * {{
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }}
+class QuikAppEmailNotifier:
+    def __init__(self):
+        """Initialize the email notifier with environment variables"""
+        self.smtp_server = os.environ.get("EMAIL_SMTP_SERVER", "smtp.gmail.com")
+        self.smtp_port = int(os.environ.get("EMAIL_SMTP_PORT", "587"))
+        self.smtp_user = os.environ.get("EMAIL_SMTP_USER")
+        self.smtp_pass = os.environ.get("EMAIL_SMTP_PASS")
+        self.recipient = os.environ.get("EMAIL_ID", self.smtp_user)
         
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }}
+        # App information
+        self.app_name = os.environ.get("APP_NAME", "QuikApp")
+        self.org_name = os.environ.get("ORG_NAME", "Organization")
+        self.user_name = os.environ.get("USER_NAME", "Developer")
+        self.version_name = os.environ.get("VERSION_NAME", "1.0.0")
+        self.version_code = os.environ.get("VERSION_CODE", "1")
+        self.web_url = os.environ.get("WEB_URL", "https://quikapp.co")
+        self.workflow_id = os.environ.get("WORKFLOW_ID", "unknown")
         
-
-.container {{
-    width: 90%;
-    max-width: 600px;
-    margin: 0 auto;
-    background: white;
-    border-radius: 20px;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-    overflow: hidden;
-}}
-@media (min-width: 992px) {{
-    .container {{
-        max-width: none;
-        width: auto;
-    }}
-}}
+        # Feature flags for enhanced email content
+        self.features = {
+            'push_notify': os.environ.get("PUSH_NOTIFY", "false").lower() == "true",
+            'is_chatbot': os.environ.get("IS_CHATBOT", "false").lower() == "true",
+            'is_domain_url': os.environ.get("IS_DOMAIN_URL", "false").lower() == "true",
+            'is_splash': os.environ.get("IS_SPLASH", "false").lower() == "true",
+            'is_pulldown': os.environ.get("IS_PULLDOWN", "false").lower() == "true",
+            'is_bottommenu': os.environ.get("IS_BOTTOMMENU", "false").lower() == "true",
+            'is_load_ind': os.environ.get("IS_LOAD_IND", "false").lower() == "true",
+        }
         
-        .header {{
-            background: linear-gradient(135deg, {config['color']} 0%, {config['color']}dd 100%);
-            color: white;
-            padding: 40px 30px;
-            text-align: center;
-            position: relative;
-        }}
+        # Permissions for enhanced email content
+        self.permissions = {
+            'camera': os.environ.get("IS_CAMERA", "false").lower() == "true",
+            'location': os.environ.get("IS_LOCATION", "false").lower() == "true",
+            'microphone': os.environ.get("IS_MIC", "false").lower() == "true",
+            'notification': os.environ.get("IS_NOTIFICATION", "false").lower() == "true",
+            'contact': os.environ.get("IS_CONTACT", "false").lower() == "true",
+            'biometric': os.environ.get("IS_BIOMETRIC", "false").lower() == "true",
+            'calendar': os.environ.get("IS_CALENDAR", "false").lower() == "true",
+            'storage': os.environ.get("IS_STORAGE", "false").lower() == "true",
+        }
         
-        .header::before {{
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
-            opacity: 0.3;
-        }}
+        # Build environment
+        self.project_id = os.environ.get("CM_PROJECT_ID", "unknown")
+        self.pkg_name = os.environ.get("PKG_NAME", "")
+        self.bundle_id = os.environ.get("BUNDLE_ID", "")
         
-        .header-content {{
-            position: relative;
-            z-index: 1;
-        }}
+    def get_file_size(self, file_path):
+        """Get human-readable file size"""
+        try:
+            size = os.path.getsize(file_path)
+            for unit in ['B', 'KB', 'MB', 'GB']:
+                if size < 1024.0:
+                    return f"{size:.1f} {unit}"
+                size /= 1024.0
+            return f"{size:.1f} TB"
+        except:
+            return "Unknown"
+    
+    def scan_artifacts(self):
+        """Scan output directories for build artifacts"""
+        artifacts = []
         
-        .status-icon {{
-            font-size: 48px;
-            margin-bottom: 15px;
-            display: block;
-        }}
+        # Android artifacts
+        android_files = [
+            ("output/android/app-release.apk", "📱 Android APK", "Install directly on Android devices", "#27ae60"),
+            ("output/android/app-release.aab", "📦 Android AAB", "Upload to Google Play Store", "#4caf50"),
+        ]
         
-        .status-title {{
-            font-size: 28px;
-            font-weight: 700;
-            margin-bottom: 10px;
-            letter-spacing: -0.5px;
-        }}
+        for file_path, name, description, color in android_files:
+            if os.path.exists(file_path):
+                artifacts.append({
+                    'name': name,
+                    'description': description,
+                    'file_path': file_path,
+                    'filename': os.path.basename(file_path),
+                    'size': self.get_file_size(file_path),
+                    'color': color
+                })
         
-        .status-subtitle {{
-            font-size: 16px;
-            opacity: 0.9;
-            font-weight: 400;
-        }}
+        # iOS artifacts
+        ios_files = [
+            ("output/ios/Runner.ipa", "🍎 iOS IPA", "Upload to App Store Connect or TestFlight", "#2196f3"),
+        ]
         
-        .content {{
-            padding: 40px 30px;
-        }}
+        for file_path, name, description, color in ios_files:
+            if os.path.exists(file_path):
+                artifacts.append({
+                    'name': name,
+                    'description': description,
+                    'file_path': file_path,
+                    'filename': os.path.basename(file_path),
+                    'size': self.get_file_size(file_path),
+                    'color': color
+                })
         
-        .info-grid {{
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 30px;
-        }}
+        # Additional artifacts
+        additional_dirs = ["output/android", "output/ios"]
+        known_files = {"app-release.apk", "app-release.aab", "Runner.ipa"}
         
-        .info-card {{
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 12px;
-            border-left: 4px solid {config['color']};
-        }}
+        for directory in additional_dirs:
+            if os.path.exists(directory):
+                for file_path in glob.glob(f"{directory}/*"):
+                    if os.path.isfile(file_path):
+                        filename = os.path.basename(file_path)
+                        if filename not in known_files:
+                            artifacts.append({
+                                'name': f"📄 {filename}",
+                                'description': f"Additional {'iOS' if 'ios' in directory else 'Android'} artifact",
+                                'file_path': file_path,
+                                'filename': filename,
+                                'size': self.get_file_size(file_path),
+                                'color': "#ff9800" if "android" in directory else "#9c27b0"
+                            })
         
-        .info-label {{
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #6c757d;
-            font-weight: 600;
-            margin-bottom: 5px;
-        }}
+        return artifacts
+    
+    def generate_artifact_cards(self, build_id):
+        """Generate HTML for individual artifact download cards"""
+        artifacts = self.scan_artifacts()
         
-        .info-value {{
-            font-size: 16px;
-            font-weight: 600;
-            color: #2c3e50;
-        }}
+        if not artifacts:
+            return """
+            <div style="background: #fff3cd; padding: 20px; border-radius: 12px; margin: 20px 0; border-left: 4px solid #ffc107;">
+                <h4 style="color: #856404; margin: 0 0 10px 0;">⚠️ No Artifacts Found</h4>
+                <p style="color: #856404; margin: 0;">Build completed but no output files were detected. Please check the build logs.</p>
+            </div>
+            """
         
-        .app-details {{
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            border-radius: 16px;
-            margin-bottom: 30px;
-            text-align: center;
-        }}
+        cards_html = """
+        <div style="background: #f8f9fa; padding: 30px; border-radius: 16px; margin: 30px 0;">
+            <h3 style="color: #2c3e50; margin: 0 0 20px 0; text-align: center;">📦 Download Individual Files</h3>
+            <p style="margin: 0 0 25px 0; text-align: center; color: #6c757d;">Click the buttons below to download specific app files:</p>
+            <div style="display: grid; gap: 20px;">
+        """
         
-        .app-name {{
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 10px;
-        }}
+        base_url = f"https://api.codemagic.io/artifacts/{self.project_id}/{build_id}"
         
-        .app-version {{
-            font-size: 14px;
-            opacity: 0.9;
-        }}
+        for artifact in artifacts:
+            download_url = f"{base_url}/{artifact['filename']}"
+            cards_html += f"""
+            <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 2px solid {artifact['color']}20; display: flex; justify-content: space-between; align-items: center; min-height: 100px;">
+                <div style="flex: 1;">
+                    <h4 style="margin: 0 0 8px 0; color: {artifact['color']}; font-size: 18px;">{artifact['name']}</h4>
+                    <p style="margin: 0 0 5px 0; color: #666; font-size: 14px; line-height: 1.4;">{artifact['description']}</p>
+                    <p style="margin: 0; color: #999; font-size: 12px;">Size: {artifact['size']}</p>
+                </div>
+                <div style="margin-left: 20px;">
+                    <a href="{download_url}" style="background: {artifact['color']}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; display: inline-block; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                        📥 Download
+                    </a>
+                </div>
+            </div>
+            """
         
-        .message-section {{
-            background: #fff;
-            border: 2px solid #e9ecef;
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 30px;
-        }}
+        cards_html += """
+            </div>
+            <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; margin-top: 25px;">
+                <h4 style="margin: 0 0 15px 0; color: #1976d2;">📋 Download Instructions:</h4>
+                <ul style="margin: 0; padding-left: 20px; color: #424242; line-height: 1.8;">
+                    <li><strong>APK:</strong> Right-click → "Save As" to download, then install on Android device</li>
+                    <li><strong>AAB:</strong> Upload directly to Google Play Console for store distribution</li>
+                    <li><strong>IPA:</strong> Upload to App Store Connect using Xcode or Transporter app</li>
+                </ul>
+            </div>
+        </div>
+        """
         
-        .message-title {{
-            font-size: 18px;
-            font-weight: 600;
-            color: #2c3e50;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }}
+        return cards_html
+    
+    def generate_feature_badges(self):
+        """Generate HTML for feature and permission badges"""
+        def get_badge(enabled):
+            if enabled:
+                return '<span style="background: #28a745; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 600;">✅ Enabled</span>'
+            else:
+                return '<span style="background: #6c757d; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 600;">❌ Disabled</span>'
         
-        .message-content {{
-            color: #6c757d;
-            line-height: 1.7;
-        }}
-        
-        .footer {{
-            background: #2c3e50;
-            color: white;
-            padding: 30px;
-            text-align: center;
-        }}
-        
-        .footer-links {{
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin-bottom: 20px;
-        }}
-        
-        .footer-link {{
-            color: #667eea;
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.3s ease;
-        }}
-        
-        .footer-link:hover {{
-            color: #764ba2;
-        }}
-        
-        .footer-text {{
-            font-size: 14px;
-            opacity: 0.8;
-        }}
-        
-        .quikapp-logo {{
-            font-size: 20px;
-            font-weight: 700;
-            color: #667eea;
-            margin-bottom: 10px;
-        }}
-        
-        @media (max-width: 600px) {{
-            .info-grid {{
-                grid-template-columns: 1fr;
-            }}
-            
-            .footer-links {{
-                flex-direction: column;
-                gap: 10px;
-            }}
-        }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <div class="header-content">
-                <span class="status-icon">{config['icon']}</span>
-                <h1 class="status-title">{config['title']}</h1>
-                <p class="status-subtitle">Your QuikApp build process update</p>
+        features_html = f"""
+        <div style="background: #e8f5e8; padding: 25px; border-radius: 12px; margin: 20px 0;">
+            <h3 style="color: #27ae60; margin: 0 0 20px 0;">🎨 App Features</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div>Push Notifications: {get_badge(self.features['push_notify'])}</div>
+                <div>Chat Bot: {get_badge(self.features['is_chatbot'])}</div>
+                <div>Deep Linking: {get_badge(self.features['is_domain_url'])}</div>
+                <div>Splash Screen: {get_badge(self.features['is_splash'])}</div>
+                <div>Pull to Refresh: {get_badge(self.features['is_pulldown'])}</div>
+                <div>Bottom Menu: {get_badge(self.features['is_bottommenu'])}</div>
             </div>
         </div>
         
-        <div class="content">
-            <div class="app-details">
-                <div class="app-name">{APP_NAME}</div>
-                <div class="app-version">Version {VERSION_NAME} ({VERSION_CODE}) • {ORG_NAME}</div>
-            </div>
-            
-            <div class="info-grid">
-                <div class="info-card">
-                    <div class="info-label">Platform</div>
-                    <div class="info-value">{platform}</div>
-                </div>
-                <div class="info-card">
-                    <div class="info-label">Build ID</div>
-                    <div class="info-value">{build_id}</div>
-                </div>
-                <div class="info-card">
-                    <div class="info-label">User</div>
-                    <div class="info-value">{USER_NAME}</div>
-                </div>
-                <div class="info-card">
-                    <div class="info-label">Website</div>
-                    <div class="info-value">{WEB_URL}</div>
-                </div>
-            </div>
-            
-            <div class="message-section">
-                <div class="message-title">
-                    <span>📋</span>
-                    Build Details
-                </div>
-                <div class="message-content">
-                    {message}
-                </div>
+        <div style="background: #fce4ec; padding: 25px; border-radius: 12px; margin: 20px 0;">
+            <h3 style="color: #d81b60; margin: 0 0 20px 0;">🔐 App Permissions</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div>Camera: {get_badge(self.permissions['camera'])}</div>
+                <div>Location: {get_badge(self.permissions['location'])}</div>
+                <div>Microphone: {get_badge(self.permissions['microphone'])}</div>
+                <div>Notifications: {get_badge(self.permissions['notification'])}</div>
+                <div>Contacts: {get_badge(self.permissions['contact'])}</div>
+                <div>Biometric: {get_badge(self.permissions['biometric'])}</div>
+                <div>Calendar: {get_badge(self.permissions['calendar'])}</div>
+                <div>Storage: {get_badge(self.permissions['storage'])}</div>
             </div>
         </div>
+        """
         
-        <div class="footer">
-            <div class="quikapp-logo">QuikApp</div>
-            <div class="footer-links">
-                <a href="https://quikapp.co" class="footer-link">Website</a>
-                <a href="https://app.quikapp.co" class="footer-link">Portal</a>
-                <a href="https://www.quikapp.co/help" class="footer-link">Documentation</a>
-                <a href="mailto:support@quikapp.co" class="footer-link">Support</a>
+        return features_html
+    
+    def send_build_started_email(self, platform, build_id):
+        """Send build started notification"""
+        subject = f"🚀 QuikApp Build Started - {self.app_name}"
+        
+        html = f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>QuikApp Build Started</title>
+            <style>
+                body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background: #f5f7fa; }}
+                .container {{ max-width: 800px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }}
+                .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 30px; text-align: center; }}
+                .content {{ padding: 30px; }}
+                .footer {{ background: #2c3e50; color: white; padding: 30px; text-align: center; }}
+                .app-info {{ background: #f8f9fa; padding: 25px; border-radius: 12px; margin: 20px 0; }}
+                .grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }}
+                @media (max-width: 600px) {{ .grid {{ grid-template-columns: 1fr; }} }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <div style="font-size: 48px; margin-bottom: 15px;">🚀</div>
+                    <h1 style="margin: 0; font-size: 28px;">Build Started</h1>
+                    <p style="margin: 10px 0 0 0; opacity: 0.9;">Your QuikApp build process has begun</p>
+                </div>
+                
+                <div class="content">
+                    <div class="app-info">
+                        <h2 style="margin: 0 0 15px 0; color: #2c3e50;">📱 {self.app_name}</h2>
+                        <div class="grid">
+                            <div><strong>Version:</strong> {self.version_name} ({self.version_code})</div>
+                            <div><strong>Platform:</strong> {platform}</div>
+                            <div><strong>Build ID:</strong> {build_id}</div>
+                            <div><strong>Workflow:</strong> {self.workflow_id}</div>
+                            <div><strong>Organization:</strong> {self.org_name}</div>
+                            <div><strong>Developer:</strong> {self.user_name}</div>
+                        </div>
+                    </div>
+                    
+                    {self.generate_feature_badges()}
+                    
+                    <div style="background: #e3f2fd; padding: 25px; border-radius: 12px; text-align: center;">
+                        <h3 style="color: #1976d2; margin: 0 0 15px 0;">⏱️ Build in Progress</h3>
+                        <p style="margin: 0;">Your app is currently being built. You'll receive another email when it's ready!</p>
+                        <p style="margin: 10px 0 0 0; color: #666;"><strong>Estimated Time:</strong> 5-15 minutes</p>
+                    </div>
+                </div>
+                
+                <div class="footer">
+                    <div style="font-size: 20px; font-weight: 700; color: #667eea; margin-bottom: 15px;">🚀 QuikApp</div>
+                    <p style="margin: 0; opacity: 0.8;">© 2025 QuikApp Technologies. All rights reserved.</p>
+                </div>
             </div>
-            <div class="footer-text">
-                © 2025 QuikApp. All rights reserved. | Automated build notification
+        </body>
+        </html>
+        """
+        
+        return self._send_email(subject, html)
+    
+    def send_build_success_email(self, platform, build_id):
+        """Send build success notification with download links"""
+        subject = f"🎉 QuikApp Build Successful - {self.app_name}"
+        
+        html = f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>QuikApp Build Successful</title>
+            <style>
+                body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background: #f5f7fa; }}
+                .container {{ max-width: 800px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }}
+                .header {{ background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; padding: 40px 30px; text-align: center; }}
+                .content {{ padding: 30px; }}
+                .footer {{ background: #2c3e50; color: white; padding: 30px; text-align: center; }}
+                .app-info {{ background: #f8f9fa; padding: 25px; border-radius: 12px; margin: 20px 0; }}
+                .grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }}
+                .actions {{ background: #e8f5e8; padding: 25px; border-radius: 12px; text-align: center; margin: 20px 0; }}
+                .btn {{ display: inline-block; background: #27ae60; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 5px; }}
+                @media (max-width: 600px) {{ .grid {{ grid-template-columns: 1fr; }} }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <div style="font-size: 48px; margin-bottom: 15px;">🎉</div>
+                    <h1 style="margin: 0; font-size: 28px;">Build Successful!</h1>
+                    <p style="margin: 10px 0 0 0; opacity: 0.9;">Your QuikApp has been built successfully</p>
+                </div>
+                
+                <div class="content">
+                    <div class="app-info">
+                        <h2 style="margin: 0 0 15px 0; color: #2c3e50;">📱 {self.app_name}</h2>
+                        <div class="grid">
+                            <div><strong>Version:</strong> {self.version_name} ({self.version_code})</div>
+                            <div><strong>Platform:</strong> {platform}</div>
+                            <div><strong>Build ID:</strong> {build_id}</div>
+                            <div><strong>Workflow:</strong> {self.workflow_id}</div>
+                            <div><strong>Organization:</strong> {self.org_name}</div>
+                            <div><strong>Completed:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}</div>
+                        </div>
+                    </div>
+                    
+                    {self.generate_artifact_cards(build_id)}
+                    
+                    {self.generate_feature_badges()}
+                    
+                    <div style="background: #fff3cd; padding: 25px; border-radius: 12px; margin: 20px 0;">
+                        <h3 style="color: #856404; margin: 0 0 15px 0;">📋 Next Steps</h3>
+                        <ul style="color: #856404; line-height: 1.8; margin: 0; padding-left: 20px;">
+                            <li><strong>Android APK:</strong> Download and install directly on device for testing</li>
+                            <li><strong>Android AAB:</strong> Upload to Google Play Console for store distribution</li>
+                            <li><strong>iOS IPA:</strong> Upload to App Store Connect or distribute via TestFlight</li>
+                            <li><strong>Testing:</strong> Test the app thoroughly on different devices before publishing</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="actions">
+                        <h3 style="color: #27ae60; margin: 0 0 20px 0;">🔗 Quick Actions</h3>
+                        <a href="https://codemagic.io/builds/{build_id}" class="btn" style="background: #1976d2;">📋 View Build Logs</a>
+                        <a href="https://codemagic.io" class="btn" style="background: #27ae60;">🚀 Start New Build</a>
+                    </div>
+                </div>
+                
+                <div class="footer">
+                    <div style="font-size: 20px; font-weight: 700; color: #667eea; margin-bottom: 15px;">🚀 QuikApp</div>
+                    <div style="margin: 15px 0;">
+                        <a href="https://quikapp.co" style="color: #667eea; text-decoration: none; margin: 0 15px;">Website</a>
+                        <a href="https://docs.quikapp.co" style="color: #667eea; text-decoration: none; margin: 0 15px;">Docs</a>
+                        <a href="mailto:support@quikapp.co" style="color: #667eea; text-decoration: none; margin: 0 15px;">Support</a>
+                    </div>
+                    <p style="margin: 0; opacity: 0.8;">© 2025 QuikApp Technologies. All rights reserved.</p>
+                </div>
             </div>
-        </div>
-    </div>
-</body>
-</html>
-"""
+        </body>
+        </html>
+        """
+        
+        return self._send_email(subject, html)
+    
+    def send_build_failed_email(self, platform, build_id, error_message):
+        """Send build failure notification"""
+        subject = f"❌ QuikApp Build Failed - {self.app_name}"
+        
+        html = f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>QuikApp Build Failed</title>
+            <style>
+                body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background: #f5f7fa; }}
+                .container {{ max-width: 800px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }}
+                .header {{ background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); color: white; padding: 40px 30px; text-align: center; }}
+                .content {{ padding: 30px; }}
+                .footer {{ background: #2c3e50; color: white; padding: 30px; text-align: center; }}
+                .app-info {{ background: #f8f9fa; padding: 25px; border-radius: 12px; margin: 20px 0; }}
+                .error-box {{ background: #ffebee; padding: 25px; border-radius: 12px; border-left: 4px solid #f44336; margin: 20px 0; }}
+                .grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }}
+                .actions {{ background: #e3f2fd; padding: 25px; border-radius: 12px; text-align: center; margin: 20px 0; }}
+                .btn {{ display: inline-block; background: #1976d2; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 5px; }}
+                @media (max-width: 600px) {{ .grid {{ grid-template-columns: 1fr; }} }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <div style="font-size: 48px; margin-bottom: 15px;">❌</div>
+                    <h1 style="margin: 0; font-size: 28px;">Build Failed</h1>
+                    <p style="margin: 10px 0 0 0; opacity: 0.9;">There was an issue with your QuikApp build</p>
+                </div>
+                
+                <div class="content">
+                    <div class="app-info">
+                        <h2 style="margin: 0 0 15px 0; color: #2c3e50;">📱 {self.app_name}</h2>
+                        <div class="grid">
+                            <div><strong>Version:</strong> {self.version_name} ({self.version_code})</div>
+                            <div><strong>Platform:</strong> {platform}</div>
+                            <div><strong>Build ID:</strong> {build_id}</div>
+                            <div><strong>Workflow:</strong> {self.workflow_id}</div>
+                            <div><strong>Organization:</strong> {self.org_name}</div>
+                            <div><strong>Failed At:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="error-box">
+                        <h3 style="color: #c62828; margin: 0 0 15px 0;">⚠️ Error Details</h3>
+                        <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #e0e0e0;">
+                            <code style="color: #d32f2f; font-family: 'Courier New', monospace; white-space: pre-wrap; font-size: 14px;">{error_message}</code>
+                        </div>
+                    </div>
+                    
+                    <div style="background: #ffebee; padding: 25px; border-radius: 12px; margin: 20px 0;">
+                        <h3 style="color: #c62828; margin: 0 0 15px 0;">🔧 Troubleshooting Steps</h3>
+                        <ol style="color: #424242; line-height: 1.8; margin: 0; padding-left: 20px;">
+                            <li><strong>Check Environment Variables:</strong> Verify all required variables are set correctly</li>
+                            <li><strong>Validate URLs:</strong> Ensure all asset URLs are accessible and return valid files</li>
+                            <li><strong>Review Certificates:</strong> Check iOS certificates and Android keystore configuration</li>
+                            <li><strong>Firebase Configuration:</strong> Verify Firebase config files are valid</li>
+                            <li><strong>Build Dependencies:</strong> Check Flutter, Gradle, and Xcode versions</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="actions">
+                        <h3 style="color: #1976d2; margin: 0 0 20px 0;">🔄 Ready to Try Again?</h3>
+                        <p style="margin: 0 0 20px 0;">After fixing the issues above, you can restart your build.</p>
+                        <a href="https://codemagic.io" class="btn" style="background: #1976d2;">🚀 Restart Build</a>
+                        <a href="https://codemagic.io/builds/{build_id}" class="btn" style="background: #757575;">📋 View Logs</a>
+                    </div>
+                </div>
+                
+                <div class="footer">
+                    <div style="font-size: 20px; font-weight: 700; color: #667eea; margin-bottom: 15px;">🚀 QuikApp</div>
+                    <div style="margin: 15px 0;">
+                        <a href="https://quikapp.co" style="color: #667eea; text-decoration: none; margin: 0 15px;">Website</a>
+                        <a href="https://docs.quikapp.co" style="color: #667eea; text-decoration: none; margin: 0 15px;">Docs</a>
+                        <a href="mailto:support@quikapp.co" style="color: #667eea; text-decoration: none; margin: 0 15px;">Support</a>
+                    </div>
+                    <p style="margin: 0; opacity: 0.8;">© 2025 QuikApp Technologies. All rights reserved.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        return self._send_email(subject, html)
+    
+    def _send_email(self, subject, html_content):
+        """Send email with enhanced error handling and logging"""
+        if not self.smtp_user or not self.smtp_pass:
+            logger.warning("Missing SMTP credentials. Skipping email.")
+            return False
+        
+        try:
+            # Create message
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = Header(subject, 'utf-8')
+            msg['From'] = Header(f"QuikApp Build System <{self.smtp_user}>", 'utf-8')
+            msg['To'] = Header(self.recipient, 'utf-8')
+            msg['X-Priority'] = '2'  # High priority
+            msg['X-Mailer'] = 'QuikApp Build System v2.0'
+            
+            # Attach HTML content
+            html_part = MIMEText(html_content, 'html', 'utf-8')
+            msg.attach(html_part)
+            
+            # Send email with enhanced connection handling
+            logger.info(f"Sending email to {self.recipient} via {self.smtp_server}:{self.smtp_port}")
+            
+            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
+                server.set_debuglevel(0)  # Set to 1 for debugging
+                server.starttls()
+                server.login(self.smtp_user, self.smtp_pass)
+                
+                # Send email
+                result = server.sendmail(self.smtp_user, [self.recipient], msg.as_string())
+                
+                if result:
+                    logger.warning(f"Email delivery issues: {result}")
+                else:
+                    logger.info(f"✅ Email sent successfully to {self.recipient}")
+                    return True
+                    
+        except smtplib.SMTPAuthenticationError as e:
+            logger.error(f"❌ SMTP Authentication failed: {e}")
+        except smtplib.SMTPRecipientsRefused as e:
+            logger.error(f"❌ Recipient refused: {e}")
+        except smtplib.SMTPServerDisconnected as e:
+            logger.error(f"❌ SMTP server disconnected: {e}")
+        except Exception as e:
+            logger.error(f"❌ Failed to send email: {e}")
+            
+        return False
 
-msg = MIMEMultipart('alternative')
-msg['Subject'] = subject
-msg['From'] = from_addr
-msg['To'] = to_addr
-msg.attach(MIMEText(html, 'html'))
+def main():
+    """Main function to handle command line arguments"""
+    if len(sys.argv) < 4:
+        print("Usage: send_email.py <email_type> <platform> <build_id> [error_message]")
+        print("Email types: build_started, build_success, build_failed")
+        sys.exit(1)
+    
+    email_type = sys.argv[1]
+    platform = sys.argv[2]
+    build_id = sys.argv[3]
+    error_message = sys.argv[4] if len(sys.argv) > 4 else "Unknown error occurred"
+    
+    # Initialize email notifier
+    notifier = QuikAppEmailNotifier()
+    
+    # Send appropriate email
+    success = False
+    if email_type == "build_started":
+        success = notifier.send_build_started_email(platform, build_id)
+    elif email_type == "build_success":
+        success = notifier.send_build_success_email(platform, build_id)
+    elif email_type == "build_failed":
+        success = notifier.send_build_failed_email(platform, build_id, error_message)
+    else:
+        logger.error(f"Unknown email type: {email_type}")
+        sys.exit(1)
+    
+    sys.exit(0 if success else 1)
 
-try:
-    with smtplib.SMTP(EMAIL_SMTP_SERVER, EMAIL_SMTP_PORT) as server:
-        server.starttls()
-        server.login(EMAIL_SMTP_USER, EMAIL_SMTP_PASS)
-        server.sendmail(from_addr, [to_addr], msg.as_string())
-    print(f"[send_email.py] Email sent to {to_addr}")
-except Exception as e:
-    print(f"[send_email.py] Failed to send email: {e}")
-    sys.exit(0) 
+if __name__ == "__main__":
+    main() 

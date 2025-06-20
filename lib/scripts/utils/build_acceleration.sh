@@ -80,6 +80,9 @@ optimize_gradle_build() {
     
     cd android
     
+    # Ensure gradlew has execute permissions
+    chmod +x gradlew
+    
     # Create optimized gradle.properties
     cat > gradle.properties <<EOF
 # Gradle optimization settings
