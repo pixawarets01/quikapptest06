@@ -405,41 +405,72 @@ flutter clean
 
 # Create a list of safe environment variables to pass to Flutter
 log "🔧 Preparing environment variables for Flutter..."
-ENV_ARGS=""
 
-# Define a list of safe variables that can be passed to Flutter
-SAFE_VARS=(
-    "APP_ID" "WORKFLOW_ID" "BRANCH" "VERSION_NAME" "VERSION_CODE" 
-    "APP_NAME" "ORG_NAME" "WEB_URL" "PKG_NAME" "EMAIL_ID" "USER_NAME"
-    "PUSH_NOTIFY" "IS_CHATBOT" "IS_DOMAIN_URL" "IS_SPLASH" "IS_PULLDOWN"
-    "IS_BOTTOMMENU" "IS_LOAD_IND" "IS_CAMERA" "IS_LOCATION" "IS_MIC"
-    "IS_NOTIFICATION" "IS_CONTACT" "IS_BIOMETRIC" "IS_CALENDAR" "IS_STORAGE"
-    "SPLASH_BG_COLOR" "SPLASH_TAGLINE" "SPLASH_TAGLINE_COLOR" "SPLASH_ANIMATION"
-    "SPLASH_DURATION" "BOTTOMMENU_FONT" "BOTTOMMENU_FONT_SIZE" "BOTTOMMENU_FONT_BOLD"
-    "BOTTOMMENU_FONT_ITALIC" "BOTTOMMENU_BG_COLOR" "BOTTOMMENU_TEXT_COLOR"
-    "BOTTOMMENU_ICON_COLOR" "BOTTOMMENU_ACTIVE_TAB_COLOR" "BOTTOMMENU_ICON_POSITION"
-    "ENABLE_EMAIL_NOTIFICATIONS" "EMAIL_SMTP_SERVER" "EMAIL_SMTP_PORT"
-    "EMAIL_SMTP_USER" "CM_BUILD_ID" "CM_WORKFLOW_NAME" "CM_BRANCH"
-    "FCI_BUILD_ID" "FCI_WORKFLOW_NAME" "FCI_BRANCH" "CONTINUOUS_INTEGRATION"
-    "CI" "BUILD_NUMBER" "PROJECT_BUILD_NUMBER"
-)
+# Create a temporary file for environment variables
+ENV_FILE=$(mktemp)
+trap "rm -f $ENV_FILE" EXIT
 
-# Only pass safe variables to Flutter
-for var_name in "${SAFE_VARS[@]}"; do
-    if [ -n "${!var_name:-}" ]; then
-        # Escape the value to handle special characters
-        var_value="${!var_name}"
-        # Remove any newlines or problematic characters
-        var_value=$(echo "$var_value" | tr '\n' ' ' | sed 's/[[:space:]]*$//')
-        ENV_ARGS="$ENV_ARGS --dart-define=$var_name=$var_value"
-    fi
-done
+# Write essential environment variables to file
+cat > "$ENV_FILE" << EOF
+--dart-define=APP_ID=${APP_ID:-}
+--dart-define=WORKFLOW_ID=${WORKFLOW_ID:-}
+--dart-define=VERSION_NAME=${VERSION_NAME:-}
+--dart-define=VERSION_CODE=${VERSION_CODE:-}
+--dart-define=APP_NAME="${APP_NAME:-}"
+--dart-define=PKG_NAME=${PKG_NAME:-}
+--dart-define=PUSH_NOTIFY=${PUSH_NOTIFY:-false}
+--dart-define=IS_CHATBOT=${IS_CHATBOT:-false}
+--dart-define=IS_DOMAIN_URL=${IS_DOMAIN_URL:-false}
+--dart-define=IS_SPLASH=${IS_SPLASH:-false}
+--dart-define=IS_PULLDOWN=${IS_PULLDOWN:-false}
+--dart-define=IS_BOTTOMMENU=${IS_BOTTOMMENU:-false}
+--dart-define=IS_LOAD_IND=${IS_LOAD_IND:-false}
+--dart-define=IS_CAMERA=${IS_CAMERA:-false}
+--dart-define=IS_LOCATION=${IS_LOCATION:-false}
+--dart-define=IS_MIC=${IS_MIC:-false}
+--dart-define=IS_NOTIFICATION=${IS_NOTIFICATION:-false}
+--dart-define=IS_CONTACT=${IS_CONTACT:-false}
+--dart-define=IS_BIOMETRIC=${IS_BIOMETRIC:-false}
+--dart-define=IS_CALENDAR=${IS_CALENDAR:-false}
+--dart-define=IS_STORAGE=${IS_STORAGE:-false}
+--dart-define=FLUTTER_BUILD_NAME=${VERSION_NAME:-}
+--dart-define=FLUTTER_BUILD_NUMBER=${VERSION_CODE:-}
+EOF
 
-# Add essential build arguments
-ENV_ARGS="$ENV_ARGS --dart-define=FLUTTER_BUILD_NAME=$VERSION_NAME"
-ENV_ARGS="$ENV_ARGS --dart-define=FLUTTER_BUILD_NUMBER=$VERSION_CODE"
+# Read the environment variables from file
+ENV_ARGS=$(cat "$ENV_FILE" | tr '\n' ' ')
 
-log "📋 Prepared $ENV_ARGS environment variables for Flutter build"
+log "📋 Prepared environment variables for Flutter build"
+
+# Debug: Show the exact Flutter build command that will be executed
+log "🔍 Debug: Flutter build command will be:"
+log "   flutter build apk --release $ENV_ARGS"
+log "   flutter build appbundle --release $ENV_ARGS"
+
+# Debug: Show current directory and Flutter project structure
+log "🔍 Debug: Current directory: $(pwd)"
+log "🔍 Debug: Flutter project structure:"
+ls -la | head -10
+log "🔍 Debug: pubspec.yaml exists: $([ -f pubspec.yaml ] && echo 'YES' || echo 'NO')"
+log "🔍 Debug: android/ directory exists: $([ -d android ] && echo 'YES' || echo 'NO')"
+
+# Verify Flutter is working
+log "🔍 Debug: Flutter doctor:"
+flutter doctor --verbose 2>&1 | head -20 || true
+
+# Test basic Flutter build without environment variables first
+log "🧪 Testing basic Flutter build without environment variables..."
+if flutter build apk --release --no-tree-shake-icons; then
+    log "✅ Basic Flutter build test successful"
+else
+    log "❌ Basic Flutter build test failed - there's a fundamental issue"
+    log "🔍 Debug: Trying to get more information..."
+    flutter build apk --release --verbose 2>&1 | head -50 || true
+    exit 1
+fi
+
+# Clean after test build
+flutter clean
 
 # Build with optimizations
 log "🔨 Building Android APK with optimizations..."
@@ -450,11 +481,21 @@ if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "co
     # Set GRADLE_OPTS for the flutter build command
     export GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx4G -XX:MaxPermSize=512m -XX:+UseParallelGC"
     
-    if flutter build apk --release $ENV_ARGS && \
-       flutter build appbundle --release $ENV_ARGS; then
-        log "✅ APK and AAB build completed successfully"
+    # Build APK first
+    log "📱 Building APK..."
+    if flutter build apk --release $ENV_ARGS; then
+        log "✅ APK build completed successfully"
     else
-        log "❌ APK and AAB build failed"
+        log "❌ APK build failed"
+        exit 1
+    fi
+    
+    # Build AAB second
+    log "📦 Building AAB..."
+    if flutter build appbundle --release $ENV_ARGS; then
+        log "✅ AAB build completed successfully"
+    else
+        log "❌ AAB build failed"
         exit 1
     fi
 else
