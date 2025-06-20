@@ -5,6 +5,9 @@ set -euo pipefail
 source lib/scripts/utils/gen_env_config.sh
 source lib/scripts/utils/build_acceleration.sh
 
+# Generate environment configuration
+generate_env_config
+
 # Initialize logging
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"; }
 

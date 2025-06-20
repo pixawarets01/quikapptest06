@@ -5,6 +5,9 @@ set -euo pipefail
 source lib/scripts/utils/gen_env_config.sh
 source lib/scripts/utils/build_acceleration.sh
 
+# Generate environment configuration
+generate_env_config
+
 # Initialize logging
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"; }
 
@@ -380,7 +383,7 @@ cd ..
 # Copy artifacts to output directory
 log "📁 Copying artifacts to output directory..."
 cp ios/build/ios/ipa/*.ipa output/ios/ 2>/dev/null || true
-log "✅ IPA copied to output/ios/"
+log "✅ iOS artifacts copied to output/ios/"
 
 # Verify artifacts
 log "🔍 Verifying artifacts..."
