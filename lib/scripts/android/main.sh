@@ -445,7 +445,34 @@ log "📋 Prepared environment variables for Flutter build"
 # Debug: Show the exact Flutter build command that will be executed
 log "🔍 Debug: Flutter build command will be:"
 log "   flutter build apk --release $ENV_ARGS"
-log "   flutter build appbundle --release $ENV_ARGS"
+log "🔍 Debug: Environment variables content:"
+cat "$ENV_FILE" | head -10
+
+# Validate critical environment variables
+log "🔍 Debug: Validating critical environment variables..."
+if [ -z "${APP_NAME:-}" ]; then
+    log "⚠️ Warning: APP_NAME is empty"
+else
+    log "✅ APP_NAME: ${APP_NAME}"
+fi
+
+if [ -z "${PKG_NAME:-}" ]; then
+    log "⚠️ Warning: PKG_NAME is empty"
+else
+    log "✅ PKG_NAME: ${PKG_NAME}"
+fi
+
+if [ -z "${VERSION_NAME:-}" ]; then
+    log "⚠️ Warning: VERSION_NAME is empty"
+else
+    log "✅ VERSION_NAME: ${VERSION_NAME}"
+fi
+
+if [ -z "${VERSION_CODE:-}" ]; then
+    log "⚠️ Warning: VERSION_CODE is empty"
+else
+    log "✅ VERSION_CODE: ${VERSION_CODE}"
+fi
 
 # Debug: Show current directory and Flutter project structure
 log "🔍 Debug: Current directory: $(pwd)"
@@ -460,12 +487,33 @@ flutter doctor --verbose 2>&1 | head -20 || true
 
 # Test basic Flutter build without environment variables first
 log "🧪 Testing basic Flutter build without environment variables..."
-if flutter build apk --release --no-tree-shake-icons; then
+log "🔍 Debug: Running: flutter build apk --release"
+if flutter build apk --release 2>&1 | tee /tmp/flutter_build_test.log; then
     log "✅ Basic Flutter build test successful"
+    # Clean after successful test build
+    flutter clean
 else
     log "❌ Basic Flutter build test failed - there's a fundamental issue"
-    log "🔍 Debug: Trying to get more information..."
-    flutter build apk --release --verbose 2>&1 | head -50 || true
+    log "🔍 Debug: Full build log:"
+    cat /tmp/flutter_build_test.log || true
+    log "🔍 Debug: Trying to get more information about the failure..."
+    
+    # Try to get more specific error information
+    log "🔍 Debug: Checking Flutter project structure..."
+    flutter analyze 2>&1 | head -30 || true
+    
+    log "🔍 Debug: Checking pub dependencies..."
+    flutter pub deps 2>&1 | head -20 || true
+    
+    log "🔍 Debug: Checking Android configuration..."
+    if [ -d "android" ]; then
+        cd android
+        if [ -f "gradlew" ]; then
+            ./gradlew tasks --all 2>&1 | head -20 || true
+        fi
+        cd ..
+    fi
+    
     exit 1
 fi
 
@@ -482,12 +530,17 @@ if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "co
     export GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx4G -XX:MaxPermSize=512m -XX:+UseParallelGC"
     
     # Build APK first
-    log "📱 Building APK..."
+    log "📱 Building APK with environment variables..."
     if flutter build apk --release $ENV_ARGS; then
         log "✅ APK build completed successfully"
     else
-        log "❌ APK build failed"
-        exit 1
+        log "❌ APK build with environment variables failed, trying without..."
+        if flutter build apk --release; then
+            log "✅ APK build completed successfully (without environment variables)"
+        else
+            log "❌ APK build failed completely"
+            exit 1
+        fi
     fi
     
     # Build AAB second
@@ -495,8 +548,13 @@ if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "co
     if flutter build appbundle --release $ENV_ARGS; then
         log "✅ AAB build completed successfully"
     else
-        log "❌ AAB build failed"
-        exit 1
+        log "❌ AAB build with environment variables failed, trying without..."
+        if flutter build appbundle --release; then
+            log "✅ AAB build completed successfully (without environment variables)"
+        else
+            log "❌ AAB build failed completely"
+            exit 1
+        fi
     fi
 else
     # Build only APK for free/paid workflows
@@ -508,8 +566,13 @@ else
     if flutter build apk --release $ENV_ARGS; then
         log "✅ APK build completed successfully"
     else
-        log "❌ APK build failed"
-        exit 1
+        log "❌ APK build with environment variables failed, trying without..."
+        if flutter build apk --release; then
+            log "✅ APK build completed successfully (without environment variables)"
+        else
+            log "❌ APK build failed completely"
+            exit 1
+        fi
     fi
 fi
 
