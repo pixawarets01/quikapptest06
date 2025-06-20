@@ -33,7 +33,7 @@ import java.io.FileInputStream\
     
     # Check if the file has proper keystore configuration
     if grep -q "keystorePropertiesFile.exists()" "$BUILD_GRADLE" && \
-       grep -q "app/src/keystore.properties" "$BUILD_GRADLE"; then
+       grep -q "src/keystore.properties" "$BUILD_GRADLE"; then
         log "✅ build.gradle.kts already has correct keystore configuration"
     else
         log "⚠️ build.gradle.kts needs keystore configuration update"
@@ -76,14 +76,14 @@ android {
 
     signingConfigs {
         create("release") {
-            val keystorePropertiesFile = rootProject.file("app/src/keystore.properties")
+            val keystorePropertiesFile = file("src/keystore.properties")
             if (keystorePropertiesFile.exists()) {
                 val keystoreProperties = Properties()
                 keystoreProperties.load(FileInputStream(keystorePropertiesFile))
                 
                 keyAlias = keystoreProperties["keyAlias"] as String
                 keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = file(keystoreProperties["storeFile"] as String)
+                storeFile = file("src/" + keystoreProperties["storeFile"] as String)
                 storePassword = keystoreProperties["storePassword"] as String
             }
         }
@@ -91,7 +91,7 @@ android {
 
     buildTypes {
         release {
-            val keystorePropertiesFile = rootProject.file("app/src/keystore.properties")
+            val keystorePropertiesFile = file("src/keystore.properties")
             if (keystorePropertiesFile.exists()) {
                 signingConfig = signingConfigs.getByName("release")
             } else {
