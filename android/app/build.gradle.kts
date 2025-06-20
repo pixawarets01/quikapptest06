@@ -44,6 +44,15 @@ android {
         }
     }
 
+    // AGP 8.7.3 optimizations
+    buildFeatures {
+        buildConfig = true
+        aidl = false
+        renderScript = false
+        resValues = false
+        shaders = false
+    }
+
     signingConfigs {
         create("release") {
             val keystorePropertiesFile = rootProject.file("app/src/keystore.properties")

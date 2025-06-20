@@ -7,10 +7,23 @@ workflows:
       flutter: 3.32.2
       java: 17
       vars:
-        # Memory optimization variables
-        GRADLE_OPTS: "-Xmx16G -XX:MaxMetaspaceSize=8G -XX:ReservedCodeCacheSize=2G -XX:+HeapDumpOnOutOfMemoryError -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat"
-        XCODE_PARALLEL_JOBS: "4"
-        FLUTTER_BUILD_ARGS: "--no-tree-shake-icons --target-platform android-arm64,android-arm"
+        # Enhanced build time optimization variables
+        GRADLE_OPTS: "-Xmx12G -XX:MaxMetaspaceSize=6G -XX:ReservedCodeCacheSize=1G -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -XX:+UseParallelGC -XX:ParallelGCThreads=4 -XX:ConcGCThreads=2"
+        XCODE_PARALLEL_JOBS: "6"
+        FLUTTER_BUILD_ARGS: "--no-tree-shake-icons --target-platform android-arm64,android-arm --build-number=$VERSION_CODE --dart-define=FLUTTER_BUILD_NAME=$VERSION_NAME"
+
+        # Build acceleration variables
+        GRADLE_DAEMON: "true"
+        GRADLE_PARALLEL: "true"
+        GRADLE_CACHING: "true"
+        FLUTTER_PUB_CACHE: "true"
+        ENABLE_GRADLE_DAEMON: "true"
+        GRADLE_OPTS_DAEMON: "-Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.configureondemand=true"
+
+        # Asset optimization
+        ASSET_OPTIMIZATION: "true"
+        IMAGE_COMPRESSION: "true"
+        PARALLEL_DOWNLOADS: "true"
 
         APP_ID: $APP_ID
         WORKFLOW_ID: "android-free"
@@ -69,10 +82,23 @@ workflows:
       flutter: 3.32.2
       java: 17
       vars:
-        # Memory optimization variables
-        GRADLE_OPTS: "-Xmx16G -XX:MaxMetaspaceSize=8G -XX:ReservedCodeCacheSize=2G -XX:+HeapDumpOnOutOfMemoryError -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat"
-        XCODE_PARALLEL_JOBS: "4"
-        FLUTTER_BUILD_ARGS: "--no-tree-shake-icons --target-platform android-arm64,android-arm"
+        # Enhanced build time optimization variables
+        GRADLE_OPTS: "-Xmx12G -XX:MaxMetaspaceSize=6G -XX:ReservedCodeCacheSize=1G -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -XX:+UseParallelGC -XX:ParallelGCThreads=4 -XX:ConcGCThreads=2"
+        XCODE_PARALLEL_JOBS: "6"
+        FLUTTER_BUILD_ARGS: "--no-tree-shake-icons --target-platform android-arm64,android-arm --build-number=$VERSION_CODE --dart-define=FLUTTER_BUILD_NAME=$VERSION_NAME"
+
+        # Build acceleration variables
+        GRADLE_DAEMON: "true"
+        GRADLE_PARALLEL: "true"
+        GRADLE_CACHING: "true"
+        FLUTTER_PUB_CACHE: "true"
+        ENABLE_GRADLE_DAEMON: "true"
+        GRADLE_OPTS_DAEMON: "-Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.configureondemand=true"
+
+        # Asset optimization
+        ASSET_OPTIMIZATION: "true"
+        IMAGE_COMPRESSION: "true"
+        PARALLEL_DOWNLOADS: "true"
 
         APP_ID: $APP_ID
         WORKFLOW_ID: "android-paid"
@@ -132,10 +158,23 @@ workflows:
       flutter: 3.32.2
       java: 17
       vars:
-        # Memory optimization variables
-        GRADLE_OPTS: "-Xmx16G -XX:MaxMetaspaceSize=8G -XX:ReservedCodeCacheSize=2G -XX:+HeapDumpOnOutOfMemoryError -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat"
-        XCODE_PARALLEL_JOBS: "4"
-        FLUTTER_BUILD_ARGS: "--no-tree-shake-icons --target-platform android-arm64,android-arm"
+        # Enhanced build time optimization variables
+        GRADLE_OPTS: "-Xmx12G -XX:MaxMetaspaceSize=6G -XX:ReservedCodeCacheSize=1G -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -XX:+UseParallelGC -XX:ParallelGCThreads=4 -XX:ConcGCThreads=2"
+        XCODE_PARALLEL_JOBS: "6"
+        FLUTTER_BUILD_ARGS: "--no-tree-shake-icons --target-platform android-arm64,android-arm --build-number=$VERSION_CODE --dart-define=FLUTTER_BUILD_NAME=$VERSION_NAME"
+
+        # Build acceleration variables
+        GRADLE_DAEMON: "true"
+        GRADLE_PARALLEL: "true"
+        GRADLE_CACHING: "true"
+        FLUTTER_PUB_CACHE: "true"
+        ENABLE_GRADLE_DAEMON: "true"
+        GRADLE_OPTS_DAEMON: "-Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.configureondemand=true"
+
+        # Asset optimization
+        ASSET_OPTIMIZATION: "true"
+        IMAGE_COMPRESSION: "true"
+        PARALLEL_DOWNLOADS: "true"
 
         APP_ID: $APP_ID
         WORKFLOW_ID: "android-publish"
@@ -201,10 +240,21 @@ workflows:
       xcode: 15.4
       cocoapods: 1.16.2
       vars:
-        # Memory optimization variables
-        GRADLE_OPTS: "-Xmx16G -XX:MaxMetaspaceSize=8G -XX:ReservedCodeCacheSize=2G -XX:+HeapDumpOnOutOfMemoryError -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat"
-        XCODE_PARALLEL_JOBS: "4"
-        FLUTTER_BUILD_ARGS: "--no-tree-shake-icons"
+        # Enhanced build time optimization variables
+        GRADLE_OPTS: "-Xmx12G -XX:MaxMetaspaceSize=6G -XX:ReservedCodeCacheSize=1G -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -XX:+UseParallelGC -XX:ParallelGCThreads=4 -XX:ConcGCThreads=2"
+        XCODE_PARALLEL_JOBS: "6"
+        FLUTTER_BUILD_ARGS: "--no-tree-shake-icons --build-number=$VERSION_CODE --dart-define=FLUTTER_BUILD_NAME=$VERSION_NAME"
+
+        # iOS build acceleration
+        XCODE_FAST_BUILD: "true"
+        COCOAPODS_FAST_INSTALL: "true"
+        XCODE_SKIP_SIGNING: "false"
+        XCODE_OPTIMIZATION: "true"
+
+        # Asset optimization
+        ASSET_OPTIMIZATION: "true"
+        IMAGE_COMPRESSION: "true"
+        PARALLEL_DOWNLOADS: "true"
 
         APP_ID: $APP_ID
         WORKFLOW_ID: "ios-only"
@@ -273,17 +323,36 @@ workflows:
   combined:
     name: Combined Android & iOS Build
     max_build_duration: 120
-    instance_type: mac_mini_m1
+    instance_type: mac_mini_m2
     environment:
       flutter: 3.32.2
       java: 17
       xcode: 15.4
       cocoapods: 1.16.2
       vars:
-        # Memory optimization variables
-        GRADLE_OPTS: "-Xmx16G -XX:MaxMetaspaceSize=8G -XX:ReservedCodeCacheSize=2G -XX:+HeapDumpOnOutOfMemoryError -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat"
-        XCODE_PARALLEL_JOBS: "4"
-        FLUTTER_BUILD_ARGS: "--no-tree-shake-icons --target-platform android-arm64,android-arm"
+        # Enhanced build time optimization variables
+        GRADLE_OPTS: "-Xmx12G -XX:MaxMetaspaceSize=6G -XX:ReservedCodeCacheSize=1G -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -XX:+UseParallelGC -XX:ParallelGCThreads=4 -XX:ConcGCThreads=2"
+        XCODE_PARALLEL_JOBS: "6"
+        FLUTTER_BUILD_ARGS: "--no-tree-shake-icons --target-platform android-arm64,android-arm --build-number=$VERSION_CODE --dart-define=FLUTTER_BUILD_NAME=$VERSION_NAME"
+
+        # Build acceleration variables
+        GRADLE_DAEMON: "true"
+        GRADLE_PARALLEL: "true"
+        GRADLE_CACHING: "true"
+        FLUTTER_PUB_CACHE: "true"
+        ENABLE_GRADLE_DAEMON: "true"
+        GRADLE_OPTS_DAEMON: "-Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.configureondemand=true"
+
+        # iOS build acceleration
+        XCODE_FAST_BUILD: "true"
+        COCOAPODS_FAST_INSTALL: "true"
+        XCODE_SKIP_SIGNING: "false"
+        XCODE_OPTIMIZATION: "true"
+
+        # Asset optimization
+        ASSET_OPTIMIZATION: "true"
+        IMAGE_COMPRESSION: "true"
+        PARALLEL_DOWNLOADS: "true"
 
         APP_ID: $APP_ID
         WORKFLOW_ID: "combined"

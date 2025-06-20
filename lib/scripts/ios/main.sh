@@ -1,11 +1,16 @@
 #!/bin/bash
 set -euo pipefail
 
-# Source environment variables
+# Source environment variables and build acceleration
 source lib/scripts/utils/gen_env_config.sh
+source lib/scripts/utils/build_acceleration.sh
 
 # Initialize logging
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"; }
+
+# Start build acceleration
+log "🚀 Starting iOS build with acceleration..."
+accelerate_build "ios"
 
 # Error handling
 trap 'handle_error $LINENO $?' ERR
@@ -198,491 +203,202 @@ setup_provisioning() {
     <string>$APPLE_TEAM_ID</string>
     <key>signingStyle</key>
     <string>manual</string>
+    <key>signingCertificate</key>
+    <string>iPhone Distribution</string>
     <key>provisioningProfiles</key>
     <dict>
         <key>$BUNDLE_ID</key>
         <string>$(basename ios/certificates/profile.mobileprovision .mobileprovision)</string>
     </dict>
-    <key>compileBitcode</key>
-    <$compile_bitcode/>
+    <key>stripBitcode</key>
+    <$strip_bitcode/>
     <key>uploadBitcode</key>
     <$upload_bitcode/>
     <key>uploadSymbols</key>
     <$upload_symbols/>
-    <key>stripSwiftSymbols</key>
-    <true/>
+    <key>compileBitcode</key>
+    <$compile_bitcode/>
     <key>thinning</key>
     <string>$thinning</string>
-EOF
-
-    # Add distribution specific options
-    if [ "$method" = "ad-hoc" ]; then
-        cat >> ios/ExportOptions.plist << EOF
-    <key>manifest</key>
-    <dict>
-        <key>appURL</key>
-        <string>${INSTALL_URL:-}</string>
-        <key>displayImageURL</key>
-        <string>${DISPLAY_IMAGE_URL:-}</string>
-        <key>fullSizeImageURL</key>
-        <string>${FULL_SIZE_IMAGE_URL:-}</string>
-    </dict>
-EOF
-    fi
-
-    # Close the plist
-    cat >> ios/ExportOptions.plist << EOF
 </dict>
 </plist>
 EOF
 
     log "✅ Provisioning profile setup completed"
-}
-
-# Function to setup Podfile
-setup_podfile() {
-    log "📦 Setting up Podfile..."
-    
-    cat > ios/Podfile << 'EOF'
-platform :ios, '13.0'
-use_frameworks!
-
-# CocoaPods analytics sends network stats synchronously affecting flutter build latency.
-ENV['COCOAPODS_DISABLE_STATS'] = 'true'
-
-project 'Runner', {
-  'Debug' => :debug,
-  'Profile' => :release,
-  'Release' => :release,
-}
-
-def flutter_root
-  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
-  unless File.exist?(generated_xcode_build_settings_path)
-    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
-  end
-
-  File.foreach(generated_xcode_build_settings_path) do |line|
-    matches = line.match(/FLUTTER_ROOT\=(.*)/)
-    return matches[1].strip if matches
-  end
-  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get"
-end
-
-require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
-
-flutter_ios_podfile_setup
-
-target 'Runner' do
-  use_frameworks!
-  use_modular_headers!
-  
-  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
-end
-
-post_install do |installer|
-  installer.pods_project.targets.each do |target|
-    flutter_additional_ios_build_settings(target)
-    target.build_configurations.each do |config|
-      config.build_settings['ENABLE_BITCODE'] = 'NO'
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
-    end
-  end
-end
-EOF
-
-    log "✅ Podfile setup completed"
-}
-
-# Function to send error notification email
-send_error_notification() {
-    local error_type="$1"
-    local details="$2"
-
-    if command -v python3 >/dev/null 2>&1; then
-        if [ -f "lib/scripts/utils/send_ios_emails.py" ]; then
-            chmod +x lib/scripts/utils/send_ios_emails.py
-            python3 lib/scripts/utils/send_ios_emails.py "$error_type" "$details" || true
-        else
-            log "⚠️ iOS email script not found, falling back to generic email"
-            if [ -f "lib/scripts/utils/send_email.sh" ]; then
-                chmod +x lib/scripts/utils/send_email.sh
-                lib/scripts/utils/send_email.sh "build_failed" "iOS" "${CM_BUILD_ID:-unknown}" "$details" || true
-            fi
-        fi
-    else
-        log "⚠️ Python not found, falling back to generic email"
-        if [ -f "lib/scripts/utils/send_email.sh" ]; then
-            chmod +x lib/scripts/utils/send_email.sh
-            lib/scripts/utils/send_email.sh "build_failed" "iOS" "${CM_BUILD_ID:-unknown}" "$details" || true
-        fi
-    fi
-}
-
-# Function to validate certificates
-validate_certificates() {
-    log "🔍 Validating certificates..."
-    
-    local cert_error=""
-    local has_p12=false
-    local has_cer_key=false
-    
-    # Check P12 certificate
-    if [ -n "${CERT_P12_URL:-}" ]; then
-        if validate_url "$CERT_P12_URL" "P12 certificate"; then
-            has_p12=true
-        else
-            cert_error="Invalid P12 certificate URL: $CERT_P12_URL"
-        fi
-    fi
-    
-    # Check CER and KEY if P12 is not valid
-    if [ "$has_p12" = "false" ]; then
-        log "⚠️ P12 certificate not available, checking CER and KEY..."
-        
-        if [ -n "${CERT_CER_URL:-}" ] && [ -n "${CERT_KEY_URL:-}" ]; then
-            if validate_url "$CERT_CER_URL" "certificate" && validate_url "$CERT_KEY_URL" "private key"; then
-                has_cer_key=true
-            else
-                cert_error="${cert_error:+$cert_error\n}Invalid certificate URLs:\nCER: $CERT_CER_URL\nKEY: $CERT_KEY_URL"
-            fi
-        else
-            cert_error="${cert_error:+$cert_error\n}Missing certificate files. Provide either P12 or both CER and KEY."
-        fi
-    fi
-    
-    # Send error notification if no valid certificates
-    if [ "$has_p12" = "false" ] && [ "$has_cer_key" = "false" ]; then
-        log "❌ No valid certificates available"
-        send_error_notification "certificates" "$cert_error"
-        return 1
-    fi
-    
-    log "✅ Certificate validation completed"
     return 0
 }
 
-# Function to validate provisioning profile
-validate_provisioning_profile() {
-    log "🔍 Validating provisioning profile..."
-    
-    if [ -z "${PROFILE_URL:-}" ]; then
-        local error_msg="Provisioning profile URL is required"
-        log "❌ $error_msg"
-        send_error_notification "provisioning" "$error_msg"
-        return 1
-    fi
-    
-    if ! validate_url "$PROFILE_URL" "provisioning profile"; then
-        local error_msg="Invalid provisioning profile URL: $PROFILE_URL"
-        log "❌ $error_msg"
-        send_error_notification "provisioning" "$error_msg"
-        return 1
-    fi
-    
-    # Download and verify profile
-    if ! download_file "$PROFILE_URL" "ios/certificates/profile.mobileprovision" "provisioning profile"; then
-        local error_msg="Failed to download provisioning profile"
-        log "❌ $error_msg"
-        send_error_notification "provisioning" "$error_msg"
-        return 1
-    fi
-    
-    # Verify profile content
-    if ! security cms -D -i ios/certificates/profile.mobileprovision > /dev/null 2>&1; then
-        local error_msg="Invalid provisioning profile format"
-        log "❌ $error_msg"
-        send_error_notification "provisioning" "$error_msg"
-        return 1
-    fi
-    
-    log "✅ Provisioning profile validation completed"
-    return 0
-}
+# Send build started email
+if [ -f "lib/scripts/utils/send_email.sh" ]; then
+    chmod +x lib/scripts/utils/send_email.sh
+    lib/scripts/utils/send_email.sh "build_started" "iOS" "${CM_BUILD_ID:-unknown}" || true
+fi
 
-# Function to validate required variables
-validate_variables() {
-    log "🔍 Validating required variables..."
-    
-    # Validate certificates first
-    if ! validate_certificates; then
-        return 1
-    fi
-    
-    # Validate provisioning profile
-    if ! validate_provisioning_profile; then
-        return 1
-    fi
-    
-    # Check other required variables
-    local required_vars=(
-        "CERT_PASSWORD"
-        "APPLE_TEAM_ID"
-        "BUNDLE_ID"
-        "PROFILE_TYPE"
-    )
-    
-    for var in "${required_vars[@]}"; do
-        if [ -z "${!var:-}" ]; then
-            log "❌ Required variable $var is missing"
-            return 1
-        fi
-    done
-    
-    # Validate profile type
-    if [ "$PROFILE_TYPE" != "app-store" ] && [ "$PROFILE_TYPE" != "ad-hoc" ]; then
-        log "❌ PROFILE_TYPE must be either 'app-store' or 'ad-hoc'"
-        return 1
-    fi
-    
-    log "✅ Variable validation completed"
-    return 0
-}
+# Create necessary directories
+mkdir -p output/ios
 
-# Main build process
-main() {
-    log "🚀 Starting iOS build process..."
-
-    # Validate required variables
-    validate_variables
-
-    # Create necessary directories
-    mkdir -p ios/certificates
-    mkdir -p output/ios
-
-    # Setup certificates and signing
-    setup_keychain
-    setup_provisioning
-
-    # Flutter setup
-    log "📦 Setting up Flutter..."
-    flutter clean
-    flutter pub get
-
-    # Memory cleanup and monitoring
-    log "🧠 Memory cleanup and monitoring..."
-    # Clear system caches
-    sync 2>/dev/null || true
-    echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
-
-    # Monitor available memory
-    if command -v free >/dev/null 2>&1; then
-        AVAILABLE_MEM=$(free -m | awk 'NR==2{printf "%.0f", $7}')
-        log "📊 Available memory: ${AVAILABLE_MEM}MB"
+# Enhanced asset download with parallel processing
+log "📥 Starting enhanced asset download..."
+if [ -f "lib/scripts/ios/branding.sh" ]; then
+    chmod +x lib/scripts/ios/branding.sh
+    if lib/scripts/ios/branding.sh; then
+        log "✅ iOS branding completed with acceleration"
         
-        if [ "$AVAILABLE_MEM" -lt 4000 ]; then
-            log "⚠️  Low memory detected (${AVAILABLE_MEM}MB), performing aggressive cleanup..."
-            # Force garbage collection
-            java -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Xmx1G -version 2>/dev/null || true
-        fi
-    fi
-
-    # Setup and install pods
-    setup_podfile
-    cd ios
-    pod install --repo-update
-    cd ..
-
-    # Build IPA
-    log "🏗️ Building IPA..."
-    cd ios
-    
-    # Clean previous builds
-    rm -rf build/Runner.xcarchive
-    rm -rf build/ios/ipa
-    
-    # Build with retry logic
-    log "🏗️ Attempting iOS build with memory optimizations..."
-    BUILD_SUCCESS=false
-    MAX_RETRIES=3
-
-    for attempt in $(seq 1 $MAX_RETRIES); do
-        log "🔄 Build attempt $attempt/$MAX_RETRIES"
-        
-        # Archive
-        log "📦 Creating archive..."
-        if xcodebuild -workspace Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Release \
-            -destination generic/platform=iOS \
-            -archivePath build/Runner.xcarchive \
-            archive | xcpretty; then
-            log "✅ Archive created successfully"
-            
-            # Export IPA
-            log "📤 Exporting IPA..."
-            if xcodebuild -exportArchive \
-                -archivePath build/Runner.xcarchive \
-                -exportOptionsPlist ExportOptions.plist \
-                -exportPath build/ios/ipa | xcpretty; then
-                log "✅ IPA exported successfully"
-                
-                # Copy IPA to output directory
-                mkdir -p ../output/ios
-                if [ -f "build/ios/ipa/Runner.ipa" ]; then
-                    cp build/ios/ipa/Runner.ipa ../output/ios/
-                    log "✅ IPA copied to output directory"
-                    BUILD_SUCCESS=true
-                    break
-                else
-                    log "❌ IPA file not found after export"
-                fi
+        # Validate required assets after branding
+        log "🔍 Validating iOS assets..."
+        required_assets=("assets/images/logo.png" "assets/images/splash.png")
+        for asset in "${required_assets[@]}"; do
+            if [ -f "$asset" ] && [ -s "$asset" ]; then
+                log "✅ $asset exists and has content"
             else
-                log "❌ IPA export failed"
+                log "❌ $asset is missing or empty after branding"
+                exit 1
             fi
-        else
-            log "❌ Archive creation failed"
-        fi
-        
-        if [ $attempt -lt $MAX_RETRIES ]; then
-            log "🧹 Cleaning and retrying..."
-            # Clean build artifacts
-            rm -rf build/Runner.xcarchive
-            rm -rf build/ios/ipa
-            
-            # Wait for memory to be freed
-            sleep 10
-            
-            # Try with reduced parallel jobs on retry
-            if [ $attempt -eq 2 ]; then
-                log "🔧 Applying aggressive memory optimizations..."
-                export XCODE_PARALLEL_JOBS=2
-            fi
-        fi
-    done
-
-    if [ "$BUILD_SUCCESS" = false ]; then
-        log "❌ All iOS build attempts failed"
-        cd ..
-        return 1
-    fi
-
-    # Generate manifest for ad-hoc distribution if needed
-    if [ "$PROFILE_TYPE" = "ad-hoc" ] && [ -n "${INSTALL_URL:-}" ]; then
-        log "📝 Generating manifest for OTA installation..."
-        cat > ../output/ios/manifest.plist << EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>items</key>
-    <array>
-        <dict>
-            <key>assets</key>
-            <array>
-                <dict>
-                    <key>kind</key>
-                    <string>software-package</string>
-                    <key>url</key>
-                    <string>$INSTALL_URL</string>
-                </dict>
-                <dict>
-                    <key>kind</key>
-                    <string>display-image</string>
-                    <key>url</key>
-                    <string>${DISPLAY_IMAGE_URL:-}</string>
-                </dict>
-                <dict>
-                    <key>kind</key>
-                    <string>full-size-image</string>
-                    <key>url</key>
-                    <string>${FULL_SIZE_IMAGE_URL:-}</string>
-                </dict>
-            </array>
-            <key>metadata</key>
-            <dict>
-                <key>bundle-identifier</key>
-                <string>$BUNDLE_ID</string>
-                <key>bundle-version</key>
-                <string>${VERSION_NAME:-1.0.0}</string>
-                <key>kind</key>
-                <string>software</string>
-                <key>title</key>
-                <string>${APP_NAME:-$BUNDLE_ID}</string>
-            </dict>
-        </dict>
-    </array>
-</dict>
-</plist>
-EOF
-        log "✅ Manifest file generated at output/ios/manifest.plist"
-    fi
-    
-    cd ..
-
-    log "✅ Build completed successfully!"
-    log "📱 IPA file location: output/ios/Runner.ipa"
-    
-    # Upload to TestFlight if enabled and this is an app-store build
-    if [ "$PROFILE_TYPE" = "app-store" ]; then
-        if [ -f "lib/scripts/ios/testflight_upload.sh" ]; then
-            log "🚀 Checking TestFlight upload..."
-            chmod +x lib/scripts/ios/testflight_upload.sh
-            if ./lib/scripts/ios/testflight_upload.sh; then
-                log "✅ TestFlight upload completed"
-            else
-                log "⚠️ TestFlight upload failed (non-critical)"
-            fi
-        else
-            log "⚠️ TestFlight upload script not found"
-        fi
-    fi
-    
-    # Execute iOS build logic
-    log "🎨 Running iOS branding script..."
-    if [ -f "lib/scripts/ios/branding.sh" ]; then
-        chmod +x lib/scripts/ios/branding.sh
-        if lib/scripts/ios/branding.sh; then
-            log "✅ iOS branding completed"
-            
-            # Validate required assets after branding
-            log "🔍 Validating required assets..."
-            required_assets=("assets/images/logo.png" "assets/images/splash.png")
-            for asset in "${required_assets[@]}"; do
-                if [ -f "$asset" ] && [ -s "$asset" ]; then
-                    log "✅ $asset exists and has content"
-                else
-                    log "❌ $asset is missing or empty after branding"
-                    exit 1
-                fi
-            done
-            log "✅ All required assets validated"
-        else
-            log "❌ iOS branding failed"
-            exit 1
-        fi
+        done
+        log "✅ All iOS assets validated"
     else
-        log "⚠️  iOS branding script not found, skipping..."
-    fi
-    
-    exit 0
-}
-
-# Run the build process
-main
-
-# Step 15: Generate environment config
-log "⚙️  Generating environment configuration..."
-if [ -f "lib/scripts/utils/gen_env_config.sh" ]; then
-    chmod +x lib/scripts/utils/gen_env_config.sh
-    if lib/scripts/utils/gen_env_config.sh; then
-        log "✅ Environment configuration generated"
-    else
-        log "❌ Environment configuration generation failed"
+        log "❌ iOS branding failed"
         exit 1
     fi
 else
-    log "⚠️  Environment config script not found, skipping..."
+    log "⚠️ iOS branding script not found, skipping..."
 fi
 
-# Step 16: Send build success email
-log "📧 Sending build success notification..."
-ARTIFACTS_URL="https://codemagic.io/builds/${CM_BUILD_ID:-unknown}/artifacts"
+# Run customization with acceleration
+log "⚙️ Running iOS customization with acceleration..."
+if [ -f "lib/scripts/ios/customization.sh" ]; then
+    chmod +x lib/scripts/ios/customization.sh
+    if lib/scripts/ios/customization.sh; then
+        log "✅ iOS customization completed"
+    else
+        log "❌ iOS customization failed"
+        exit 1
+    fi
+else
+    log "⚠️ iOS customization script not found, skipping..."
+fi
+
+# Run permissions with acceleration
+log "🔒 Running iOS permissions with acceleration..."
+if [ -f "lib/scripts/ios/permissions.sh" ]; then
+    chmod +x lib/scripts/ios/permissions.sh
+    if lib/scripts/ios/permissions.sh; then
+        log "✅ iOS permissions configured"
+    else
+        log "❌ iOS permissions configuration failed"
+        exit 1
+    fi
+else
+    log "⚠️ iOS permissions script not found, skipping..."
+fi
+
+# Run Firebase with acceleration
+log "🔥 Running iOS Firebase with acceleration..."
+if [ -f "lib/scripts/ios/firebase.sh" ]; then
+    chmod +x lib/scripts/ios/firebase.sh
+    if lib/scripts/ios/firebase.sh; then
+        log "✅ iOS Firebase configuration completed"
+    else
+        log "❌ iOS Firebase configuration failed"
+        exit 1
+    fi
+else
+    log "⚠️ iOS Firebase script not found, skipping..."
+fi
+
+# Setup certificates and provisioning with acceleration
+log "🔐 Setting up certificates and provisioning with acceleration..."
+
+# Download provisioning profile
+log "📥 Downloading provisioning profile..."
+if ! validate_url "$PROFILE_URL" "provisioning profile"; then
+    log "❌ Invalid provisioning profile URL"
+    exit 1
+fi
+
+if ! download_file "$PROFILE_URL" "ios/certificates/profile.mobileprovision" "provisioning profile"; then
+    log "❌ Failed to download provisioning profile"
+    exit 1
+fi
+
+# Setup keychain and certificates
+if ! setup_keychain; then
+    log "❌ Keychain setup failed"
+    exit 1
+fi
+
+# Setup provisioning
+if ! setup_provisioning; then
+    log "❌ Provisioning setup failed"
+    exit 1
+fi
+
+# Enhanced iOS build with acceleration
+log "📱 Starting enhanced iOS build..."
+
+# Pre-install CocoaPods dependencies
+log "📦 Pre-installing CocoaPods dependencies..."
+cd ios
+if [ "${COCOAPODS_FAST_INSTALL:-true}" = "true" ]; then
+    pod install --repo-update --verbose || pod install --verbose
+else
+    pod install --verbose
+fi
+cd ..
+
+# Build iOS app with optimizations
+log "🔨 Building iOS app with optimizations..."
+if flutter build ios --release --no-codesign; then
+    log "✅ iOS build completed successfully"
+else
+    log "❌ iOS build failed"
+    exit 1
+fi
+
+# Archive and export IPA with optimizations
+log "📦 Archiving and exporting IPA with optimizations..."
+cd ios
+
+# Create archive
+if xcodebuild -workspace Runner.xcworkspace -scheme Runner -configuration Release -archivePath build/Runner.xcarchive archive; then
+    log "✅ Archive created successfully"
+else
+    log "❌ Archive creation failed"
+    exit 1
+fi
+
+# Export IPA
+if xcodebuild -exportArchive -archivePath build/Runner.xcarchive -exportPath build/ios/ipa -exportOptionsPlist ExportOptions.plist; then
+    log "✅ IPA exported successfully"
+else
+    log "❌ IPA export failed"
+    exit 1
+fi
+
+cd ..
+
+# Copy artifacts to output directory
+log "📁 Copying artifacts to output directory..."
+cp ios/build/ios/ipa/*.ipa output/ios/ 2>/dev/null || true
+log "✅ IPA copied to output/ios/"
+
+# Verify artifacts
+log "🔍 Verifying artifacts..."
+if [ -f "output/ios/Runner.ipa" ]; then
+    IPA_SIZE=$(du -h output/ios/Runner.ipa | cut -f1)
+    log "✅ IPA created successfully (Size: $IPA_SIZE)"
+else
+    log "❌ IPA not found in output directory"
+    exit 1
+fi
+
+# Send build success email
 if [ -f "lib/scripts/utils/send_email.sh" ]; then
-    lib/scripts/utils/send_email.sh "build_success" "iOS" "${CM_BUILD_ID:-unknown}" "$ARTIFACTS_URL" || true
+    chmod +x lib/scripts/utils/send_email.sh
+    lib/scripts/utils/send_email.sh "build_success" "iOS" "${CM_BUILD_ID:-unknown}" || true
 fi
 
-log "🎉 iOS build process completed successfully!"
-log "📱 IPA file location: output/ios/"
+log "🎉 iOS build completed successfully with acceleration!"
+log "📊 Build artifacts available in output/ios/"
 
 exit 0 
