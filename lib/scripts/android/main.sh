@@ -193,11 +193,20 @@ handle_error() {
     log "🚨 Performing emergency cleanup..."
     
     # Stop all Gradle processes
+    log "🛑 Stopping Gradle daemon..."
+    # Ensure we're in the project root directory first
+    if [ "$(basename "$PWD")" = "android" ]; then
+        cd ..
+    fi
+
     if [ -d "android" ]; then
         cd android
-        chmod +x gradlew 2>/dev/null || true
-        ./gradlew --stop --no-daemon 2>/dev/null || true
+        if [ -f gradlew ]; then
+            ./gradlew --stop || true
+        fi
         cd ..
+    else
+        log "⚠️ android directory not found, skipping Gradle daemon stop"
     fi
     
     # Clear all caches
@@ -606,15 +615,19 @@ fi
 
 # Stop Gradle daemon after build
 log "🛑 Stopping Gradle daemon..."
-cd android
-if [ -f gradlew ]; then
-    ./gradlew --stop || true
-fi
-cd ..
-
-# Ensure we're in the project root directory
+# Ensure we're in the project root directory first
 if [ "$(basename "$PWD")" = "android" ]; then
     cd ..
+fi
+
+if [ -d "android" ]; then
+    cd android
+    if [ -f gradlew ]; then
+        ./gradlew --stop || true
+    fi
+    cd ..
+else
+    log "⚠️ android directory not found, skipping Gradle daemon stop"
 fi
 
 # Copy artifacts to output directory
