@@ -418,9 +418,23 @@ flutter clean
 
 # Build iOS app with optimizations
 log "🔨 Building iOS app with optimizations..."
+
+# Create a list of all environment variables to pass to Flutter
+ENV_ARGS=""
+while IFS='=' read -r name value ; do
+    if [[ $name == *"_URL"* ]] || [[ $name == *"PASSWORD"* ]] || [[ $name == *"KEY"* ]]; then
+        # Skip URLs, passwords and keys - they'll be handled by the gen_env_config.sh script
+        continue
+    fi
+    if [[ ! -z "$value" ]]; then
+        ENV_ARGS="$ENV_ARGS --dart-define=$name=$value"
+    fi
+done < <(env)
+
 if flutter build ios --release --no-codesign \
     --dart-define=ENABLE_BITCODE=NO \
-    --dart-define=STRIP_STYLE=non-global; then
+    --dart-define=STRIP_STYLE=non-global \
+    $ENV_ARGS; then
     log "✅ iOS build completed successfully"
 else
     log "❌ iOS build failed"

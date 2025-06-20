@@ -194,7 +194,7 @@ log "⚙️ Configuring global build optimizations..."
 
 # Configure JVM options
 log "🔧 Configuring JVM options..."
-export JAVA_TOOL_OPTIONS="-Xmx2048m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError"
+export JAVA_TOOL_OPTIONS="-Xmx4G -XX:MaxPermSize=512m -XX:+UseParallelGC"
 
 # Configure environment
 log "🔧 Configuring build environment..."
@@ -206,7 +206,7 @@ export LC_ALL=en_US.UTF-8
 log "📝 Creating optimized gradle.properties..."
 if [ ! -f android/gradle.properties ] || ! grep -q "org.gradle.jvmargs" android/gradle.properties; then
     cat >> android/gradle.properties << EOF
-org.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+org.gradle.jvmargs=-Xmx4G -XX:MaxPermSize=512m -XX:+UseParallelGC -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
 org.gradle.parallel=true
 org.gradle.daemon=true
 org.gradle.caching=true
@@ -220,6 +220,19 @@ fi
 # Clean build environment
 log "🧹 Cleaning build environment..."
 flutter clean
+
+# Create a list of all environment variables to pass to Flutter
+log "🔧 Preparing environment variables for Flutter..."
+ENV_ARGS=""
+while IFS='=' read -r name value ; do
+    if [[ $name == *"_URL"* ]] || [[ $name == *"PASSWORD"* ]] || [[ $name == *"KEY"* ]]; then
+        # Skip URLs, passwords and keys - they'll be handled by the gen_env_config.sh script
+        continue
+    fi
+    if [[ ! -z "$value" ]]; then
+        ENV_ARGS="$ENV_ARGS --dart-define=$name=$value"
+    fi
+done < <(env)
 
 # Run platform-specific setup
 log "🔧 Running platform-specific setup..."
@@ -256,8 +269,9 @@ fi
 log "📱 Starting Android build with acceleration..."
 if [ -f "lib/scripts/android/main.sh" ]; then
     chmod +x lib/scripts/android/main.sh
-    if GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=512m" \
-       lib/scripts/android/main.sh; then
+    if GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx4G -XX:MaxPermSize=512m -XX:+UseParallelGC" \
+       flutter build apk --release $ENV_ARGS && \
+       flutter build appbundle --release $ENV_ARGS; then
         log "✅ Android build completed successfully"
     else
         log "❌ Android build failed"
@@ -272,7 +286,10 @@ fi
 log "📱 Starting iOS build with acceleration..."
 if [ -f "lib/scripts/ios/main.sh" ]; then
     chmod +x lib/scripts/ios/main.sh
-    if lib/scripts/ios/main.sh; then
+    if flutter build ios --release --no-codesign \
+        --dart-define=ENABLE_BITCODE=NO \
+        --dart-define=STRIP_STYLE=non-global \
+        $ENV_ARGS; then
         log "✅ iOS build completed successfully"
     else
         log "❌ iOS build failed"
