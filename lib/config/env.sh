@@ -226,3 +226,50 @@ export CM_KEY_PASSWORD=${CM_KEY_PASSWORD:-"opeN@1234"}
 ## export CERT_CER_URL="/path/to/your/apple_distribution.cer"
 ## export CERT_KEY_URL="/path/to/your/privatekey.key"
 ## export APP_STORE_CONNECT_KEY_IDENTIFIER="YOUR_APP_STORE_KEY_ID"
+
+# iOS Signing Variables
+export CERT_CER_URL="https://raw.githubusercontent.com/prasanna91/QuikApp/main/apple_distribution.cer"
+export CERT_KEY_URL="https://raw.githubusercontent.com/prasanna91/QuikApp/main/privatekey.key"
+export PROFILE_URL="https://raw.githubusercontent.com/prasanna91/QuikApp/main/Garbcode_App_Store.mobileprovision"
+export CERT_PASSWORD="your_cert_password"
+export APPLE_TEAM_ID="your_team_id"
+export APNS_KEY_ID="your_apns_key_id"
+export APNS_AUTH_KEY_URL="https://raw.githubusercontent.com/prasanna91/QuikApp/main/AuthKey.p8"
+export APP_STORE_CONNECT_KEY_IDENTIFIER="your_key_identifier"
+export BUNDLE_ID="com.garbcode.garbcodeapp"
+export PROFILE_TYPE="app-store"
+
+# Email Configuration
+export EMAIL_SMTP_SERVER="smtp.gmail.com"
+export EMAIL_SMTP_PORT="587"
+export EMAIL_SMTP_USER="prasannasrie@gmail.com"
+export EMAIL_SMTP_PASS="lrnu krfm aarp urux"
+export EMAIL_ID="prasannasrinivasan32@gmail.com"
+export ENABLE_EMAIL_NOTIFICATIONS="true"
+
+# App Information
+export APP_NAME="Garbcode App"
+export ORG_NAME="Garbcode"
+export VERSION_NAME="1.0.0"
+export VERSION_CODE="1"
+export WEB_URL="https://garbcode.com"
+export USER_NAME="Prasanna"
+
+# Feature Flags
+export PUSH_NOTIFY="true"
+export IS_CHATBOT="false"
+export IS_DOMAIN_URL="false"
+export IS_SPLASH="true"
+export IS_PULLDOWN="true"
+export IS_BOTTOMMENU="true"
+export IS_LOAD_IND="true"
+
+# Permissions
+export IS_CAMERA="false"
+export IS_LOCATION="false"
+export IS_MIC="true"
+export IS_NOTIFICATION="true"
+export IS_CONTACT="false"
+export IS_BIOMETRIC="false"
+export IS_CALENDAR="false"
+export IS_STORAGE="true"

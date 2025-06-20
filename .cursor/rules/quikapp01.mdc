@@ -354,3 +354,58 @@ Generated Files:
 android-free/android-paid: Simple debug-signing configuration
 android-publish/combined: Full keystore + release signing configuration
 Now your builds will have the correct build.gradle.kts file for each workflow type, eliminating the Gradle compilation errors completely! 🚀
+
+🎨 New Email Design Features
+Visual Design:
+Modern gradient backgrounds with QuikApp's signature colors (#667eea, #764ba2)
+Clean card-based layout with rounded corners and subtle shadows
+Responsive design that works on mobile and desktop
+Professional typography using system fonts for consistency
+Content Structure:
+Dynamic header with status-specific colors and icons
+App details section prominently displaying app name and version
+Info grid showing platform, build ID, user, and website
+Message section for build details and status information
+Professional footer with QuikApp branding and links
+Status-Specific Styling:
+🚀 Build Started: Blue gradient (#667eea)
+🎉 Build Success: Green gradient (#11998e)
+❌ Build Failed: Red gradient (#ff6b6b)
+QuikApp Branding:
+QuikApp logo in the footer
+Links to: quikapp.co, app.quikapp.co, documentation, and support
+Professional footer with copyright and attribution
+Mobile Responsive:
+Adaptive grid layout that stacks on mobile
+Optimized spacing for different screen sizes
+Touch-friendly link sizes
+The email now has a premium, professional appearance that matches modern web design standards
+
+In the iOS build script (lib/scripts/ios/main.sh):
+Added support for CERT_P12_URL as an optional variable
+Added validation to check for either P12 or CER/KEY combination
+Modified the certificate setup process to handle both formats
+Added a new validation function to check required variables
+In the Codemagic configuration (codemagic.yaml):
+Added CERT_P12_URL variable to both iOS-only and combined workflows
+Made CERT_CER_URL and CERT_KEY_URL optional if P12 is provided
+The script now follows this logic:
+If CERT_P12_URL is provided:
+Downloads and imports the P12 file directly
+Uses the provided CERT_PASSWORD for import
+If CERT_P12_URL is not provided:
+Downloads CERT_CER_URL and CERT_KEY_URL
+Converts them to P12 format
+Uses the provided CERT_PASSWORD for conversion and import
+Required variables:
+Always required:
+CERT_PASSWORD
+PROFILE_URL
+APPLE_TEAM_ID
+BUNDLE_ID
+Certificate variables (one of these combinations):
+Option 1: CERT_P12_URL
+Option 2: Both CERT_CER_URL and CERT_KEY_URL
+This gives users the flexibility to provide either:
+A pre-made P12 file with password
+Separate certificate and key files that will be converted to P12

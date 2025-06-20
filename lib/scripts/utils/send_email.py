@@ -305,7 +305,7 @@ html = f"""
             <div class="footer-links">
                 <a href="https://quikapp.co" class="footer-link">Website</a>
                 <a href="https://app.quikapp.co" class="footer-link">Portal</a>
-                <a href="https://docs.quikapp.co" class="footer-link">Documentation</a>
+                <a href="https://www.quikapp.co/help" class="footer-link">Documentation</a>
                 <a href="mailto:support@quikapp.co" class="footer-link">Support</a>
             </div>
             <div class="footer-text">
