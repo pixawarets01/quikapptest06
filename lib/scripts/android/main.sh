@@ -481,6 +481,24 @@ log "   flutter build apk --release $ENV_ARGS"
 log "🔍 Debug: Environment variables content:"
 cat "$ENV_FILE" | head -10
 
+# Debug: Show the actual ENV_ARGS variable
+log "🔍 Debug: ENV_ARGS variable content:"
+echo "ENV_ARGS: '$ENV_ARGS'"
+
+# Debug: Test if the environment variables are valid
+log "🔍 Debug: Testing environment variable format..."
+if echo "$ENV_ARGS" | grep -q "APP_NAME"; then
+    log "✅ APP_NAME found in ENV_ARGS"
+else
+    log "❌ APP_NAME not found in ENV_ARGS"
+fi
+
+if echo "$ENV_ARGS" | grep -q "VERSION_NAME"; then
+    log "✅ VERSION_NAME found in ENV_ARGS"
+else
+    log "❌ VERSION_NAME not found in ENV_ARGS"
+fi
+
 # Validate critical environment variables
 log "🔍 Debug: Validating critical environment variables..."
 if [ -z "${APP_NAME:-}" ]; then
@@ -568,10 +586,13 @@ if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "co
     
     # Build APK first
     log "📱 Building APK with environment variables..."
-    if flutter build apk --release $ENV_ARGS; then
+    log "🔍 Debug: Executing: flutter build apk --release $ENV_ARGS"
+    if flutter build apk --release $ENV_ARGS 2>&1 | tee /tmp/flutter_build_with_env.log; then
         log "✅ APK build completed successfully"
     else
         log "❌ APK build with environment variables failed, trying without..."
+        log "🔍 Debug: Build with env failed. Error log:"
+        cat /tmp/flutter_build_with_env.log | tail -20 || true
         if flutter build apk --release; then
             log "✅ APK build completed successfully (without environment variables)"
         else
@@ -582,10 +603,13 @@ if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "co
     
     # Build AAB second
     log "📦 Building AAB..."
-    if flutter build appbundle --release $ENV_ARGS; then
+    log "🔍 Debug: Executing: flutter build appbundle --release $ENV_ARGS"
+    if flutter build appbundle --release $ENV_ARGS 2>&1 | tee /tmp/flutter_build_aab_with_env.log; then
         log "✅ AAB build completed successfully"
     else
         log "❌ AAB build with environment variables failed, trying without..."
+        log "🔍 Debug: AAB build with env failed. Error log:"
+        cat /tmp/flutter_build_aab_with_env.log | tail -20 || true
         if flutter build appbundle --release; then
             log "✅ AAB build completed successfully (without environment variables)"
         else
@@ -600,10 +624,12 @@ else
     # Set GRADLE_OPTS for the flutter build command
     export GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx4G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Dfile.encoding=UTF-8"
     
-    if flutter build apk --release $ENV_ARGS; then
+    if flutter build apk --release $ENV_ARGS 2>&1 | tee /tmp/flutter_build_single_with_env.log; then
         log "✅ APK build completed successfully"
     else
         log "❌ APK build with environment variables failed, trying without..."
+        log "🔍 Debug: Single APK build with env failed. Error log:"
+        cat /tmp/flutter_build_single_with_env.log | tail -20 || true
         if flutter build apk --release; then
             log "✅ APK build completed successfully (without environment variables)"
         else

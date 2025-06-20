@@ -701,29 +701,43 @@ EOF
 # Main function to handle different email types
 send_notification_email() {
     local email_type="$1"
-    shift
+    local platform="$2"
+    local build_id="$3"
+    local error_message="${4:-No error message provided}"
     
-    # Skip email if disabled or in testing mode
+    # Skip email if disabled
     if [ "${ENABLE_EMAIL_NOTIFICATIONS:-true}" = "false" ]; then
         log "📧 Email notifications disabled, skipping $email_type notification"
         return 0
     fi
     
-    case "$email_type" in
-        "build_started")
-            send_build_started_email "$@"
-            ;;
-        "build_success")
-            send_build_success_email "$@"
-            ;;
-        "build_failed")
-            send_build_failed_email "$@"
-            ;;
-        *)
-            log "❌ Unknown email type: $email_type"
+    log "📧 Sending $email_type email for $platform build $build_id"
+    
+    # Try to use enhanced Python email sender if available
+    if command -v python3 >/dev/null 2>&1; then
+        log "📧 Using enhanced Python email system..."
+        
+        # Export environment variables for Python script
+        export EMAIL_SMTP_SERVER EMAIL_SMTP_PORT EMAIL_SMTP_USER EMAIL_SMTP_PASS EMAIL_ID
+        export ENABLE_EMAIL_NOTIFICATIONS
+        export APP_NAME ORG_NAME USER_NAME VERSION_NAME VERSION_CODE WEB_URL
+        export CM_BUILD_ID CM_PROJECT_ID WORKFLOW_ID
+        export PUSH_NOTIFY IS_CHATBOT IS_DOMAIN_URL IS_SPLASH IS_PULLDOWN IS_BOTTOMMENU IS_LOAD_IND
+        export IS_CAMERA IS_LOCATION IS_MIC IS_NOTIFICATION IS_CONTACT IS_BIOMETRIC IS_CALENDAR IS_STORAGE
+        export PKG_NAME BUNDLE_ID
+        
+        # Run the Python email script
+        if python3 lib/scripts/utils/send_email.py "$email_type" "$platform" "$build_id" "$error_message"; then
+            log "✅ Enhanced Python email sent successfully"
+            return 0
+        else
+            log "❌ Python email failed with exit code $?"
             return 1
-            ;;
-    esac
+        fi
+    else
+        log "❌ Python3 not available, cannot send email"
+        return 1
+    fi
 }
 
 # Test function to verify email setup
@@ -769,34 +783,10 @@ EOF
     send_email_via_curl "🧪 QuikApp Email Test" "/tmp/test_email.html"
 }
 
-# Try to use enhanced Python email sender if available
-if command -v python3 >/dev/null 2>&1; then
-    log "📧 Using enhanced Python email system..."
-    # Ensure we have the correct number of arguments for the Python script
-    if [ $# -eq 4 ]; then
-        if python3 lib/scripts/utils/send_email.py "$1" "$2" "$3" "$4"; then
-            log "✅ Enhanced Python email sent successfully"
-            exit 0
-        else
-            log "⚠️ Python email failed, falling back to shell version..."
-        fi
-    else
-        # Fallback with default values for missing arguments
-        if python3 lib/scripts/utils/send_email.py "${1:-unknown}" "${2:-unknown}" "${3:-unknown}" "${4:-No message provided}"; then
-            log "✅ Enhanced Python email sent successfully"
-            exit 0
-        else
-            log "⚠️ Python email failed, falling back to shell version..."
-        fi
-    fi
-fi
-
-log "📧 Using shell-based email system as fallback..."
-
 # If script is called directly
 if [ "${BASH_SOURCE[0]}" == "${0}" ]; then
-    if [ $# -lt 1 ]; then
-        echo "Usage: $0 <email_type> [arguments...]"
+    if [ $# -lt 3 ]; then
+        echo "Usage: $0 <email_type> <platform> <build_id> [error_message]"
         echo "Email types: build_started, build_success, build_failed"
         exit 1
     fi

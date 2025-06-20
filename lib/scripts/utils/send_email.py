@@ -494,7 +494,7 @@ class QuikAppEmailNotifier:
             
             with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
                 server.set_debuglevel(0)  # Set to 1 for debugging
-        server.starttls()
+                server.starttls()
                 server.login(self.smtp_user, self.smtp_pass)
                 
                 # Send email
@@ -512,13 +512,28 @@ class QuikAppEmailNotifier:
             logger.error(f"❌ Recipient refused: {e}")
         except smtplib.SMTPServerDisconnected as e:
             logger.error(f"❌ SMTP server disconnected: {e}")
-except Exception as e:
+        except Exception as e:
             logger.error(f"❌ Failed to send email: {e}")
             
         return False
 
 def main():
     """Main function to handle command line arguments"""
+    # Add debugging information
+    logger.info("=== QuikApp Email System Debug Info ===")
+    logger.info(f"Python version: {sys.version}")
+    logger.info(f"Arguments received: {sys.argv}")
+    logger.info(f"Environment variables:")
+    logger.info(f"  EMAIL_SMTP_SERVER: {os.environ.get('EMAIL_SMTP_SERVER', 'NOT SET')}")
+    logger.info(f"  EMAIL_SMTP_PORT: {os.environ.get('EMAIL_SMTP_PORT', 'NOT SET')}")
+    logger.info(f"  EMAIL_SMTP_USER: {os.environ.get('EMAIL_SMTP_USER', 'NOT SET')}")
+    logger.info(f"  EMAIL_SMTP_PASS: {'SET' if os.environ.get('EMAIL_SMTP_PASS') else 'NOT SET'}")
+    logger.info(f"  EMAIL_ID: {os.environ.get('EMAIL_ID', 'NOT SET')}")
+    logger.info(f"  ENABLE_EMAIL_NOTIFICATIONS: {os.environ.get('ENABLE_EMAIL_NOTIFICATIONS', 'NOT SET')}")
+    logger.info(f"  APP_NAME: {os.environ.get('APP_NAME', 'NOT SET')}")
+    logger.info(f"  CM_BUILD_ID: {os.environ.get('CM_BUILD_ID', 'NOT SET')}")
+    logger.info("=======================================")
+    
     if len(sys.argv) < 4:
         print("Usage: send_email.py <email_type> <platform> <build_id> [error_message]")
         print("Email types: build_started, build_success, build_failed")
@@ -529,22 +544,43 @@ def main():
     build_id = sys.argv[3]
     error_message = sys.argv[4] if len(sys.argv) > 4 else "Unknown error occurred"
     
+    logger.info(f"Processing email: type={email_type}, platform={platform}, build_id={build_id}")
+    
+    # Check if email notifications are enabled
+    if os.environ.get("ENABLE_EMAIL_NOTIFICATIONS", "true").lower() == "false":
+        logger.info("Email notifications are disabled. Exiting.")
+        sys.exit(0)
+    
     # Initialize email notifier
-    notifier = QuikAppEmailNotifier()
+    try:
+        notifier = QuikAppEmailNotifier()
+        logger.info("Email notifier initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize email notifier: {e}")
+        sys.exit(1)
     
     # Send appropriate email
     success = False
-    if email_type == "build_started":
-        success = notifier.send_build_started_email(platform, build_id)
-    elif email_type == "build_success":
-        success = notifier.send_build_success_email(platform, build_id)
-    elif email_type == "build_failed":
-        success = notifier.send_build_failed_email(platform, build_id, error_message)
-    else:
-        logger.error(f"Unknown email type: {email_type}")
+    try:
+        if email_type == "build_started":
+            success = notifier.send_build_started_email(platform, build_id)
+        elif email_type == "build_success":
+            success = notifier.send_build_success_email(platform, build_id)
+        elif email_type == "build_failed":
+            success = notifier.send_build_failed_email(platform, build_id, error_message)
+        else:
+            logger.error(f"Unknown email type: {email_type}")
+            sys.exit(1)
+    except Exception as e:
+        logger.error(f"Failed to send email: {e}")
         sys.exit(1)
     
-    sys.exit(0 if success else 1)
+    if success:
+        logger.info("✅ Email sent successfully")
+        sys.exit(0)
+    else:
+        logger.error("❌ Failed to send email")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main() 
