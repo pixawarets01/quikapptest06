@@ -122,6 +122,12 @@ except Exception as e:
 main() {
     log "Starting custom icons download process..."
     
+    # Check if bottom menu is enabled
+    if [ "${IS_BOTTOMMENU:-false}" != "true" ]; then
+        log "Bottom menu disabled (IS_BOTTOMMENU=false), skipping custom icon download"
+        return 0
+    fi
+    
     # Check if BOTTOMMENU_ITEMS environment variable is set
     if [ -z "$BOTTOMMENU_ITEMS" ]; then
         warning "BOTTOMMENU_ITEMS environment variable not set"

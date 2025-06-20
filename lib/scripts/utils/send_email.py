@@ -245,17 +245,17 @@ class QuikAppEmailNotifier:
                 .app-info {{ background: #f8f9fa; padding: 25px; border-radius: 12px; margin: 20px 0; }}
                 .grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }}
                 @media (max-width: 600px) {{ .grid {{ grid-template-columns: 1fr; }} }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
                     <div style="font-size: 48px; margin-bottom: 15px;">🚀</div>
                     <h1 style="margin: 0; font-size: 28px;">Build Started</h1>
                     <p style="margin: 10px 0 0 0; opacity: 0.9;">Your QuikApp build process has begun</p>
-                </div>
-                
-                <div class="content">
+        </div>
+        
+        <div class="content">
                     <div class="app-info">
                         <h2 style="margin: 0 0 15px 0; color: #2c3e50;">📱 {self.app_name}</h2>
                         <div class="grid">
@@ -266,8 +266,8 @@ class QuikAppEmailNotifier:
                             <div><strong>Organization:</strong> {self.org_name}</div>
                             <div><strong>Developer:</strong> {self.user_name}</div>
                         </div>
-                    </div>
-                    
+            </div>
+            
                     {self.generate_feature_badges()}
                     
                     <div style="background: #e3f2fd; padding: 25px; border-radius: 12px; text-align: center;">
@@ -330,9 +330,9 @@ class QuikAppEmailNotifier:
                             <div><strong>Workflow:</strong> {self.workflow_id}</div>
                             <div><strong>Organization:</strong> {self.org_name}</div>
                             <div><strong>Completed:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}</div>
-                        </div>
-                    </div>
-                    
+                </div>
+            </div>
+            
                     {self.generate_artifact_cards(build_id)}
                     
                     {self.generate_feature_badges()}
@@ -453,8 +453,8 @@ class QuikAppEmailNotifier:
                         <a href="https://codemagic.io/builds/{build_id}" class="btn" style="background: #757575;">📋 View Logs</a>
                     </div>
                 </div>
-                
-                <div class="footer">
+        
+        <div class="footer">
                     <div style="font-size: 20px; font-weight: 700; color: #667eea; margin-bottom: 15px;">🚀 QuikApp</div>
                     <div style="margin: 15px 0;">
                         <a href="https://quikapp.co" style="color: #667eea; text-decoration: none; margin: 0 15px;">Website</a>
@@ -462,12 +462,12 @@ class QuikAppEmailNotifier:
                         <a href="mailto:support@quikapp.co" style="color: #667eea; text-decoration: none; margin: 0 15px;">Support</a>
                     </div>
                     <p style="margin: 0; opacity: 0.8;">© 2025 QuikApp Technologies. All rights reserved.</p>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
-        
+        </div>
+    </div>
+</body>
+</html>
+"""
+
         return self._send_email(subject, html)
     
     def _send_email(self, subject, html_content):
@@ -494,7 +494,7 @@ class QuikAppEmailNotifier:
             
             with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
                 server.set_debuglevel(0)  # Set to 1 for debugging
-                server.starttls()
+        server.starttls()
                 server.login(self.smtp_user, self.smtp_pass)
                 
                 # Send email
@@ -512,7 +512,7 @@ class QuikAppEmailNotifier:
             logger.error(f"❌ Recipient refused: {e}")
         except smtplib.SMTPServerDisconnected as e:
             logger.error(f"❌ SMTP server disconnected: {e}")
-        except Exception as e:
+except Exception as e:
             logger.error(f"❌ Failed to send email: {e}")
             
         return False

@@ -140,20 +140,20 @@ setup_keychain() {
         else
             # Fallback to direct conversion
             log "🔄 Using fallback certificate conversion..."
-            if ! openssl x509 -in ios/certificates/cert.cer -inform DER -out ios/certificates/cert.pem -outform PEM; then
-                log "❌ Failed to convert certificate to PEM format"
-                return 1
-            fi
-            if ! openssl pkcs12 -export -inkey ios/certificates/cert.key -in ios/certificates/cert.pem -out ios/certificates/cert.p12 -password pass:"$CERT_PASSWORD"; then
-                log "❌ Failed to create P12 file"
-                return 1
-            fi
+        if ! openssl x509 -in ios/certificates/cert.cer -inform DER -out ios/certificates/cert.pem -outform PEM; then
+            log "❌ Failed to convert certificate to PEM format"
+            return 1
+        fi
+        if ! openssl pkcs12 -export -inkey ios/certificates/cert.key -in ios/certificates/cert.pem -out ios/certificates/cert.p12 -password pass:"$CERT_PASSWORD"; then
+            log "❌ Failed to create P12 file"
+            return 1
+        fi
 
-            # Import converted P12
-            log "🔄 Importing converted P12 certificate..."
-            if ! security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD" -A; then
-                log "❌ Failed to import converted P12 certificate"
-                return 1
+        # Import converted P12
+        log "🔄 Importing converted P12 certificate..."
+        if ! security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD" -A; then
+            log "❌ Failed to import converted P12 certificate"
+            return 1
             fi
         fi
     fi
@@ -269,29 +269,33 @@ fi
 
 # Download custom icons for bottom menu
 log "🎨 Downloading custom icons for bottom menu..."
-if [ -f "lib/scripts/utils/download_custom_icons.sh" ]; then
-    chmod +x lib/scripts/utils/download_custom_icons.sh
-    if lib/scripts/utils/download_custom_icons.sh; then
-        log "✅ Custom icons download completed"
-        
-        # Validate custom icons if BOTTOMMENU_ITEMS contains custom icons
-        if [ -n "${BOTTOMMENU_ITEMS:-}" ]; then
-            log "🔍 Validating custom icons..."
-            if [ -d "assets/icons" ] && [ "$(ls -A assets/icons 2>/dev/null)" ]; then
-                log "✅ Custom icons found in assets/icons/"
-                ls -la assets/icons/ | while read -r line; do
-                    log "   $line"
-                done
-            else
-                log "ℹ️ No custom icons found (using preset icons only)"
+if [ "${IS_BOTTOMMENU:-false}" = "true" ]; then
+    if [ -f "lib/scripts/utils/download_custom_icons.sh" ]; then
+        chmod +x lib/scripts/utils/download_custom_icons.sh
+        if lib/scripts/utils/download_custom_icons.sh; then
+            log "✅ Custom icons download completed"
+            
+            # Validate custom icons if BOTTOMMENU_ITEMS contains custom icons
+            if [ -n "${BOTTOMMENU_ITEMS:-}" ]; then
+                log "🔍 Validating custom icons..."
+                if [ -d "assets/icons" ] && [ "$(ls -A assets/icons 2>/dev/null)" ]; then
+                    log "✅ Custom icons found in assets/icons/"
+                    ls -la assets/icons/ | while read -r line; do
+                        log "   $line"
+                    done
+                else
+                    log "ℹ️ No custom icons found (using preset icons only)"
+                fi
             fi
+        else
+            log "❌ Custom icons download failed"
+            exit 1
         fi
     else
-        log "❌ Custom icons download failed"
-        exit 1
+        log "⚠️ Custom icons download script not found, skipping..."
     fi
 else
-    log "⚠️ Custom icons download script not found, skipping..."
+    log "ℹ️ Bottom menu disabled (IS_BOTTOMMENU=false), skipping custom icons download"
 fi
 
 # Run customization with acceleration
@@ -368,7 +372,7 @@ log "📱 Starting enhanced iOS build..."
 
 # Pre-install CocoaPods dependencies
 log "📦 Pre-installing CocoaPods dependencies..."
-cd ios
+    cd ios
 if [ "${COCOAPODS_FAST_INSTALL:-true}" = "true" ]; then
     pod install --repo-update --verbose || pod install --verbose
 else
@@ -387,8 +391,8 @@ fi
 
 # Archive and export IPA with optimizations
 log "📦 Archiving and exporting IPA with optimizations..."
-cd ios
-
+    cd ios
+    
 # Create archive
 if xcodebuild -workspace Runner.xcworkspace -scheme Runner -configuration Release -archivePath build/Runner.xcarchive archive; then
     log "✅ Archive created successfully"
@@ -397,15 +401,15 @@ else
     exit 1
 fi
 
-# Export IPA
+    # Export IPA
 if xcodebuild -exportArchive -archivePath build/Runner.xcarchive -exportPath build/ios/ipa -exportOptionsPlist ExportOptions.plist; then
     log "✅ IPA exported successfully"
 else
     log "❌ IPA export failed"
     exit 1
-fi
-
-cd ..
+    fi
+    
+    cd ..
 
 # Copy artifacts to output directory
 log "📁 Copying artifacts to output directory..."

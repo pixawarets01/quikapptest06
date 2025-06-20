@@ -56,11 +56,17 @@ The QuikApp build system now supports custom SVG icons for the bottom navigation
 
 ### Build Process Integration
 
-The custom icons download is integrated into all build workflows:
+The custom icons download is integrated into all build workflows and **only runs when `IS_BOTTOMMENU=true`**:
 
 1. **Android Build** (`lib/scripts/android/main.sh`)
 2. **iOS Build** (`lib/scripts/ios/main.sh`)
 3. **Combined Build** (`lib/scripts/combined/main.sh`)
+
+### Conditional Execution
+
+- ✅ **When `IS_BOTTOMMENU=true`**: Downloads custom icons and validates them
+- ⏭️ **When `IS_BOTTOMMENU=false`**: Skips the entire custom icons download process
+- 📝 **Logs**: Clear indication of whether the process was skipped or executed
 
 ### Download Script
 
@@ -198,17 +204,26 @@ assets/
    - Check `assets/icons/` directory exists
    - Verify SVG URLs are accessible
    - Check build logs for download errors
+   - **Verify `IS_BOTTOMMENU=true`** if using bottom menu
 
 2. **Build Failures**:
 
    - Ensure `BOTTOMMENU_ITEMS` is valid JSON
    - Check icon URLs are publicly accessible
    - Verify network connectivity during build
+   - **Check `IS_BOTTOMMENU` setting** - icons only download when enabled
 
 3. **Styling Issues**:
+
    - Confirm font variables are set correctly
    - Check color values are valid hex codes
    - Verify Google Fonts integration
+
+4. **Custom Icons Not Downloaded**:
+   - **Ensure `IS_BOTTOMMENU=true`** in your configuration
+   - Check build logs for "Bottom menu disabled" message
+   - Verify `BOTTOMMENU_ITEMS` contains custom icon entries
+   - Confirm icon URLs are accessible and return valid SVG content
 
 ### Debug Commands
 
