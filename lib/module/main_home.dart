@@ -649,7 +649,12 @@ class _MainHomeState extends State<MainHome> {
   Future<Widget> buildMenuIcon(Map<String, dynamic> item, bool isActive,
       Color activeColor, Color defaultColor) async {
     final iconData = item['icon'];
-    if (iconData == null) return Icon(Icons.error);
+    if (iconData == null) return const Icon(Icons.error);
+
+    // Ensure iconData is a Map
+    if (iconData is! Map<String, dynamic>) {
+      return const Icon(Icons.error_outline);
+    }
 
     if (iconData['type'] == 'preset') {
       return Icon(
@@ -675,25 +680,26 @@ class _MainHomeState extends State<MainHome> {
             await file.writeAsBytes(response.bodyBytes);
           } else {
             debugPrint('Failed to download SVG for ${item['label']}');
-            return Icon(Icons.broken_image);
+            return const Icon(Icons.broken_image);
           }
         } catch (e) {
           debugPrint('Error downloading SVG: $e');
-          return Icon(Icons.broken_image);
+          return const Icon(Icons.broken_image);
         }
       }
 
       return SvgPicture.file(
         file,
-        width: double.tryParse(iconData['icon_size'] ?? '24') ?? 24,
-        height: double.tryParse(iconData['icon_size'] ?? '24') ?? 24,
+        width: double.tryParse(iconData['icon_size']?.toString() ?? '24') ?? 24,
+        height:
+            double.tryParse(iconData['icon_size']?.toString() ?? '24') ?? 24,
         colorFilter: ColorFilter.mode(
             isActive ? activeColor : defaultColor, BlendMode.srcIn),
-        placeholderBuilder: (_) => Icon(Icons.image_not_supported),
+        placeholderBuilder: (_) => const Icon(Icons.image_not_supported),
       );
     }
 
-    return Icon(Icons.help_outline);
+    return const Icon(Icons.help_outline);
   }
 
   /// ✅ Update all Uri instances to WebUri

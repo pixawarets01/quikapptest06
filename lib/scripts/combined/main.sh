@@ -123,7 +123,7 @@ fi
 
 # Build AAB if keystore is configured
 ANDROID_KEYSTORE_CONFIGURED=false
-if [ -f "android/app/keystore.properties" ]; then
+if [ -f "android/app/src/keystore.properties" ]; then
     ANDROID_KEYSTORE_CONFIGURED=true
     log "🏗️  Building Android App Bundle (AAB)..."
     if flutter build appbundle --release; then
@@ -161,9 +161,18 @@ log "🍎 Starting iOS Build Phase..."
 mkdir -p ios/certificates
 
 # Download iOS certificate files
-log "📥 Downloading iOS certificate files (unencrypted)..."
+log "📥 Downloading iOS certificate files..."
 
-if [ -n "${CERT_CER_URL:-}" ]; then
+# Handle P12 certificate or CER/KEY combination
+if [ -n "${CERT_P12_URL:-}" ]; then
+    log "Downloading iOS P12 certificate from: $CERT_P12_URL"
+    if curl -L -o ios/certificates/cert.p12 "$CERT_P12_URL"; then
+        log "✅ iOS P12 certificate downloaded successfully"
+    else
+        log "❌ Failed to download iOS P12 certificate"
+        exit 1
+    fi
+elif [ -n "${CERT_CER_URL:-}" ] && [ -n "${CERT_KEY_URL:-}" ]; then
     log "Downloading iOS certificate from: $CERT_CER_URL"
     if curl -L -o ios/certificates/cert.cer "$CERT_CER_URL"; then
         log "✅ iOS certificate downloaded successfully"
@@ -171,12 +180,7 @@ if [ -n "${CERT_CER_URL:-}" ]; then
         log "❌ Failed to download iOS certificate"
         exit 1
     fi
-else
-    log "❌ CERT_CER_URL is required for iOS signing"
-    exit 1
-fi
-
-if [ -n "${CERT_KEY_URL:-}" ]; then
+    
     log "Downloading iOS private key from: $CERT_KEY_URL"
     if curl -L -o ios/certificates/cert.key "$CERT_KEY_URL"; then
         log "✅ iOS private key downloaded successfully"
@@ -185,7 +189,7 @@ if [ -n "${CERT_KEY_URL:-}" ]; then
         exit 1
     fi
 else
-    log "❌ CERT_KEY_URL is required for iOS signing"
+    log "❌ Either CERT_P12_URL or both CERT_CER_URL and CERT_KEY_URL are required for iOS signing"
     exit 1
 fi
 
@@ -220,21 +224,29 @@ for var in "${required_ios_vars[@]}"; do
 done
 
 # Process iOS certificates
-log "🔐 Processing iOS certificates and creating P12 file..."
-if [ -f "lib/scripts/ios/certificate_handler.sh" ]; then
-    chmod +x lib/scripts/ios/certificate_handler.sh
-    if lib/scripts/ios/certificate_handler.sh \
-        "ios/certificates/cert.cer" \
-        "ios/certificates/cert.key" \
-        "$CERT_PASSWORD" \
-        "ios/certificates/cert.p12"; then
-        log "✅ iOS certificate processing completed"
+log "🔐 Processing iOS certificates..."
+if [ -f "ios/certificates/cert.p12" ]; then
+    log "✅ P12 certificate already available, skipping conversion"
+elif [ -f "ios/certificates/cert.cer" ] && [ -f "ios/certificates/cert.key" ]; then
+    log "Converting CER and KEY to P12..."
+    if [ -f "lib/scripts/ios/certificate_handler.sh" ]; then
+        chmod +x lib/scripts/ios/certificate_handler.sh
+        if lib/scripts/ios/certificate_handler.sh \
+            "ios/certificates/cert.cer" \
+            "ios/certificates/cert.key" \
+            "$CERT_PASSWORD" \
+            "ios/certificates/cert.p12"; then
+            log "✅ iOS certificate processing completed"
+        else
+            log "❌ iOS certificate processing failed"
+            exit 1
+        fi
     else
-        log "❌ iOS certificate processing failed"
+        log "❌ iOS certificate handler script not found"
         exit 1
     fi
 else
-    log "❌ iOS certificate handler script not found"
+    log "❌ Neither P12 nor CER/KEY files found"
     exit 1
 fi
 
@@ -329,16 +341,18 @@ else
     log "⚠️  iOS Firebase script not found, skipping..."
 fi
 
-# Update Podfile for Firebase compatibility
+# Update Podfile for Firebase compatibility (avoid duplication)
 log "📦 Updating Podfile for Firebase compatibility..."
 if [ -f "ios/Podfile" ]; then
-    cat >> ios/Podfile << 'EOF'
+    # Check if Firebase settings already exist
+    if ! grep -q "Firebase compatibility settings" ios/Podfile; then
+        cat >> ios/Podfile << 'EOF'
 
 # Firebase compatibility settings
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     target.build_configurations.each do |config|
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
       config.build_settings['ENABLE_BITCODE'] = 'NO'
       config.build_settings['SWIFT_VERSION'] = '5.0'
       config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
@@ -346,11 +360,19 @@ post_install do |installer|
   end
 end
 EOF
-    log "✅ Podfile updated"
+        log "✅ Podfile updated with Firebase settings"
+    else
+        log "✅ Podfile already contains Firebase settings"
+    fi
 else
     log "❌ Podfile not found"
     exit 1
 fi
+
+# Flutter setup for iOS
+log "📦 Setting up Flutter for iOS..."
+flutter clean
+flutter pub get
 
 # Install pods
 log "📦 Installing CocoaPods dependencies..."
@@ -400,16 +422,44 @@ cat > ios/ExportOptions.plist << EOF
 </plist>
 EOF
 
+# Setup iOS keychain and certificates
+log "🔐 Setting up iOS keychain..."
+security create-keychain -p "" build.keychain
+security default-keychain -s build.keychain
+security unlock-keychain -p "" build.keychain
+security set-keychain-settings -t 3600 -u build.keychain
+
+# Import P12 certificate
+log "📥 Importing P12 certificate to keychain..."
+if security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD" -A; then
+    log "✅ P12 certificate imported successfully"
+    security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
+else
+    log "❌ Failed to import P12 certificate"
+    exit 1
+fi
+
 # Build the iOS app
 cd ios
+
+# Clean previous builds
+rm -rf build/Runner.xcarchive
+rm -rf build/ios/ipa
+
 if [ "$IOS_BUILD_SIGNED" = true ]; then
     log "Building iOS with code signing..."
-    if xcodebuild -workspace Runner.xcworkspace -scheme Runner -configuration Release -destination generic/platform=iOS -archivePath build/Runner.xcarchive archive; then
+    if xcodebuild -workspace Runner.xcworkspace -scheme Runner -configuration Release -destination generic/platform=iOS -archivePath build/Runner.xcarchive archive | xcpretty; then
         log "✅ iOS archive created successfully"
         
-        if xcodebuild -exportArchive -archivePath build/Runner.xcarchive -exportPath build/ -exportOptionsPlist ExportOptions.plist; then
+        if xcodebuild -exportArchive -archivePath build/Runner.xcarchive -exportPath build/ios/ipa -exportOptionsPlist ExportOptions.plist | xcpretty; then
             log "✅ iOS IPA exported successfully"
-            cp build/Runner.ipa ../output/ios/
+            if [ -f "build/ios/ipa/Runner.ipa" ]; then
+                cp build/ios/ipa/Runner.ipa ../output/ios/
+                log "✅ IPA copied to output directory"
+            else
+                log "❌ IPA file not found after export"
+                exit 1
+            fi
         else
             log "❌ iOS IPA export failed"
             exit 1

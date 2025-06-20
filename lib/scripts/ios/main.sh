@@ -117,22 +117,36 @@ setup_keychain() {
             return 1
         fi
 
-        # Convert certificates to p12
-        log "🔄 Converting certificates to p12..."
-        if ! openssl x509 -in ios/certificates/cert.cer -inform DER -out ios/certificates/cert.pem -outform PEM; then
-            log "❌ Failed to convert certificate to PEM format"
-            return 1
-        fi
-        if ! openssl pkcs12 -export -inkey ios/certificates/cert.key -in ios/certificates/cert.pem -out ios/certificates/cert.p12 -password pass:"$CERT_PASSWORD"; then
-            log "❌ Failed to create P12 file"
-            return 1
-        fi
+        # Use certificate handler script for proper conversion
+        log "🔄 Converting certificates using certificate handler..."
+        if [ -f "lib/scripts/ios/certificate_handler.sh" ]; then
+            chmod +x lib/scripts/ios/certificate_handler.sh
+            if ! lib/scripts/ios/certificate_handler.sh \
+                "ios/certificates/cert.cer" \
+                "ios/certificates/cert.key" \
+                "$CERT_PASSWORD" \
+                "ios/certificates/cert.p12"; then
+                log "❌ Certificate handler failed"
+                return 1
+            fi
+        else
+            # Fallback to direct conversion
+            log "🔄 Using fallback certificate conversion..."
+            if ! openssl x509 -in ios/certificates/cert.cer -inform DER -out ios/certificates/cert.pem -outform PEM; then
+                log "❌ Failed to convert certificate to PEM format"
+                return 1
+            fi
+            if ! openssl pkcs12 -export -inkey ios/certificates/cert.key -in ios/certificates/cert.pem -out ios/certificates/cert.p12 -password pass:"$CERT_PASSWORD"; then
+                log "❌ Failed to create P12 file"
+                return 1
+            fi
 
-        # Import converted P12
-        log "🔄 Importing converted P12 certificate..."
-        if ! security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD" -A; then
-            log "❌ Failed to import converted P12 certificate"
-            return 1
+            # Import converted P12
+            log "🔄 Importing converted P12 certificate..."
+            if ! security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD" -A; then
+                log "❌ Failed to import converted P12 certificate"
+                return 1
+            fi
         fi
     fi
 
@@ -455,22 +469,48 @@ main() {
     log "🏗️ Building IPA..."
     cd ios
     
+    # Clean previous builds
+    rm -rf build/Runner.xcarchive
+    rm -rf build/ios/ipa
+    
     # Archive
-    xcodebuild -workspace Runner.xcworkspace \
+    log "📦 Creating archive..."
+    if xcodebuild -workspace Runner.xcworkspace \
         -scheme Runner \
         -configuration Release \
+        -destination generic/platform=iOS \
         -archivePath build/Runner.xcarchive \
-        archive | xcpretty
+        archive | xcpretty; then
+        log "✅ Archive created successfully"
+    else
+        log "❌ Archive creation failed"
+        cd ..
+        return 1
+    fi
 
     # Export IPA
-    xcodebuild -exportArchive \
+    log "📤 Exporting IPA..."
+    if xcodebuild -exportArchive \
         -archivePath build/Runner.xcarchive \
         -exportOptionsPlist ExportOptions.plist \
-        -exportPath build/ios/ipa | xcpretty
+        -exportPath build/ios/ipa | xcpretty; then
+        log "✅ IPA exported successfully"
+    else
+        log "❌ IPA export failed"
+        cd ..
+        return 1
+    fi
 
     # Copy IPA to output directory
     mkdir -p ../output/ios
-    cp build/ios/ipa/Runner.ipa ../output/ios/
+    if [ -f "build/ios/ipa/Runner.ipa" ]; then
+        cp build/ios/ipa/Runner.ipa ../output/ios/
+        log "✅ IPA copied to output directory"
+    else
+        log "❌ IPA file not found after export"
+        cd ..
+        return 1
+    fi
     
     # Generate manifest for ad-hoc distribution if needed
     if [ "$PROFILE_TYPE" = "ad-hoc" ] && [ -n "${INSTALL_URL:-}" ]; then

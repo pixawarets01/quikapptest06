@@ -2,7 +2,7 @@ class EnvConfig {
   static const String appName = "Garbcode App";
   static const String orgName = "Garbcode";
   static const String webUrl = "https://garbcode.com";
-  static const String pkgName = "";
+  static const String pkgName = "com.garbcode.garbcodeapp";
   static const String bundleId = "com.garbcode.garbcodeapp";
   static const String emailId = "prasannasrinivasan32@gmail.com";
   static const bool isChatbot = false;
@@ -19,8 +19,10 @@ class EnvConfig {
   static const bool isBiometric = false;
   static const bool isCalendar = false;
   static const bool isStorage = true;
-  static const String logoUrl = "https://raw.githubusercontent.com/prasanna91/QuikApp/main/logo-gc.png";
-  static const String splashUrl = "https://raw.githubusercontent.com/prasanna91/QuikApp/main/logo-gc.png";
+  static const String logoUrl =
+      "https://raw.githubusercontent.com/prasanna91/QuikApp/main/logo-gc.png";
+  static const String splashUrl =
+      "https://raw.githubusercontent.com/prasanna91/QuikApp/main/logo-gc.png";
   static const String splashBg = "";
   static const String splashBgColor = "#FFFFFF";
   static const String splashTagline = "Welcome to Garbcode";
@@ -28,17 +30,18 @@ class EnvConfig {
   static const String splashAnimation = "fade";
   static const int splashDuration = 3;
   static const String bottommenuItems = r"""[]""";
-  static const String bottommenuBgColor = "";
-  static const String bottommenuIconColor = "";
-  static const String bottommenuTextColor = "";
-  static const String bottommenuFont = "";
-  static const double bottommenuFontSize = 0;
+  static const String bottommenuBgColor = "#FFFFFF";
+  static const String bottommenuIconColor = "#6d6e8c";
+  static const String bottommenuTextColor = "#6d6e8c";
+  static const String bottommenuFont = "DM Sans";
+  static const double bottommenuFontSize = 12;
   static const bool bottommenuFontBold = false;
   static const bool bottommenuFontItalic = false;
-  static const String bottommenuActiveTabColor = "";
-  static const String bottommenuIconPosition = "";
-  static const String bottommenuVisibleOn = "";
+  static const String bottommenuActiveTabColor = "#a30237";
+  static const String bottommenuIconPosition = "above";
+  static const String bottommenuVisibleOn = "home,settings,profile";
   static const bool pushNotify = true;
   static const String firebaseConfigAndroid = "";
-  static const String firebaseConfigIos = "https://raw.githubusercontent.com/prasanna91/QuikApp/main/GoogleService-Info-gc.plist";
+  static const String firebaseConfigIos =
+      "https://raw.githubusercontent.com/prasanna91/QuikApp/main/GoogleService-Info-gc.plist";
 }

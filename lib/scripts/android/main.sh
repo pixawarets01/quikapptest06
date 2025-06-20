@@ -231,8 +231,33 @@ fi
 if [ "$ANDROID_FREE_WORKFLOW" = true ]; then
     log "⏭️  Skipping Firebase setup for android-free workflow."
 elif [ "$ANDROID_PAID_WORKFLOW" = true ]; then
+    if [[ "${PUSH_NOTIFY:-false}" == "true" ]]; then
+        if [ -n "${FIREBASE_CONFIG_ANDROID:-}" ]; then
+            log "🔥 Running Firebase script for android-paid..."
+            if [ -f "lib/scripts/android/firebase.sh" ]; then
+                chmod +x lib/scripts/android/firebase.sh
+                if lib/scripts/android/firebase.sh; then
+                    log "✅ Firebase configuration completed"
+                else
+                    log "❌ Firebase configuration failed"
+                    exit 1
+                fi
+            else
+                log "❌ Firebase script not found"
+                exit 1
+            fi
+        else
+            log "❌ PUSH_NOTIFY is enabled but FIREBASE_CONFIG_ANDROID is not set"
+            log "ℹ️  Please provide FIREBASE_CONFIG_ANDROID URL for Firebase integration"
+            exit 1
+        fi
+    else
+        log "⏭️  Skipping Firebase setup for android-paid (PUSH_NOTIFY is false)."
+    fi
+else
+    # For android-publish and combined workflows
     if [[ "${PUSH_NOTIFY:-false}" == "true" && -n "${FIREBASE_CONFIG_ANDROID:-}" ]]; then
-        log "🔥 Running Firebase script for android-paid..."
+        log "🔥 Running Firebase script..."
         if [ -f "lib/scripts/android/firebase.sh" ]; then
             chmod +x lib/scripts/android/firebase.sh
             if lib/scripts/android/firebase.sh; then
@@ -242,13 +267,12 @@ elif [ "$ANDROID_PAID_WORKFLOW" = true ]; then
                 exit 1
             fi
         else
-            log "⚠️  Firebase script not found, skipping..."
+            log "❌ Firebase script not found"
+            exit 1
         fi
     else
-        log "⏭️  Skipping Firebase setup for android-paid (PUSH_NOTIFY is false or FIREBASE_CONFIG_ANDROID not set)."
+        log "⏭️  Skipping Firebase setup (PUSH_NOTIFY disabled or no config provided)."
     fi
-else
-    true
 fi
 
 # Step 5: Run keystore script
@@ -257,7 +281,20 @@ if [ "$ANDROID_FREE_WORKFLOW" = true ]; then
 elif [ "$ANDROID_PAID_WORKFLOW" = true ]; then
     log "⏭️  Skipping keystore setup for android-paid workflow. Debug signing will be used."
 else
-    true
+    # For android-publish and combined workflows
+    log "🔐 Setting up keystore for release signing..."
+    if [ -f "lib/scripts/android/keystore.sh" ]; then
+        chmod +x lib/scripts/android/keystore.sh
+        if lib/scripts/android/keystore.sh; then
+            log "✅ Keystore configuration completed"
+        else
+            log "❌ Keystore configuration failed"
+            exit 1
+        fi
+    else
+        log "❌ Keystore script not found"
+        exit 1
+    fi
 fi
 
 # Step 6: Build APK
