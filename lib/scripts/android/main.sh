@@ -282,6 +282,33 @@ else
     log "⚠️ Android branding script not found, skipping..."
 fi
 
+# Download custom icons for bottom menu
+log "🎨 Downloading custom icons for bottom menu..."
+if [ -f "lib/scripts/utils/download_custom_icons.sh" ]; then
+    chmod +x lib/scripts/utils/download_custom_icons.sh
+    if lib/scripts/utils/download_custom_icons.sh; then
+        log "✅ Custom icons download completed"
+        
+        # Validate custom icons if BOTTOMMENU_ITEMS contains custom icons
+        if [ -n "${BOTTOMMENU_ITEMS:-}" ]; then
+            log "🔍 Validating custom icons..."
+            if [ -d "assets/icons" ] && [ "$(ls -A assets/icons 2>/dev/null)" ]; then
+                log "✅ Custom icons found in assets/icons/"
+                ls -la assets/icons/ | while read -r line; do
+                    log "   $line"
+                done
+            else
+                log "ℹ️ No custom icons found (using preset icons only)"
+            fi
+        fi
+    else
+        log "❌ Custom icons download failed"
+        exit 1
+    fi
+else
+    log "⚠️ Custom icons download script not found, skipping..."
+fi
+
 # Run customization with acceleration
 log "⚙️ Running Android customization with acceleration..."
 if [ -f "lib/scripts/android/customization.sh" ]; then

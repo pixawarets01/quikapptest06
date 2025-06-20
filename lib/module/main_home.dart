@@ -615,6 +615,8 @@ class _MainHomeState extends State<MainHome> {
         ),
         bottomNavigationBar: widget.isBottomMenu
             ? BottomNavigationBar(
+                type: BottomNavigationBarType
+                    .fixed, // Required for more than 3 items
                 currentIndex: _currentIndex,
                 onTap: (index) {
                   setState(() {
@@ -631,15 +633,42 @@ class _MainHomeState extends State<MainHome> {
                     }
                   }
                 },
-                items: bottomMenuItems.map((item) {
+                items: bottomMenuItems.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final item = entry.value;
                   return BottomNavigationBarItem(
-                    icon: Icon(_getIconByName(item['icon'] as String?)),
+                    icon: FutureBuilder<Widget>(
+                      future: buildMenuIcon(
+                        item,
+                        _currentIndex == index,
+                        _parseHexColor(widget.activeTabColor),
+                        _parseHexColor(widget.iconColor),
+                      ),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.done &&
+                            snapshot.hasData) {
+                          return snapshot.data!;
+                        }
+                        if (snapshot.hasError) {
+                          return Icon(Icons.error,
+                              color: _parseHexColor(widget.iconColor));
+                        }
+                        // Show a placeholder while loading custom icons
+                        return const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2.0),
+                        );
+                      },
+                    ),
                     label: item['label'] as String? ?? '',
                   );
                 }).toList(),
                 backgroundColor: _parseHexColor(widget.backgroundColor),
+                selectedLabelStyle: _getMenuTextStyle(true),
+                unselectedLabelStyle: _getMenuTextStyle(false),
                 selectedItemColor: _parseHexColor(widget.activeTabColor),
-                unselectedItemColor: _parseHexColor(widget.textColor),
+                unselectedItemColor: _parseHexColor(widget.iconColor),
               )
             : null,
       ),
@@ -649,11 +678,22 @@ class _MainHomeState extends State<MainHome> {
   Future<Widget> buildMenuIcon(Map<String, dynamic> item, bool isActive,
       Color activeColor, Color defaultColor) async {
     final iconData = item['icon'];
-    if (iconData == null) return const Icon(Icons.error);
+    if (iconData == null) {
+      return Icon(Icons.error, color: isActive ? activeColor : defaultColor);
+    }
 
-    // Ensure iconData is a Map
+    // Handle legacy string-based icon name for backward compatibility
+    if (iconData is String) {
+      return Icon(
+        _getIconByName(iconData),
+        color: isActive ? activeColor : defaultColor,
+      );
+    }
+
     if (iconData is! Map<String, dynamic>) {
-      return const Icon(Icons.error_outline);
+      debugPrint("Invalid bottom menu icon format: $iconData");
+      return Icon(Icons.error_outline,
+          color: isActive ? activeColor : defaultColor);
     }
 
     if (iconData['type'] == 'preset') {
@@ -668,38 +708,53 @@ class _MainHomeState extends State<MainHome> {
           .toLowerCase()
           .replaceAll(RegExp(r'\s+'), '_');
       final fileName = '$labelSanitized.svg';
+      final assetPath = 'assets/icons/$fileName';
 
-      final dir = await getApplicationSupportDirectory();
-      final filePath = '${dir.path}/$fileName';
+      // Get the assets directory path
+      final assetsDir = Directory('assets/icons');
+      if (!await assetsDir.exists()) {
+        await assetsDir.create(recursive: true);
+      }
+
+      final filePath = '${assetsDir.path}/$fileName';
       final file = File(filePath);
 
+      // Download only if file doesn't exist
       if (!await file.exists()) {
         try {
           final response = await http.get(Uri.parse(iconData['icon_url']));
           if (response.statusCode == 200) {
             await file.writeAsBytes(response.bodyBytes);
+            debugPrint('Downloaded custom icon: $fileName to $filePath');
           } else {
-            debugPrint('Failed to download SVG for ${item['label']}');
-            return const Icon(Icons.broken_image);
+            debugPrint(
+                'Failed to download SVG for ${item['label']}: ${response.statusCode}');
+            return Icon(Icons.broken_image,
+                color: isActive ? activeColor : defaultColor);
           }
         } catch (e) {
           debugPrint('Error downloading SVG: $e');
-          return const Icon(Icons.broken_image);
+          return Icon(Icons.broken_image,
+              color: isActive ? activeColor : defaultColor);
         }
       }
 
-      return SvgPicture.file(
-        file,
+      // Use SvgPicture.asset to load from assets folder
+      return SvgPicture.asset(
+        assetPath,
         width: double.tryParse(iconData['icon_size']?.toString() ?? '24') ?? 24,
         height:
             double.tryParse(iconData['icon_size']?.toString() ?? '24') ?? 24,
         colorFilter: ColorFilter.mode(
             isActive ? activeColor : defaultColor, BlendMode.srcIn),
-        placeholderBuilder: (_) => const Icon(Icons.image_not_supported),
+        placeholderBuilder: (_) =>
+            const Icon(Icons.image_not_supported), // Placeholder
       );
     }
 
-    return const Icon(Icons.help_outline);
+    // Fallback for unknown icon type
+    return Icon(Icons.help_outline,
+        color: isActive ? activeColor : defaultColor);
   }
 
   /// ✅ Update all Uri instances to WebUri
