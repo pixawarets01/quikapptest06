@@ -145,8 +145,8 @@ optimize_ios_build() {
 optimize_flutter_build() {
     log "📱 Optimizing Flutter build..."
     
-    # Clear only necessary caches
-    flutter clean --no-pub-get
+    # Clear only necessary caches (without invalid --no-pub-get flag)
+    flutter clean
     
     # Pre-download dependencies
     log "📦 Pre-downloading Flutter dependencies..."
