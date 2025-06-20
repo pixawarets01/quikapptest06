@@ -375,29 +375,42 @@ fi
 log "📱 Starting enhanced Flutter build..."
 cd android
 
-# Configure JVM options for Gradle
-log "🔧 Configuring JVM options for Gradle..."
-# Clear any existing JAVA_TOOL_OPTIONS to prevent conflicts
-unset JAVA_TOOL_OPTIONS
+# Configure global build optimizations
+log "⚙️ Configuring global build optimizations..."
 
-# Create or update gradle.properties with optimized settings
+# Clear any conflicting JVM options first
+log "🧹 Clearing conflicting JVM options..."
+unset GRADLE_OPTS
+unset JAVA_OPTS
+unset _JAVA_OPTIONS
+
+# Configure JVM options - Fixed to avoid multiple garbage collector conflicts
+log "🔧 Configuring JVM options..."
+export JAVA_TOOL_OPTIONS="-Xmx4G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Dfile.encoding=UTF-8"
+
+# Configure environment
+log "🔧 Configuring build environment..."
+export LANG=en_US.UTF-8
+export LANGUAGE=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+
+# Create optimized gradle.properties
 log "📝 Creating optimized gradle.properties..."
-cat > gradle.properties << EOF
-org.gradle.jvmargs=-Xmx4G -XX:MaxPermSize=512m -XX:+UseParallelGC -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+if [ ! -f android/gradle.properties ] || ! grep -q "org.gradle.jvmargs" android/gradle.properties; then
+    cat >> android/gradle.properties << EOF
+org.gradle.jvmargs=-Xmx4G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Dfile.encoding=UTF-8
 org.gradle.parallel=true
 org.gradle.daemon=true
 org.gradle.caching=true
-org.gradle.configureondemand=true
 android.useAndroidX=true
 android.enableJetifier=true
 android.enableR8.fullMode=true
 kotlin.code.style=official
-android.defaults.buildfeatures.buildconfig=true
-android.nonTransitiveRClass=true
-android.nonFinalResIds=false
 EOF
-
-cd ..
+    log "✅ Created/updated gradle.properties with optimized settings"
+else
+    log "✅ gradle.properties already exists with JVM args"
+fi
 
 # Clean Flutter build cache first
 log "🧹 Cleaning Flutter build cache..."
@@ -509,7 +522,11 @@ else
     if [ -d "android" ]; then
         cd android
         if [ -f "gradlew" ]; then
-            ./gradlew tasks --all 2>&1 | head -20 || true
+            # Use a simpler command to avoid JVM conflicts
+            ./gradlew --version 2>&1 | head -10 || true
+            log "🔍 Debug: Gradle wrapper is executable"
+        else
+            log "🔍 Debug: Gradle wrapper not found"
         fi
         cd ..
     fi
@@ -527,7 +544,7 @@ if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "co
     log "📦 Building APK and AAB..."
     
     # Set GRADLE_OPTS for the flutter build command
-    export GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx4G -XX:MaxPermSize=512m -XX:+UseParallelGC"
+    export GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx4G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Dfile.encoding=UTF-8"
     
     # Build APK first
     log "📱 Building APK with environment variables..."
@@ -561,7 +578,7 @@ else
     log "📦 Building APK only..."
     
     # Set GRADLE_OPTS for the flutter build command
-    export GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx4G -XX:MaxPermSize=512m -XX:+UseParallelGC"
+    export GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx4G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Dfile.encoding=UTF-8"
     
     if flutter build apk --release $ENV_ARGS; then
         log "✅ APK build completed successfully"
