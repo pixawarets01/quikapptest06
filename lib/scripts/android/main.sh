@@ -403,19 +403,43 @@ cd ..
 log "🧹 Cleaning Flutter build cache..."
 flutter clean
 
-# Create a list of all environment variables to pass to Flutter
+# Create a list of safe environment variables to pass to Flutter
 log "🔧 Preparing environment variables for Flutter..."
 ENV_ARGS=""
-while IFS='=' read -r name value ; do
-    if [[ $name == *"_URL"* ]] || [[ $name == *"PASSWORD"* ]] || [[ $name == *"KEY"* ]]; then
-        # Skip URLs, passwords and keys - they'll be handled by the gen_env_config.sh script
-        continue
+
+# Define a list of safe variables that can be passed to Flutter
+SAFE_VARS=(
+    "APP_ID" "WORKFLOW_ID" "BRANCH" "VERSION_NAME" "VERSION_CODE" 
+    "APP_NAME" "ORG_NAME" "WEB_URL" "PKG_NAME" "EMAIL_ID" "USER_NAME"
+    "PUSH_NOTIFY" "IS_CHATBOT" "IS_DOMAIN_URL" "IS_SPLASH" "IS_PULLDOWN"
+    "IS_BOTTOMMENU" "IS_LOAD_IND" "IS_CAMERA" "IS_LOCATION" "IS_MIC"
+    "IS_NOTIFICATION" "IS_CONTACT" "IS_BIOMETRIC" "IS_CALENDAR" "IS_STORAGE"
+    "SPLASH_BG_COLOR" "SPLASH_TAGLINE" "SPLASH_TAGLINE_COLOR" "SPLASH_ANIMATION"
+    "SPLASH_DURATION" "BOTTOMMENU_FONT" "BOTTOMMENU_FONT_SIZE" "BOTTOMMENU_FONT_BOLD"
+    "BOTTOMMENU_FONT_ITALIC" "BOTTOMMENU_BG_COLOR" "BOTTOMMENU_TEXT_COLOR"
+    "BOTTOMMENU_ICON_COLOR" "BOTTOMMENU_ACTIVE_TAB_COLOR" "BOTTOMMENU_ICON_POSITION"
+    "ENABLE_EMAIL_NOTIFICATIONS" "EMAIL_SMTP_SERVER" "EMAIL_SMTP_PORT"
+    "EMAIL_SMTP_USER" "CM_BUILD_ID" "CM_WORKFLOW_NAME" "CM_BRANCH"
+    "FCI_BUILD_ID" "FCI_WORKFLOW_NAME" "FCI_BRANCH" "CONTINUOUS_INTEGRATION"
+    "CI" "BUILD_NUMBER" "PROJECT_BUILD_NUMBER"
+)
+
+# Only pass safe variables to Flutter
+for var_name in "${SAFE_VARS[@]}"; do
+    if [ -n "${!var_name:-}" ]; then
+        # Escape the value to handle special characters
+        var_value="${!var_name}"
+        # Remove any newlines or problematic characters
+        var_value=$(echo "$var_value" | tr '\n' ' ' | sed 's/[[:space:]]*$//')
+        ENV_ARGS="$ENV_ARGS --dart-define=$var_name=$var_value"
     fi
-    # shellcheck disable=SC2236
-    if [[ ! -z "$value" ]]; then
-        ENV_ARGS="$ENV_ARGS --dart-define=$name=$value"
-    fi
-done < <(env)
+done
+
+# Add essential build arguments
+ENV_ARGS="$ENV_ARGS --dart-define=FLUTTER_BUILD_NAME=$VERSION_NAME"
+ENV_ARGS="$ENV_ARGS --dart-define=FLUTTER_BUILD_NUMBER=$VERSION_CODE"
+
+log "📋 Prepared $ENV_ARGS environment variables for Flutter build"
 
 # Build with optimizations
 log "🔨 Building Android APK with optimizations..."
@@ -426,8 +450,8 @@ if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "co
     # Set GRADLE_OPTS for the flutter build command
     export GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx4G -XX:MaxPermSize=512m -XX:+UseParallelGC"
     
-    if flutter build apk --release "$ENV_ARGS" && \
-       flutter build appbundle --release "$ENV_ARGS"; then
+    if flutter build apk --release $ENV_ARGS && \
+       flutter build appbundle --release $ENV_ARGS; then
         log "✅ APK and AAB build completed successfully"
     else
         log "❌ APK and AAB build failed"
@@ -440,7 +464,7 @@ else
     # Set GRADLE_OPTS for the flutter build command
     export GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx4G -XX:MaxPermSize=512m -XX:+UseParallelGC"
     
-    if flutter build apk --release "$ENV_ARGS"; then
+    if flutter build apk --release $ENV_ARGS; then
         log "✅ APK build completed successfully"
     else
         log "❌ APK build failed"

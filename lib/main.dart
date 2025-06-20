@@ -25,10 +25,10 @@ class FirebaseErrorWidget extends StatelessWidget {
   final VoidCallback onRetry;
 
   const FirebaseErrorWidget({
-    Key? key,
+    super.key,
     required this.error,
     required this.onRetry,
-  }) : super(key: key);
+  });
 
   String get platformSpecificHelp {
     if (Platform.isIOS) {
@@ -78,7 +78,7 @@ Please check:
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: Text('${platformName} Firebase Setup Help'),
+            title: Text('$platformName Firebase Setup Help'),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -180,7 +180,7 @@ Please check:
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      '${platformName} Firebase Initialization Failed',
+                      '$platformName Firebase Initialization Failed',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 24,
@@ -224,7 +224,7 @@ Please check:
                     const SizedBox(height: 16),
                     TextButton(
                       onPressed: () {
-                        runApp(const MyApp(
+                        runApp(MyApp(
                           webUrl: EnvConfig.webUrl,
                           isSplash: EnvConfig.isSplash,
                           splashLogo: EnvConfig.splashUrl,
@@ -336,7 +336,7 @@ Future<void> initializeApp() async {
         - Contact: ${EnvConfig.isContact}
       """);
 
-    runApp(const MyApp(
+    runApp(MyApp(
       webUrl: EnvConfig.webUrl,
       isSplash: EnvConfig.isSplash,
       splashLogo: EnvConfig.splashUrl,

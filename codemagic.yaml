@@ -10,7 +10,6 @@ workflows:
         # Enhanced build time optimization variables
         GRADLE_OPTS: "-Xmx12G -XX:MaxMetaspaceSize=6G -XX:ReservedCodeCacheSize=1G -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -XX:+UseParallelGC -XX:ParallelGCThreads=4 -XX:ConcGCThreads=2"
         XCODE_PARALLEL_JOBS: "6"
-        FLUTTER_BUILD_ARGS: "--no-tree-shake-icons --target-platform android-arm64,android-arm --build-number=$VERSION_CODE --dart-define=FLUTTER_BUILD_NAME=$VERSION_NAME"
 
         # Build acceleration variables
         GRADLE_DAEMON: "true"
@@ -86,7 +85,6 @@ workflows:
         # Enhanced build time optimization variables
         GRADLE_OPTS: "-Xmx12G -XX:MaxMetaspaceSize=6G -XX:ReservedCodeCacheSize=1G -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -XX:+UseParallelGC -XX:ParallelGCThreads=4 -XX:ConcGCThreads=2"
         XCODE_PARALLEL_JOBS: "6"
-        FLUTTER_BUILD_ARGS: "--no-tree-shake-icons --target-platform android-arm64,android-arm --build-number=$VERSION_CODE --dart-define=FLUTTER_BUILD_NAME=$VERSION_NAME"
 
         # Build acceleration variables
         GRADLE_DAEMON: "true"
@@ -163,7 +161,6 @@ workflows:
         # Enhanced build time optimization variables
         GRADLE_OPTS: "-Xmx12G -XX:MaxMetaspaceSize=6G -XX:ReservedCodeCacheSize=1G -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -XX:+UseParallelGC -XX:ParallelGCThreads=4 -XX:ConcGCThreads=2"
         XCODE_PARALLEL_JOBS: "6"
-        FLUTTER_BUILD_ARGS: "--no-tree-shake-icons --target-platform android-arm64,android-arm --build-number=$VERSION_CODE --dart-define=FLUTTER_BUILD_NAME=$VERSION_NAME"
 
         # Build acceleration variables
         GRADLE_DAEMON: "true"
@@ -234,8 +231,8 @@ workflows:
       - output/android/app-release.apk
       - output/android/app-release.aab
 
-  ios-only:
-    name: iOS Build
+  ios-appstore:
+    name: iOS App Store Build
     max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
@@ -247,7 +244,6 @@ workflows:
         # Enhanced build time optimization variables
         GRADLE_OPTS: "-Xmx12G -XX:MaxMetaspaceSize=6G -XX:ReservedCodeCacheSize=1G -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -XX:+UseParallelGC -XX:ParallelGCThreads=4 -XX:ConcGCThreads=2"
         XCODE_PARALLEL_JOBS: "6"
-        FLUTTER_BUILD_ARGS: "--no-tree-shake-icons --build-number=$VERSION_CODE --dart-define=FLUTTER_BUILD_NAME=$VERSION_NAME"
 
         # iOS build acceleration
         XCODE_FAST_BUILD: "true"
@@ -261,7 +257,7 @@ workflows:
         PARALLEL_DOWNLOADS: "true"
 
         APP_ID: $APP_ID
-        WORKFLOW_ID: "ios-only"
+        WORKFLOW_ID: "ios-appstore"
         BRANCH: $BRANCH
         VERSION_NAME: $VERSION_NAME
         VERSION_CODE: $VERSION_CODE
@@ -303,7 +299,7 @@ workflows:
         CERT_P12_URL: $CERT_P12_URL
         CERT_CER_URL: $CERT_CER_URL
         CERT_KEY_URL: $CERT_KEY_URL
-        PROFILE_TYPE: $PROFILE_TYPE
+        PROFILE_TYPE: "app-store"
         APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
         ENABLE_EMAIL_NOTIFICATIONS: "true"
         EMAIL_SMTP_SERVER: "smtp.gmail.com"
@@ -316,7 +312,98 @@ workflows:
         FULL_SIZE_IMAGE_URL: $FULL_SIZE_IMAGE_URL
         THINNING: $THINNING
     scripts:
-      - name: Build iOS IPA
+      - name: Build iOS App Store IPA
+        script: |
+          chmod +x lib/scripts/ios/*.sh
+          chmod +x lib/scripts/utils/*.sh
+          ./lib/scripts/ios/main.sh
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - ios/build/ios/ipa/*.ipa
+      - output/ios/Runner.ipa
+
+  ios-adhoc:
+    name: iOS Ad Hoc Build
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      flutter: 3.32.2
+      java: 17
+      xcode: 15.4
+      cocoapods: 1.16.2
+      vars:
+        # Enhanced build time optimization variables
+        GRADLE_OPTS: "-Xmx12G -XX:MaxMetaspaceSize=6G -XX:ReservedCodeCacheSize=1G -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -XX:+UseParallelGC -XX:ParallelGCThreads=4 -XX:ConcGCThreads=2"
+        XCODE_PARALLEL_JOBS: "6"
+
+        # iOS build acceleration
+        XCODE_FAST_BUILD: "true"
+        COCOAPODS_FAST_INSTALL: "true"
+        XCODE_SKIP_SIGNING: "false"
+        XCODE_OPTIMIZATION: "true"
+
+        # Asset optimization
+        ASSET_OPTIMIZATION: "true"
+        IMAGE_COMPRESSION: "true"
+        PARALLEL_DOWNLOADS: "true"
+
+        APP_ID: $APP_ID
+        WORKFLOW_ID: "ios-adhoc"
+        BRANCH: $BRANCH
+        VERSION_NAME: $VERSION_NAME
+        VERSION_CODE: $VERSION_CODE
+        APP_NAME: $APP_NAME
+        ORG_NAME: $ORG_NAME
+        WEB_URL: $WEB_URL
+        BUNDLE_ID: $BUNDLE_ID
+        EMAIL_ID: $EMAIL_ID
+        USER_NAME: $USER_NAME
+        PUSH_NOTIFY: $PUSH_NOTIFY
+        IS_CHATBOT: $IS_CHATBOT
+        IS_DOMAIN_URL: $IS_DOMAIN_URL
+        IS_SPLASH: $IS_SPLASH
+        IS_PULLDOWN: $IS_PULLDOWN
+        IS_BOTTOMMENU: $IS_BOTTOMMENU
+        IS_LOAD_IND: $IS_LOAD_IND
+        IS_CAMERA: $IS_CAMERA
+        IS_LOCATION: $IS_LOCATION
+        IS_MIC: $IS_MIC
+        IS_NOTIFICATION: $IS_NOTIFICATION
+        IS_CONTACT: $IS_CONTACT
+        IS_BIOMETRIC: $IS_BIOMETRIC
+        IS_CALENDAR: $IS_CALENDAR
+        IS_STORAGE: $IS_STORAGE
+        LOGO_URL: $LOGO_URL
+        SPLASH_URL: $SPLASH_URL
+        SPLASH_BG_URL: $SPLASH_BG_URL
+        SPLASH_BG_COLOR: $SPLASH_BG_COLOR
+        SPLASH_TAGLINE: $SPLASH_TAGLINE
+        SPLASH_TAGLINE_COLOR: $SPLASH_TAGLINE_COLOR
+        SPLASH_ANIMATION: $SPLASH_ANIMATION
+        SPLASH_DURATION: $SPLASH_DURATION
+        FIREBASE_CONFIG_IOS: $FIREBASE_CONFIG_IOS
+        APPLE_TEAM_ID: $APPLE_TEAM_ID
+        APNS_KEY_ID: $APNS_KEY_ID
+        APNS_AUTH_KEY_URL: $APNS_AUTH_KEY_URL
+        CERT_PASSWORD: $CERT_PASSWORD
+        PROFILE_URL: $PROFILE_URL
+        CERT_P12_URL: $CERT_P12_URL
+        CERT_CER_URL: $CERT_CER_URL
+        CERT_KEY_URL: $CERT_KEY_URL
+        PROFILE_TYPE: "ad-hoc"
+        APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        ENABLE_EMAIL_NOTIFICATIONS: "true"
+        EMAIL_SMTP_SERVER: "smtp.gmail.com"
+        EMAIL_SMTP_PORT: "587"
+        EMAIL_SMTP_USER: "prasannasrie@gmail.com"
+        EMAIL_SMTP_PASS: "lrnu krfm aarp urux"
+        ENABLE_DEVICE_SPECIFIC_BUILDS: $ENABLE_DEVICE_SPECIFIC_BUILDS
+        INSTALL_URL: $INSTALL_URL
+        DISPLAY_IMAGE_URL: $DISPLAY_IMAGE_URL
+        FULL_SIZE_IMAGE_URL: $FULL_SIZE_IMAGE_URL
+        THINNING: $THINNING
+    scripts:
+      - name: Build iOS Ad Hoc IPA
         script: |
           chmod +x lib/scripts/ios/*.sh
           chmod +x lib/scripts/utils/*.sh
@@ -327,7 +414,7 @@ workflows:
       - output/ios/Runner.ipa
 
   combined:
-    name: Combined Android & iOS Build
+    name: Universal Combined Build (Android + iOS)
     max_build_duration: 120
     instance_type: mac_mini_m2
     environment:
@@ -339,7 +426,6 @@ workflows:
         # Enhanced build time optimization variables
         GRADLE_OPTS: "-Xmx12G -XX:MaxMetaspaceSize=6G -XX:ReservedCodeCacheSize=1G -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -XX:+UseParallelGC -XX:ParallelGCThreads=4 -XX:ConcGCThreads=2"
         XCODE_PARALLEL_JOBS: "6"
-        FLUTTER_BUILD_ARGS: "--no-tree-shake-icons --target-platform android-arm64,android-arm --build-number=$VERSION_CODE --dart-define=FLUTTER_BUILD_NAME=$VERSION_NAME"
 
         # Build acceleration variables
         GRADLE_DAEMON: "true"
@@ -360,6 +446,7 @@ workflows:
         IMAGE_COMPRESSION: "true"
         PARALLEL_DOWNLOADS: "true"
 
+        # Universal App Configuration
         APP_ID: $APP_ID
         WORKFLOW_ID: "combined"
         BRANCH: $BRANCH
@@ -372,6 +459,8 @@ workflows:
         BUNDLE_ID: $BUNDLE_ID
         EMAIL_ID: $EMAIL_ID
         USER_NAME: $USER_NAME
+
+        # Feature Flags (Auto-detected)
         PUSH_NOTIFY: $PUSH_NOTIFY
         IS_CHATBOT: $IS_CHATBOT
         IS_DOMAIN_URL: $IS_DOMAIN_URL
@@ -387,6 +476,8 @@ workflows:
         IS_BIOMETRIC: $IS_BIOMETRIC
         IS_CALENDAR: $IS_CALENDAR
         IS_STORAGE: $IS_STORAGE
+
+        # UI/Branding Configuration
         LOGO_URL: $LOGO_URL
         SPLASH_URL: $SPLASH_URL
         SPLASH_BG_URL: $SPLASH_BG_URL
@@ -395,12 +486,16 @@ workflows:
         SPLASH_TAGLINE_COLOR: $SPLASH_TAGLINE_COLOR
         SPLASH_ANIMATION: $SPLASH_ANIMATION
         SPLASH_DURATION: $SPLASH_DURATION
+
+        # Android Configuration (Auto-detected)
         FIREBASE_CONFIG_ANDROID: $FIREBASE_CONFIG_ANDROID
-        FIREBASE_CONFIG_IOS: $FIREBASE_CONFIG_IOS
         KEY_STORE_URL: $KEY_STORE_URL
         CM_KEYSTORE_PASSWORD: $CM_KEYSTORE_PASSWORD
         CM_KEY_ALIAS: $CM_KEY_ALIAS
         CM_KEY_PASSWORD: $CM_KEY_PASSWORD
+
+        # iOS Configuration (Auto-detected)
+        FIREBASE_CONFIG_IOS: $FIREBASE_CONFIG_IOS
         APPLE_TEAM_ID: $APPLE_TEAM_ID
         APNS_KEY_ID: $APNS_KEY_ID
         APNS_AUTH_KEY_URL: $APNS_AUTH_KEY_URL
@@ -411,14 +506,23 @@ workflows:
         CERT_KEY_URL: $CERT_KEY_URL
         PROFILE_TYPE: $PROFILE_TYPE
         APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
+
+        # Email Configuration
         ENABLE_EMAIL_NOTIFICATIONS: "true"
         EMAIL_SMTP_SERVER: "smtp.gmail.com"
         EMAIL_SMTP_PORT: "587"
         EMAIL_SMTP_USER: "prasannasrie@gmail.com"
         EMAIL_SMTP_PASS: "lrnu krfm aarp urux"
 
+        # iOS Distribution Options
+        ENABLE_DEVICE_SPECIFIC_BUILDS: $ENABLE_DEVICE_SPECIFIC_BUILDS
+        INSTALL_URL: $INSTALL_URL
+        DISPLAY_IMAGE_URL: $DISPLAY_IMAGE_URL
+        FULL_SIZE_IMAGE_URL: $FULL_SIZE_IMAGE_URL
+        THINNING: $THINNING
+
     scripts:
-      - name: Build Android and iOS
+      - name: Universal Combined Build
         script: |
           chmod +x lib/scripts/combined/*.sh
           chmod +x lib/scripts/utils/*.sh

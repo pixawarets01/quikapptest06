@@ -11,6 +11,24 @@ generate_env_config
 # Initialize logging
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"; }
 
+# Determine iOS workflow type
+WORKFLOW_TYPE=""
+if [[ "${WORKFLOW_ID:-}" == "ios-appstore" ]]; then
+    WORKFLOW_TYPE="app-store"
+    log "🍎 iOS App Store Build Workflow Detected"
+elif [[ "${WORKFLOW_ID:-}" == "ios-adhoc" ]]; then
+    WORKFLOW_TYPE="ad-hoc"
+    log "🍎 iOS Ad Hoc Build Workflow Detected"
+else
+    # Fallback to app-store for backward compatibility
+    WORKFLOW_TYPE="${PROFILE_TYPE:-app-store}"
+    log "🍎 iOS Build Workflow: $WORKFLOW_TYPE (from PROFILE_TYPE)"
+fi
+
+# Override PROFILE_TYPE with workflow-specific value
+export PROFILE_TYPE="$WORKFLOW_TYPE"
+log "📋 Using Profile Type: $PROFILE_TYPE"
+
 # Start build acceleration
 log "🚀 Starting iOS build with acceleration..."
 accelerate_build "ios"
@@ -416,20 +434,46 @@ cd ..
 log "🧹 Cleaning Flutter build cache..."
 flutter clean
 
+# Create a list of safe environment variables to pass to Flutter
+log "🔧 Preparing environment variables for Flutter..."
+ENV_ARGS=""
+
+# Define a list of safe variables that can be passed to Flutter
+SAFE_VARS=(
+    "APP_ID" "WORKFLOW_ID" "BRANCH" "VERSION_NAME" "VERSION_CODE" 
+    "APP_NAME" "ORG_NAME" "WEB_URL" "BUNDLE_ID" "EMAIL_ID" "USER_NAME"
+    "PUSH_NOTIFY" "IS_CHATBOT" "IS_DOMAIN_URL" "IS_SPLASH" "IS_PULLDOWN"
+    "IS_BOTTOMMENU" "IS_LOAD_IND" "IS_CAMERA" "IS_LOCATION" "IS_MIC"
+    "IS_NOTIFICATION" "IS_CONTACT" "IS_BIOMETRIC" "IS_CALENDAR" "IS_STORAGE"
+    "SPLASH_BG_COLOR" "SPLASH_TAGLINE" "SPLASH_TAGLINE_COLOR" "SPLASH_ANIMATION"
+    "SPLASH_DURATION" "BOTTOMMENU_FONT" "BOTTOMMENU_FONT_SIZE" "BOTTOMMENU_FONT_BOLD"
+    "BOTTOMMENU_FONT_ITALIC" "BOTTOMMENU_BG_COLOR" "BOTTOMMENU_TEXT_COLOR"
+    "BOTTOMMENU_ICON_COLOR" "BOTTOMMENU_ACTIVE_TAB_COLOR" "BOTTOMMENU_ICON_POSITION"
+    "ENABLE_EMAIL_NOTIFICATIONS" "EMAIL_SMTP_SERVER" "EMAIL_SMTP_PORT"
+    "EMAIL_SMTP_USER" "CM_BUILD_ID" "CM_WORKFLOW_NAME" "CM_BRANCH"
+    "FCI_BUILD_ID" "FCI_WORKFLOW_NAME" "FCI_BRANCH" "CONTINUOUS_INTEGRATION"
+    "CI" "BUILD_NUMBER" "PROJECT_BUILD_NUMBER"
+)
+
+# Only pass safe variables to Flutter
+for var_name in "${SAFE_VARS[@]}"; do
+    if [ -n "${!var_name:-}" ]; then
+        # Escape the value to handle special characters
+        var_value="${!var_name}"
+        # Remove any newlines or problematic characters
+        var_value=$(echo "$var_value" | tr '\n' ' ' | sed 's/[[:space:]]*$//')
+        ENV_ARGS="$ENV_ARGS --dart-define=$var_name=$var_value"
+    fi
+done
+
+# Add essential build arguments
+ENV_ARGS="$ENV_ARGS --dart-define=FLUTTER_BUILD_NAME=$VERSION_NAME"
+ENV_ARGS="$ENV_ARGS --dart-define=FLUTTER_BUILD_NUMBER=$VERSION_CODE"
+
+log "📋 Prepared $ENV_ARGS environment variables for Flutter build"
+
 # Build iOS app with optimizations
 log "🔨 Building iOS app with optimizations..."
-
-# Create a list of all environment variables to pass to Flutter
-ENV_ARGS=""
-while IFS='=' read -r name value ; do
-    if [[ $name == *"_URL"* ]] || [[ $name == *"PASSWORD"* ]] || [[ $name == *"KEY"* ]]; then
-        # Skip URLs, passwords and keys - they'll be handled by the gen_env_config.sh script
-        continue
-    fi
-    if [[ ! -z "$value" ]]; then
-        ENV_ARGS="$ENV_ARGS --dart-define=$name=$value"
-    fi
-done < <(env)
 
 if flutter build ios --release --no-codesign \
     --dart-define=ENABLE_BITCODE=NO \
