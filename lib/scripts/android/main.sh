@@ -492,6 +492,7 @@ cat > "$ENV_FILE" << EOF
 --dart-define=FIREBASE_CONFIG_ANDROID=${FIREBASE_CONFIG_ANDROID:-}
 --dart-define=FLUTTER_BUILD_NAME=${VERSION_NAME:-}
 --dart-define=FLUTTER_BUILD_NUMBER=${VERSION_CODE:-}
+
 EOF
 
 # Read the environment variables from file
