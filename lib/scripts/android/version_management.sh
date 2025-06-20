@@ -182,7 +182,7 @@ generate_installation_guide() {
 ================================
 
 App Information:
-- Package Name: $pkg_name
+- Package Name: $pkg_name (same for all workflows)
 - Version: $version_name ($version_code)
 - Signing: $signing_type
 - Build Date: $(date)
@@ -229,8 +229,9 @@ Solutions:
 
 📱 Package Name Information:
 - This APK uses package name: $pkg_name
-- Different package names can be installed side-by-side
-- Same package names will conflict if signatures differ
+- ALL workflows use the same package name for Firebase connectivity
+- Workflow progression: android-free → android-paid → android-publish
+- Same package name ensures seamless Firebase integration
 
 🔐 Signing Information:
 - $signing_type signed APK
@@ -238,10 +239,18 @@ Solutions:
 - Always uninstall before switching signing types
 
 💡 Pro Tips:
-1. For testing: Use debug builds (android-free/android-paid workflows)
-2. For production: Use release builds (android-publish workflow)
-3. For side-by-side testing: Use different package names
-4. Keep version codes incrementing to avoid conflicts
+1. For testing: Use android-free workflow (debug signing)
+2. For Firebase testing: Use android-paid workflow (debug signing + Firebase)
+3. For production: Use android-publish workflow (release signing)
+4. Same package name across all workflows for seamless progression
+5. Firebase configuration works across all workflows
+
+🔄 Workflow Progression:
+1. android-free: Test basic app functionality
+2. android-paid: Test with Firebase features
+3. android-publish: Deploy to production
+
+All workflows use the same package name for consistent Firebase connectivity!
 
 EOF
 
@@ -256,15 +265,15 @@ main() {
     local version_increment_type="auto"
     local package_suffix=""
     
-    # Set version strategy based on workflow
+    # Set version strategy based on workflow - ALL workflows use same package name
     case $WORKFLOW_ID in
         "android-free")
             version_increment_type="patch"
-            package_suffix="debug"
+            package_suffix=""  # Use original package name for Firebase connectivity
             ;;
         "android-paid")
             version_increment_type="patch"
-            package_suffix="debug"
+            package_suffix=""  # Use original package name for Firebase connectivity
             ;;
         "android-publish")
             version_increment_type="minor"
@@ -276,7 +285,7 @@ main() {
             ;;
         *)
             version_increment_type="auto"
-            package_suffix="dev"
+            package_suffix=""  # Use original package name
             ;;
     esac
     
@@ -288,18 +297,12 @@ main() {
     new_version_code=$(increment_version_code "$VERSION_CODE" "$version_increment_type")
     new_version_name=$(increment_version_name "$VERSION_NAME" "$version_increment_type")
     
-    # Generate package name
-    if [ -n "$package_suffix" ] && [ "$package_suffix" != "production" ]; then
-        final_package_name=$(generate_dev_package_name "$PKG_NAME" "$package_suffix")
-        log "🔧 Development build detected - using modified package name"
-    else
-        final_package_name="$PKG_NAME"
-        log "🏭 Production build detected - using original package name"
-    fi
+    # ALL workflows use the same package name for Firebase connectivity
+    final_package_name="$PKG_NAME"
+    log "🔧 All workflows use same package name for Firebase connectivity"
     
     log "📊 Version Management Summary:"
-    log "   Original Package: $PKG_NAME"
-    log "   Final Package: $final_package_name"
+    log "   Package Name: $final_package_name (same for all workflows)"
     log "   Original Version: $VERSION_NAME ($VERSION_CODE)"
     log "   New Version: $new_version_name ($new_version_code)"
     log "   Increment Type: $version_increment_type"
@@ -330,7 +333,7 @@ main() {
     export VERSION_CODE="$new_version_code"
     
     log "✅ Version management completed successfully"
-    log "📦 Package conflicts should now be resolved"
+    log "📦 All workflows now use same package name: $final_package_name"
     log "📋 Check output/android/INSTALL_GUIDE.txt for installation instructions"
 }
 

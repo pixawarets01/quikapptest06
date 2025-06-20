@@ -103,7 +103,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.quikapptest06"
+    namespace = "${PKG_NAME:-com.example.quikapptest06}"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.0.12077973"
 
@@ -128,7 +128,7 @@ android {
 
     defaultConfig {
         // Application ID will be updated by customization script
-        applicationId = "com.example.quikapptest06"
+        applicationId = "${PKG_NAME:-com.example.quikapptest06}"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -441,6 +441,7 @@ log "🔧 Preparing environment variables for Flutter..."
 
 # Create a temporary file for environment variables
 ENV_FILE=$(mktemp)
+# shellcheck disable=SC2064
 trap "rm -f $ENV_FILE" EXIT
 
 # Write essential environment variables to file
