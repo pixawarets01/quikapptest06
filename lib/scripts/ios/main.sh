@@ -11,6 +11,58 @@ generate_env_config
 # Initialize logging
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"; }
 
+# Early required variable validation for iOS builds
+log "🔍 Validating required variables for iOS build..."
+REQUIRED_VARS=("BUNDLE_ID" "APPLE_TEAM_ID" "PROFILE_URL" "CERT_PASSWORD" "PROFILE_TYPE")
+CERT_OK=false
+
+# Check for certificate variables
+if [ -n "${CERT_P12_URL:-}" ]; then
+    REQUIRED_VARS+=("CERT_P12_URL")
+    CERT_OK=true
+    log "✅ P12 certificate URL provided"
+elif [ -n "${CERT_CER_URL:-}" ] && [ -n "${CERT_KEY_URL:-}" ]; then
+    REQUIRED_VARS+=("CERT_CER_URL" "CERT_KEY_URL")
+    CERT_OK=true
+    log "✅ CER and KEY certificate URLs provided"
+else
+    log "❌ No valid certificate variables provided"
+    log "   Required: CERT_P12_URL OR (CERT_CER_URL AND CERT_KEY_URL)"
+fi
+
+# Validate all required variables
+for var in "${REQUIRED_VARS[@]}"; do
+    if [ -z "${!var:-}" ]; then
+        log "❌ Required variable $var is missing!"
+        log "   This will cause the build to fail. Please check your Codemagic environment variables."
+        
+        # Send failure email
+        if [ -f "lib/scripts/utils/send_email.sh" ]; then
+            chmod +x lib/scripts/utils/send_email.sh
+            lib/scripts/utils/send_email.sh "build_failed" "iOS" "${CM_BUILD_ID:-unknown}" "Missing required variable: $var" || true
+        fi
+        exit 1
+    else
+        log "✅ $var is set"
+    fi
+done
+
+if [ "$CERT_OK" = false ]; then
+    log "❌ No valid certificate configuration found!"
+    log "   Please provide either:"
+    log "   - CERT_P12_URL (for P12 certificate)"
+    log "   - CERT_CER_URL AND CERT_KEY_URL (for CER/KEY certificates)"
+    
+    # Send failure email
+    if [ -f "lib/scripts/utils/send_email.sh" ]; then
+        chmod +x lib/scripts/utils/send_email.sh
+        lib/scripts/utils/send_email.sh "build_failed" "iOS" "${CM_BUILD_ID:-unknown}" "No valid certificate variables provided" || true
+    fi
+    exit 1
+fi
+
+log "✅ All required variables validated successfully"
+
 # Determine iOS workflow type
 WORKFLOW_TYPE=""
 if [[ "${WORKFLOW_ID:-}" == "ios-appstore" ]]; then
@@ -38,7 +90,16 @@ trap 'handle_error $LINENO $?' ERR
 handle_error() {
     local line_no=$1
     local exit_code=$2
-    log "❌ Error occurred at line $line_no. Exit code: $exit_code"
+    local error_msg="Error occurred at line $line_no. Exit code: $exit_code"
+    
+    log "❌ $error_msg"
+    
+    # Send failure email
+    if [ -f "lib/scripts/utils/send_email.sh" ]; then
+        chmod +x lib/scripts/utils/send_email.sh
+        lib/scripts/utils/send_email.sh "build_failed" "iOS" "${CM_BUILD_ID:-unknown}" "$error_msg" || true
+    fi
+    
     exit $exit_code
 }
 
@@ -445,10 +506,12 @@ SAFE_VARS=(
     "PUSH_NOTIFY" "IS_CHATBOT" "IS_DOMAIN_URL" "IS_SPLASH" "IS_PULLDOWN"
     "IS_BOTTOMMENU" "IS_LOAD_IND" "IS_CAMERA" "IS_LOCATION" "IS_MIC"
     "IS_NOTIFICATION" "IS_CONTACT" "IS_BIOMETRIC" "IS_CALENDAR" "IS_STORAGE"
-    "SPLASH_BG_COLOR" "SPLASH_TAGLINE" "SPLASH_TAGLINE_COLOR" "SPLASH_ANIMATION"
-    "SPLASH_DURATION" "BOTTOMMENU_FONT" "BOTTOMMENU_FONT_SIZE" "BOTTOMMENU_FONT_BOLD"
-    "BOTTOMMENU_FONT_ITALIC" "BOTTOMMENU_BG_COLOR" "BOTTOMMENU_TEXT_COLOR"
-    "BOTTOMMENU_ICON_COLOR" "BOTTOMMENU_ACTIVE_TAB_COLOR" "BOTTOMMENU_ICON_POSITION"
+    "LOGO_URL" "SPLASH_URL" "SPLASH_BG_URL" "SPLASH_BG_COLOR" "SPLASH_TAGLINE" 
+    "SPLASH_TAGLINE_COLOR" "SPLASH_ANIMATION" "SPLASH_DURATION" "BOTTOMMENU_FONT" 
+    "BOTTOMMENU_FONT_SIZE" "BOTTOMMENU_FONT_BOLD" "BOTTOMMENU_FONT_ITALIC" 
+    "BOTTOMMENU_BG_COLOR" "BOTTOMMENU_TEXT_COLOR" "BOTTOMMENU_ICON_COLOR" 
+    "BOTTOMMENU_ACTIVE_TAB_COLOR" "BOTTOMMENU_ICON_POSITION"
+    "FIREBASE_CONFIG_ANDROID" "FIREBASE_CONFIG_IOS"
     "ENABLE_EMAIL_NOTIFICATIONS" "EMAIL_SMTP_SERVER" "EMAIL_SMTP_PORT"
     "EMAIL_SMTP_USER" "CM_BUILD_ID" "CM_WORKFLOW_NAME" "CM_BRANCH"
     "FCI_BUILD_ID" "FCI_WORKFLOW_NAME" "FCI_BRANCH" "CONTINUOUS_INTEGRATION"
@@ -462,6 +525,12 @@ for var_name in "${SAFE_VARS[@]}"; do
         var_value="${!var_name}"
         # Remove any newlines or problematic characters
         var_value=$(echo "$var_value" | tr '\n' ' ' | sed 's/[[:space:]]*$//')
+        
+        # Special handling for APP_NAME to properly escape spaces
+        if [ "$var_name" = "APP_NAME" ]; then
+            var_value=$(printf '%q' "$var_value")
+        fi
+        
         ENV_ARGS="$ENV_ARGS --dart-define=$var_name=$var_value"
     fi
 done
@@ -527,27 +596,118 @@ cd ..
 
 # Copy artifacts to output directory
 log "📁 Copying artifacts to output directory..."
-cp ios/build/ios/ipa/*.ipa output/ios/ 2>/dev/null || true
-log "✅ iOS artifacts copied to output/ios/"
+mkdir -p output/ios
 
-# Verify artifacts
-log "🔍 Verifying artifacts..."
-if [ -f "output/ios/Runner.ipa" ]; then
-    IPA_SIZE=$(du -h output/ios/Runner.ipa | cut -f1)
-    log "✅ IPA created successfully (Size: $IPA_SIZE)"
-else
-    log "❌ IPA not found in output directory"
+# Find and copy the IPA file with multiple detection methods
+log "📦 Locating and copying IPA file..."
+IPA_FOUND=false
+IPA_NAME=""
+
+# Look for IPA in common locations
+IPA_LOCATIONS=(
+    "ios/build/ios/ipa/*.ipa"
+    "ios/build/Runner.xcarchive/Products/Applications/*.ipa"
+    "ios/build/archive/*.ipa"
+    "build/ios/ipa/*.ipa"
+    "build/ios/archive/Runner.xcarchive/Products/Applications/*.ipa"
+)
+
+for pattern in "${IPA_LOCATIONS[@]}"; do
+    for ipa_file in $pattern; do
+        if [ -f "$ipa_file" ]; then
+            IPA_NAME=$(basename "$ipa_file")
+            cp "$ipa_file" "output/ios/$IPA_NAME"
+            log "✅ IPA found and copied: $ipa_file → output/ios/$IPA_NAME"
+            IPA_FOUND=true
+            break 2
+        fi
+    done
+done
+
+# If no IPA found with patterns, try find command
+if [ "$IPA_FOUND" = false ]; then
+    log "🔍 Searching for IPA files using find command..."
+    FOUND_IPAS=$(find . -name "*.ipa" -type f 2>/dev/null | head -5)
+    
+    if [ -n "$FOUND_IPAS" ]; then
+        log "📋 Found IPA files:"
+        echo "$FOUND_IPAS" | while read -r ipa_file; do
+            log "   - $ipa_file"
+        done
+        
+        # Use the first IPA found
+        FIRST_IPA=$(echo "$FOUND_IPAS" | head -1)
+        IPA_NAME=$(basename "$FIRST_IPA")
+        cp "$FIRST_IPA" "output/ios/$IPA_NAME"
+        log "✅ IPA copied from find: $FIRST_IPA → output/ios/$IPA_NAME"
+        IPA_FOUND=true
+    fi
+fi
+
+# Verify IPA was created and copied
+if [ "$IPA_FOUND" = false ]; then
+    log "❌ No IPA file found after build!"
+    log "   Searched locations:"
+    for pattern in "${IPA_LOCATIONS[@]}"; do
+        log "   - $pattern"
+    done
+    
+    # List build directory contents for debugging
+    log "🔍 Build directory contents:"
+    find . -name "*.ipa" -type f 2>/dev/null || log "   No IPA files found in project"
+    
+    # Check if archive was created
+    if [ -d "ios/build/Runner.xcarchive" ]; then
+        log "✅ Archive exists at ios/build/Runner.xcarchive"
+        log "🔍 Archive contents:"
+        ls -la ios/build/Runner.xcarchive/Products/Applications/ 2>/dev/null || log "   No Applications directory in archive"
+    else
+        log "❌ Archive not found at ios/build/Runner.xcarchive"
+    fi
+    
+    # Send failure email
+    if [ -f "lib/scripts/utils/send_email.sh" ]; then
+        chmod +x lib/scripts/utils/send_email.sh
+        lib/scripts/utils/send_email.sh "build_failed" "iOS" "${CM_BUILD_ID:-unknown}" "No IPA file generated after build" || true
+    fi
     exit 1
 fi
 
-# Send build success email
-if [ -f "lib/scripts/utils/send_email.sh" ]; then
-    chmod +x lib/scripts/utils/send_email.sh
-    # Pass platform and build ID for individual artifact URL generation
-    lib/scripts/utils/send_email.sh "build_success" "iOS" "${CM_BUILD_ID:-unknown}" || true
+# Verify the copied IPA file
+if [ -f "output/ios/$IPA_NAME" ]; then
+    IPA_SIZE=$(stat -f%z "output/ios/$IPA_NAME" 2>/dev/null || stat -c%s "output/ios/$IPA_NAME" 2>/dev/null || echo "unknown")
+    log "✅ IPA verification successful:"
+    log "   File: output/ios/$IPA_NAME"
+    log "   Size: $IPA_SIZE bytes"
+    
+    # Additional verification - check if it's a valid ZIP/IPA
+    if file "output/ios/$IPA_NAME" | grep -q "Zip archive"; then
+        log "✅ IPA file format verified (ZIP archive)"
+    else
+        log "⚠️ IPA file format verification failed - may not be a valid ZIP archive"
+    fi
+else
+    log "❌ IPA file verification failed!"
+    log "   Expected: output/ios/$IPA_NAME"
+    
+    # Send failure email
+    if [ -f "lib/scripts/utils/send_email.sh" ]; then
+        chmod +x lib/scripts/utils/send_email.sh
+        lib/scripts/utils/send_email.sh "build_failed" "iOS" "${CM_BUILD_ID:-unknown}" "IPA file verification failed" || true
+    fi
+    exit 1
 fi
 
-log "🎉 iOS build completed successfully with acceleration!"
-log "📊 Build artifacts available in output/ios/"
+# List output directory contents
+log "📋 Output directory contents:"
+ls -la output/ios/ || log "   No files in output/ios/"
+
+log "🎉 iOS build completed successfully!"
+
+# Send success email
+if [ -f "lib/scripts/utils/send_email.sh" ]; then
+    chmod +x lib/scripts/utils/send_email.sh
+    lib/scripts/utils/send_email.sh "build_success" "iOS" "${CM_BUILD_ID:-unknown}" "IPA: $IPA_NAME" || true
+fi
 
 exit 0 

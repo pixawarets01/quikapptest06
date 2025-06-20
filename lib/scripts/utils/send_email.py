@@ -13,6 +13,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.header import Header
 import logging
+import urllib.parse
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(levelname)s: %(message)s')
@@ -153,26 +154,74 @@ class QuikAppEmailNotifier:
             <div style="display: grid; gap: 20px;">
         """
         
-        base_url = f"https://api.codemagic.io/artifacts/{self.project_id}/{build_id}"
+        # Get the correct build ID and project ID from environment variables
+        # Try multiple possible environment variable names
+        cm_build_id = (os.environ.get("CM_BUILD_ID") or 
+                      os.environ.get("FCI_BUILD_ID") or 
+                      os.environ.get("BUILD_NUMBER") or 
+                      build_id)
         
-        for artifact in artifacts:
-            download_url = f"{base_url}/{artifact['filename']}"
-            cards_html += f"""
-            <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 2px solid {artifact['color']}20; display: flex; justify-content: space-between; align-items: center; min-height: 100px;">
-                <div style="flex: 1;">
-                    <h4 style="margin: 0 0 8px 0; color: {artifact['color']}; font-size: 18px;">{artifact['name']}</h4>
-                    <p style="margin: 0 0 5px 0; color: #666; font-size: 14px; line-height: 1.4;">{artifact['description']}</p>
-                    <p style="margin: 0; color: #999; font-size: 12px;">Size: {artifact['size']}</p>
-                </div>
-                <div style="margin-left: 20px;">
-                    <a href="{download_url}" style="background: {artifact['color']}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; display: inline-block; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-                        📥 Download
-                    </a>
-                </div>
-            </div>
-            """
+        cm_project_id = (os.environ.get("CM_PROJECT_ID") or 
+                        os.environ.get("FCI_PROJECT_ID") or 
+                        self.project_id)
         
-        cards_html += """
+        logger.info(f"Using build_id: {cm_build_id} (from env: {os.environ.get('CM_BUILD_ID', 'NOT SET')})")
+        logger.info(f"Using project_id: {cm_project_id} (from env: {os.environ.get('CM_PROJECT_ID', 'NOT SET')})")
+        
+        # Check if we have valid IDs
+        if cm_build_id == "unknown" or cm_project_id == "unknown":
+            logger.warning("Invalid build_id or project_id, using fallback URLs")
+            # Use fallback - direct links to Codemagic build page
+            codemagic_build_url = f"https://codemagic.io/builds/{build_id}"
+            
+            for artifact in artifacts:
+                cards_html += f"""
+                <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 2px solid {artifact['color']}20; display: flex; justify-content: space-between; align-items: center; min-height: 100px;">
+                    <div style="flex: 1;">
+                        <h4 style="margin: 0 0 8px 0; color: {artifact['color']}; font-size: 18px;">{artifact['name']}</h4>
+                        <p style="margin: 0 0 5px 0; color: #666; font-size: 14px; line-height: 1.4;">{artifact['description']}</p>
+                        <p style="margin: 0; color: #999; font-size: 12px;">Size: {artifact['size']}</p>
+                    </div>
+                    <div style="margin-left: 20px;">
+                        <a href="{codemagic_build_url}" style="background: {artifact['color']}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; display: inline-block; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                            📥 Download from Codemagic
+                        </a>
+                    </div>
+                </div>
+                """
+        else:
+            # Use the correct Codemagic artifact URL format
+            # Format: https://api.codemagic.io/artifacts/{project_id}/{build_id}/{filename}
+            base_url = f"https://api.codemagic.io/artifacts/{cm_project_id}/{cm_build_id}"
+            
+            logger.info(f"Generated base URL: {base_url}")
+            
+            for artifact in artifacts:
+                # URL encode the filename to handle special characters
+                encoded_filename = urllib.parse.quote(artifact['filename'])
+                download_url = f"{base_url}/{encoded_filename}"
+                
+                logger.info(f"Generated download URL for {artifact['filename']}: {download_url}")
+                
+                cards_html += f"""
+                <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 2px solid {artifact['color']}20; display: flex; justify-content: space-between; align-items: center; min-height: 100px;">
+                    <div style="flex: 1;">
+                        <h4 style="margin: 0 0 8px 0; color: {artifact['color']}; font-size: 18px;">{artifact['name']}</h4>
+                        <p style="margin: 0 0 5px 0; color: #666; font-size: 14px; line-height: 1.4;">{artifact['description']}</p>
+                        <p style="margin: 0; color: #999; font-size: 12px;">Size: {artifact['size']}</p>
+                    </div>
+                    <div style="margin-left: 20px;">
+                        <a href="{download_url}" style="background: {artifact['color']}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; display: inline-block; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                            📥 Download
+                        </a>
+                    </div>
+                </div>
+                """
+        
+        # Add alternative download method
+        codemagic_build_url = f"https://codemagic.io/builds/{cm_build_id if cm_build_id != 'unknown' else build_id}"
+        
+        cards_html += f"""
             </div>
             <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; margin-top: 25px;">
                 <h4 style="margin: 0 0 15px 0; color: #1976d2;">📋 Download Instructions:</h4>
@@ -181,6 +230,12 @@ class QuikAppEmailNotifier:
                     <li><strong>AAB:</strong> Upload directly to Google Play Console for store distribution</li>
                     <li><strong>IPA:</strong> Upload to App Store Connect using Xcode or Transporter app</li>
                 </ul>
+            </div>
+            <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 15px;">
+                <p style="margin: 0; color: #856404; font-size: 14px;">
+                    <strong>Note:</strong> If download links don't work, you can also download artifacts from the 
+                    <a href="{codemagic_build_url}" style="color: #1976d2;">Codemagic build page</a>.
+                </p>
             </div>
         </div>
         """
@@ -532,6 +587,10 @@ def main():
     logger.info(f"  ENABLE_EMAIL_NOTIFICATIONS: {os.environ.get('ENABLE_EMAIL_NOTIFICATIONS', 'NOT SET')}")
     logger.info(f"  APP_NAME: {os.environ.get('APP_NAME', 'NOT SET')}")
     logger.info(f"  CM_BUILD_ID: {os.environ.get('CM_BUILD_ID', 'NOT SET')}")
+    logger.info(f"  CM_PROJECT_ID: {os.environ.get('CM_PROJECT_ID', 'NOT SET')}")
+    logger.info(f"  FCI_BUILD_ID: {os.environ.get('FCI_BUILD_ID', 'NOT SET')}")
+    logger.info(f"  FCI_PROJECT_ID: {os.environ.get('FCI_PROJECT_ID', 'NOT SET')}")
+    logger.info(f"  BUILD_NUMBER: {os.environ.get('BUILD_NUMBER', 'NOT SET')}")
     logger.info("=======================================")
     
     if len(sys.argv) < 4:

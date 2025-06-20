@@ -382,10 +382,12 @@ SAFE_VARS=(
     "PUSH_NOTIFY" "IS_CHATBOT" "IS_DOMAIN_URL" "IS_SPLASH" "IS_PULLDOWN"
     "IS_BOTTOMMENU" "IS_LOAD_IND" "IS_CAMERA" "IS_LOCATION" "IS_MIC"
     "IS_NOTIFICATION" "IS_CONTACT" "IS_BIOMETRIC" "IS_CALENDAR" "IS_STORAGE"
-    "SPLASH_BG_COLOR" "SPLASH_TAGLINE" "SPLASH_TAGLINE_COLOR" "SPLASH_ANIMATION"
-    "SPLASH_DURATION" "BOTTOMMENU_FONT" "BOTTOMMENU_FONT_SIZE" "BOTTOMMENU_FONT_BOLD"
-    "BOTTOMMENU_FONT_ITALIC" "BOTTOMMENU_BG_COLOR" "BOTTOMMENU_TEXT_COLOR"
-    "BOTTOMMENU_ICON_COLOR" "BOTTOMMENU_ACTIVE_TAB_COLOR" "BOTTOMMENU_ICON_POSITION"
+    "LOGO_URL" "SPLASH_URL" "SPLASH_BG_URL" "SPLASH_BG_COLOR" "SPLASH_TAGLINE" 
+    "SPLASH_TAGLINE_COLOR" "SPLASH_ANIMATION" "SPLASH_DURATION" "BOTTOMMENU_FONT" 
+    "BOTTOMMENU_FONT_SIZE" "BOTTOMMENU_FONT_BOLD" "BOTTOMMENU_FONT_ITALIC" 
+    "BOTTOMMENU_BG_COLOR" "BOTTOMMENU_TEXT_COLOR" "BOTTOMMENU_ICON_COLOR" 
+    "BOTTOMMENU_ACTIVE_TAB_COLOR" "BOTTOMMENU_ICON_POSITION"
+    "FIREBASE_CONFIG_ANDROID" "FIREBASE_CONFIG_IOS"
     "ENABLE_EMAIL_NOTIFICATIONS" "EMAIL_SMTP_SERVER" "EMAIL_SMTP_PORT"
     "EMAIL_SMTP_USER" "CM_BUILD_ID" "CM_WORKFLOW_NAME" "CM_BRANCH"
     "FCI_BUILD_ID" "FCI_WORKFLOW_NAME" "FCI_BRANCH" "CONTINUOUS_INTEGRATION"
@@ -399,6 +401,12 @@ for var_name in "${SAFE_VARS[@]}"; do
         var_value="${!var_name}"
         # Remove any newlines or problematic characters
         var_value=$(echo "$var_value" | tr '\n' ' ' | sed 's/[[:space:]]*$//')
+        
+        # Special handling for APP_NAME to properly escape spaces
+        if [ "$var_name" = "APP_NAME" ]; then
+            var_value=$(printf '%q' "$var_value")
+        fi
+        
         ENV_ARGS="$ENV_ARGS --dart-define=$var_name=$var_value"
     fi
 done
@@ -490,8 +498,111 @@ else
     log "ℹ️ iOS build not enabled, skipping..."
 fi
 
-# Copy artifacts to output directory
-log "📁 Copying artifacts to output directory..."
+# Copy iOS artifacts if iOS build was enabled
+if [[ "${IOS_BUILD_ENABLED}" == "true" ]]; then
+    log "📦 Locating and copying iOS IPA file..."
+    IPA_FOUND=false
+    IPA_NAME=""
+
+    # Look for IPA in common locations
+    IPA_LOCATIONS=(
+        "ios/build/ios/ipa/*.ipa"
+        "ios/build/Runner.xcarchive/Products/Applications/*.ipa"
+        "ios/build/archive/*.ipa"
+        "build/ios/ipa/*.ipa"
+        "build/ios/archive/Runner.xcarchive/Products/Applications/*.ipa"
+    )
+
+    for pattern in "${IPA_LOCATIONS[@]}"; do
+        for ipa_file in $pattern; do
+            if [ -f "$ipa_file" ]; then
+                IPA_NAME=$(basename "$ipa_file")
+                cp "$ipa_file" "output/ios/$IPA_NAME"
+                log "✅ IPA found and copied: $ipa_file → output/ios/$IPA_NAME"
+                IPA_FOUND=true
+                break 2
+            fi
+        done
+    done
+
+    # If no IPA found with patterns, try find command
+    if [ "$IPA_FOUND" = false ]; then
+        log "🔍 Searching for IPA files using find command..."
+        FOUND_IPAS=$(find . -name "*.ipa" -type f 2>/dev/null | head -5)
+        
+        if [ -n "$FOUND_IPAS" ]; then
+            log "📋 Found IPA files:"
+            echo "$FOUND_IPAS" | while read -r ipa_file; do
+                log "   - $ipa_file"
+            done
+            
+            # Use the first IPA found
+            FIRST_IPA=$(echo "$FOUND_IPAS" | head -1)
+            IPA_NAME=$(basename "$FIRST_IPA")
+            cp "$FIRST_IPA" "output/ios/$IPA_NAME"
+            log "✅ IPA copied from find: $FIRST_IPA → output/ios/$IPA_NAME"
+            IPA_FOUND=true
+        fi
+    fi
+
+    # Verify IPA was created and copied
+    if [ "$IPA_FOUND" = false ]; then
+        log "❌ No IPA file found after iOS build!"
+        log "   Searched locations:"
+        for pattern in "${IPA_LOCATIONS[@]}"; do
+            log "   - $pattern"
+        done
+        
+        # List build directory contents for debugging
+        log "🔍 Build directory contents:"
+        find . -name "*.ipa" -type f 2>/dev/null || log "   No IPA files found in project"
+        
+        # Check if archive was created
+        if [ -d "ios/build/Runner.xcarchive" ]; then
+            log "✅ Archive exists at ios/build/Runner.xcarchive"
+            log "🔍 Archive contents:"
+            ls -la ios/build/Runner.xcarchive/Products/Applications/ 2>/dev/null || log "   No Applications directory in archive"
+        else
+            log "❌ Archive not found at ios/build/Runner.xcarchive"
+        fi
+        
+        # Send failure email
+        if [ -f "lib/scripts/utils/send_email.sh" ]; then
+            chmod +x lib/scripts/utils/send_email.sh
+            lib/scripts/utils/send_email.sh "build_failed" "Universal Combined" "${CM_BUILD_ID:-unknown}" "No IPA file generated after iOS build" || true
+        fi
+        exit 1
+    fi
+
+    # Verify the copied IPA file
+    if [ -f "output/ios/$IPA_NAME" ]; then
+        IPA_SIZE=$(stat -f%z "output/ios/$IPA_NAME" 2>/dev/null || stat -c%s "output/ios/$IPA_NAME" 2>/dev/null || echo "unknown")
+        log "✅ iOS IPA verification successful:"
+        log "   File: output/ios/$IPA_NAME"
+        log "   Size: $IPA_SIZE bytes"
+        
+        # Additional verification - check if it's a valid ZIP/IPA
+        if file "output/ios/$IPA_NAME" | grep -q "Zip archive"; then
+            log "✅ IPA file format verified (ZIP archive)"
+        else
+            log "⚠️ IPA file format verification failed - may not be a valid ZIP archive"
+        fi
+    else
+        log "❌ iOS IPA file verification failed!"
+        log "   Expected: output/ios/$IPA_NAME"
+        
+        # Send failure email
+        if [ -f "lib/scripts/utils/send_email.sh" ]; then
+            chmod +x lib/scripts/utils/send_email.sh
+            lib/scripts/utils/send_email.sh "build_failed" "Universal Combined" "${CM_BUILD_ID:-unknown}" "iOS IPA file verification failed" || true
+        fi
+        exit 1
+    fi
+
+    # List iOS output directory contents
+    log "📋 iOS output directory contents:"
+    ls -la output/ios/ || log "   No files in output/ios/"
+fi
 
 # Copy Android artifacts
 APK_FOUND=false
@@ -528,12 +639,6 @@ if [[ "${ANDROID_AAB_ENABLED}" == "true" ]]; then
     done
 fi
 
-# Copy iOS artifacts if iOS build was enabled
-if [[ "${IOS_BUILD_ENABLED}" == "true" ]]; then
-    cp ios/build/ios/ipa/*.ipa output/ios/ 2>/dev/null || true
-    log "✅ iOS artifacts copied to output/ios/"
-fi
-
 # Verify required artifacts were found
 if [ "$APK_FOUND" = false ]; then
     log "❌ Android APK file not found in any expected location"
@@ -543,16 +648,6 @@ fi
 if [[ "${ANDROID_AAB_ENABLED}" == "true" ]] && [ "$AAB_FOUND" = false ]; then
     log "❌ Android AAB file not found in any expected location"
     exit 1
-fi
-
-if [[ "${IOS_BUILD_ENABLED}" == "true" ]]; then
-    if [ -f "output/ios/Runner.ipa" ]; then
-        IPA_SIZE=$(du -h output/ios/Runner.ipa | cut -f1)
-        log "✅ iOS IPA created successfully (Size: $IPA_SIZE)"
-    else
-        log "❌ iOS IPA not found in output directory"
-        exit 1
-    fi
 fi
 
 # Clean up Gradle daemon

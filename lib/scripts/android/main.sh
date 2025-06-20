@@ -447,10 +447,15 @@ trap "rm -f $ENV_FILE" EXIT
 cat > "$ENV_FILE" << EOF
 --dart-define=APP_ID=${APP_ID:-}
 --dart-define=WORKFLOW_ID=${WORKFLOW_ID:-}
+--dart-define=BRANCH=${BRANCH:-}
 --dart-define=VERSION_NAME=${VERSION_NAME:-}
 --dart-define=VERSION_CODE=${VERSION_CODE:-}
---dart-define=APP_NAME="${APP_NAME:-}"
+--dart-define=APP_NAME=$(printf '%q' "${APP_NAME:-}")
+--dart-define=ORG_NAME=${ORG_NAME:-}
+--dart-define=WEB_URL=${WEB_URL:-}
 --dart-define=PKG_NAME=${PKG_NAME:-}
+--dart-define=EMAIL_ID=${EMAIL_ID:-}
+--dart-define=USER_NAME=${USER_NAME:-}
 --dart-define=PUSH_NOTIFY=${PUSH_NOTIFY:-false}
 --dart-define=IS_CHATBOT=${IS_CHATBOT:-false}
 --dart-define=IS_DOMAIN_URL=${IS_DOMAIN_URL:-false}
@@ -466,6 +471,24 @@ cat > "$ENV_FILE" << EOF
 --dart-define=IS_BIOMETRIC=${IS_BIOMETRIC:-false}
 --dart-define=IS_CALENDAR=${IS_CALENDAR:-false}
 --dart-define=IS_STORAGE=${IS_STORAGE:-false}
+--dart-define=LOGO_URL=${LOGO_URL:-}
+--dart-define=SPLASH_URL=${SPLASH_URL:-}
+--dart-define=SPLASH_BG_URL=${SPLASH_BG_URL:-}
+--dart-define=SPLASH_BG_COLOR=${SPLASH_BG_COLOR:-}
+--dart-define=SPLASH_TAGLINE=${SPLASH_TAGLINE:-}
+--dart-define=SPLASH_TAGLINE_COLOR=${SPLASH_TAGLINE_COLOR:-}
+--dart-define=SPLASH_ANIMATION=${SPLASH_ANIMATION:-}
+--dart-define=SPLASH_DURATION=${SPLASH_DURATION:-}
+--dart-define=BOTTOMMENU_FONT=${BOTTOMMENU_FONT:-}
+--dart-define=BOTTOMMENU_FONT_SIZE=${BOTTOMMENU_FONT_SIZE:-}
+--dart-define=BOTTOMMENU_FONT_BOLD=${BOTTOMMENU_FONT_BOLD:-false}
+--dart-define=BOTTOMMENU_FONT_ITALIC=${BOTTOMMENU_FONT_ITALIC:-false}
+--dart-define=BOTTOMMENU_BG_COLOR=${BOTTOMMENU_BG_COLOR:-}
+--dart-define=BOTTOMMENU_TEXT_COLOR=${BOTTOMMENU_TEXT_COLOR:-}
+--dart-define=BOTTOMMENU_ICON_COLOR=${BOTTOMMENU_ICON_COLOR:-}
+--dart-define=BOTTOMMENU_ACTIVE_TAB_COLOR=${BOTTOMMENU_ACTIVE_TAB_COLOR:-}
+--dart-define=BOTTOMMENU_ICON_POSITION=${BOTTOMMENU_ICON_POSITION:-}
+--dart-define=FIREBASE_CONFIG_ANDROID=${FIREBASE_CONFIG_ANDROID:-}
 --dart-define=FLUTTER_BUILD_NAME=${VERSION_NAME:-}
 --dart-define=FLUTTER_BUILD_NUMBER=${VERSION_CODE:-}
 EOF
