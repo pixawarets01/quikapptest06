@@ -16,6 +16,60 @@ handle_error() {
     exit $exit_code
 }
 
+# Function to validate URL
+validate_url() {
+    local url="$1"
+    local name="$2"
+    
+    # Check if URL is empty
+    if [ -z "$url" ]; then
+        log "❌ $name URL is empty"
+        return 1
+    fi
+    
+    # Check URL format
+    if ! echo "$url" | grep -qE '^https?://[^[:space:]]+$'; then
+        log "❌ Invalid $name URL format: $url"
+        log "URL must start with http:// or https:// and contain no spaces"
+        return 1
+    fi
+    
+    # Test URL accessibility
+    if ! curl --output /dev/null --silent --head --fail "$url"; then
+        log "❌ Cannot access $name URL: $url"
+        log "Please ensure the URL is accessible and returns a valid response"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Function to download file with retries
+download_file() {
+    local url="$1"
+    local output="$2"
+    local name="$3"
+    local max_retries=3
+    local retry_count=0
+    
+    while [ $retry_count -lt $max_retries ]; do
+        log "📥 Downloading $name (Attempt $((retry_count + 1))/$max_retries)..."
+        if curl -L --fail --silent --show-error --output "$output" "$url"; then
+            log "✅ $name downloaded successfully"
+            return 0
+        else
+            retry_count=$((retry_count + 1))
+            if [ $retry_count -lt $max_retries ]; then
+                log "⚠️ Failed to download $name, retrying in 5 seconds..."
+                sleep 5
+            fi
+        fi
+    done
+    
+    log "❌ Failed to download $name after $max_retries attempts"
+    return 1
+}
+
 # Function to setup keychain
 setup_keychain() {
     log "🔐 Setting up keychain..."
@@ -26,33 +80,67 @@ setup_keychain() {
     security unlock-keychain -p "" build.keychain
     security set-keychain-settings -t 3600 -u build.keychain
 
-    # Check if P12 is provided
+    # Create certificates directory
+    mkdir -p ios/certificates
+
+    # Handle P12 certificate
     if [ -n "${CERT_P12_URL:-}" ]; then
-        log "📥 Downloading P12 certificate..."
-        curl -L -o ios/certificates/cert.p12 "$CERT_P12_URL"
+        log "🔍 Validating P12 certificate URL..."
+        if ! validate_url "$CERT_P12_URL" "P12 certificate"; then
+            return 1
+        fi
+        
+        if ! download_file "$CERT_P12_URL" "ios/certificates/cert.p12" "P12 certificate"; then
+            return 1
+        fi
         
         # Import P12 certificate
         log "🔄 Importing P12 certificate..."
-        security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD" -A
+        if ! security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD" -A; then
+            log "❌ Failed to import P12 certificate"
+            return 1
+        fi
     else
-        log "📥 Downloading CER and KEY certificates..."
-        # Download certificates
-        curl -L -o ios/certificates/cert.cer "$CERT_CER_URL"
-        curl -L -o ios/certificates/cert.key "$CERT_KEY_URL"
+        # Handle CER and KEY files
+        log "🔍 Validating certificate and key URLs..."
+        if ! validate_url "$CERT_CER_URL" "certificate"; then
+            return 1
+        fi
+        if ! validate_url "$CERT_KEY_URL" "private key"; then
+            return 1
+        fi
+        
+        if ! download_file "$CERT_CER_URL" "ios/certificates/cert.cer" "certificate"; then
+            return 1
+        fi
+        if ! download_file "$CERT_KEY_URL" "ios/certificates/cert.key" "private key"; then
+            return 1
+        fi
 
         # Convert certificates to p12
         log "🔄 Converting certificates to p12..."
-        openssl x509 -in ios/certificates/cert.cer -inform DER -out ios/certificates/cert.pem -outform PEM
-        openssl pkcs12 -export -inkey ios/certificates/cert.key -in ios/certificates/cert.pem -out ios/certificates/cert.p12 -password pass:"$CERT_PASSWORD"
+        if ! openssl x509 -in ios/certificates/cert.cer -inform DER -out ios/certificates/cert.pem -outform PEM; then
+            log "❌ Failed to convert certificate to PEM format"
+            return 1
+        fi
+        if ! openssl pkcs12 -export -inkey ios/certificates/cert.key -in ios/certificates/cert.pem -out ios/certificates/cert.p12 -password pass:"$CERT_PASSWORD"; then
+            log "❌ Failed to create P12 file"
+            return 1
+        fi
 
         # Import converted P12
-        security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD" -A
+        log "🔄 Importing converted P12 certificate..."
+        if ! security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD" -A; then
+            log "❌ Failed to import converted P12 certificate"
+            return 1
+        fi
     fi
 
     # Set partition list for codesigning
     security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
 
     log "✅ Keychain setup completed"
+    return 0
 }
 
 # Function to setup provisioning
@@ -192,49 +280,149 @@ EOF
     log "✅ Podfile setup completed"
 }
 
+# Function to send error notification email
+send_error_notification() {
+    local error_type="$1"
+    local details="$2"
+
+    if command -v python3 >/dev/null 2>&1; then
+        if [ -f "lib/scripts/utils/send_ios_emails.py" ]; then
+            chmod +x lib/scripts/utils/send_ios_emails.py
+            python3 lib/scripts/utils/send_ios_emails.py "$error_type" "$details" || true
+        else
+            log "⚠️ iOS email script not found, falling back to generic email"
+            if [ -f "lib/scripts/utils/send_email.sh" ]; then
+                chmod +x lib/scripts/utils/send_email.sh
+                lib/scripts/utils/send_email.sh "build_failed" "iOS" "${CM_BUILD_ID:-unknown}" "$details" || true
+            fi
+        fi
+    else
+        log "⚠️ Python not found, falling back to generic email"
+        if [ -f "lib/scripts/utils/send_email.sh" ]; then
+            chmod +x lib/scripts/utils/send_email.sh
+            lib/scripts/utils/send_email.sh "build_failed" "iOS" "${CM_BUILD_ID:-unknown}" "$details" || true
+        fi
+    fi
+}
+
+# Function to validate certificates
+validate_certificates() {
+    log "🔍 Validating certificates..."
+    
+    local cert_error=""
+    local has_p12=false
+    local has_cer_key=false
+    
+    # Check P12 certificate
+    if [ -n "${CERT_P12_URL:-}" ]; then
+        if validate_url "$CERT_P12_URL" "P12 certificate"; then
+            has_p12=true
+        else
+            cert_error="Invalid P12 certificate URL: $CERT_P12_URL"
+        fi
+    fi
+    
+    # Check CER and KEY if P12 is not valid
+    if [ "$has_p12" = "false" ]; then
+        log "⚠️ P12 certificate not available, checking CER and KEY..."
+        
+        if [ -n "${CERT_CER_URL:-}" ] && [ -n "${CERT_KEY_URL:-}" ]; then
+            if validate_url "$CERT_CER_URL" "certificate" && validate_url "$CERT_KEY_URL" "private key"; then
+                has_cer_key=true
+            else
+                cert_error="${cert_error:+$cert_error\n}Invalid certificate URLs:\nCER: $CERT_CER_URL\nKEY: $CERT_KEY_URL"
+            fi
+        else
+            cert_error="${cert_error:+$cert_error\n}Missing certificate files. Provide either P12 or both CER and KEY."
+        fi
+    fi
+    
+    # Send error notification if no valid certificates
+    if [ "$has_p12" = "false" ] && [ "$has_cer_key" = "false" ]; then
+        log "❌ No valid certificates available"
+        send_error_notification "certificates" "$cert_error"
+        return 1
+    fi
+    
+    log "✅ Certificate validation completed"
+    return 0
+}
+
+# Function to validate provisioning profile
+validate_provisioning_profile() {
+    log "🔍 Validating provisioning profile..."
+    
+    if [ -z "${PROFILE_URL:-}" ]; then
+        local error_msg="Provisioning profile URL is required"
+        log "❌ $error_msg"
+        send_error_notification "provisioning" "$error_msg"
+        return 1
+    fi
+    
+    if ! validate_url "$PROFILE_URL" "provisioning profile"; then
+        local error_msg="Invalid provisioning profile URL: $PROFILE_URL"
+        log "❌ $error_msg"
+        send_error_notification "provisioning" "$error_msg"
+        return 1
+    fi
+    
+    # Download and verify profile
+    if ! download_file "$PROFILE_URL" "ios/certificates/profile.mobileprovision" "provisioning profile"; then
+        local error_msg="Failed to download provisioning profile"
+        log "❌ $error_msg"
+        send_error_notification "provisioning" "$error_msg"
+        return 1
+    fi
+    
+    # Verify profile content
+    if ! security cms -D -i ios/certificates/profile.mobileprovision > /dev/null 2>&1; then
+        local error_msg="Invalid provisioning profile format"
+        log "❌ $error_msg"
+        send_error_notification "provisioning" "$error_msg"
+        return 1
+    fi
+    
+    log "✅ Provisioning profile validation completed"
+    return 0
+}
+
 # Function to validate required variables
 validate_variables() {
     log "🔍 Validating required variables..."
     
-    # Always required variables
+    # Validate certificates first
+    if ! validate_certificates; then
+        return 1
+    fi
+    
+    # Validate provisioning profile
+    if ! validate_provisioning_profile; then
+        return 1
+    fi
+    
+    # Check other required variables
     local required_vars=(
         "CERT_PASSWORD"
-        "PROFILE_URL"
         "APPLE_TEAM_ID"
         "BUNDLE_ID"
         "PROFILE_TYPE"
     )
     
-    # Check if P12 is provided, if not, check for CER and KEY
-    if [ -z "${CERT_P12_URL:-}" ]; then
-        if [ -z "${CERT_CER_URL:-}" ] || [ -z "${CERT_KEY_URL:-}" ]; then
-            log "❌ Either CERT_P12_URL or both CERT_CER_URL and CERT_KEY_URL must be provided"
-            exit 1
-        fi
-    fi
-    
-    # Check required variables
     for var in "${required_vars[@]}"; do
         if [ -z "${!var:-}" ]; then
             log "❌ Required variable $var is missing"
-            exit 1
+            return 1
         fi
     done
     
     # Validate profile type
     if [ "$PROFILE_TYPE" != "app-store" ] && [ "$PROFILE_TYPE" != "ad-hoc" ]; then
         log "❌ PROFILE_TYPE must be either 'app-store' or 'ad-hoc'"
-        exit 1
-    fi
-    
-    # Check for ad-hoc specific variables if needed
-    if [ "$PROFILE_TYPE" = "ad-hoc" ] && [ "${ENABLE_DEVICE_SPECIFIC_BUILDS:-false}" = "true" ]; then
-        if [ -z "${INSTALL_URL:-}" ]; then
-            log "⚠️ INSTALL_URL not provided for ad-hoc distribution. OTA installation won't be available."
-        fi
+        return 1
     fi
     
     log "✅ Variable validation completed"
+    return 0
 }
 
 # Main build process
