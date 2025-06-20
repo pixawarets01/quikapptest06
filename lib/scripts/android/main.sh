@@ -396,8 +396,8 @@ export LC_ALL=en_US.UTF-8
 
 # Create optimized gradle.properties
 log "📝 Creating optimized gradle.properties..."
-if [ ! -f android/gradle.properties ] || ! grep -q "org.gradle.jvmargs" android/gradle.properties; then
-    cat >> android/gradle.properties << EOF
+if [ ! -f gradle.properties ] || ! grep -q "org.gradle.jvmargs" gradle.properties; then
+    cat >> gradle.properties << EOF
 org.gradle.jvmargs=-Xmx4G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Dfile.encoding=UTF-8
 org.gradle.parallel=true
 org.gradle.daemon=true
