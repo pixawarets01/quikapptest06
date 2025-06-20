@@ -108,13 +108,11 @@ org.gradle.caching=true
 org.gradle.configureondemand=true
 org.gradle.jvmargs=-Xmx12G -XX:MaxMetaspaceSize=6G -XX:ReservedCodeCacheSize=1G -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -XX:+UseParallelGC -XX:ParallelGCThreads=4 -XX:ConcGCThreads=2
 
-# Android optimization
+# Android optimization (updated for AGP 8.7.3)
 android.useAndroidX=true
 android.enableJetifier=true
 android.enableR8.fullMode=true
-android.enableBuildCache=true
-android.enableD8.desugaring=true
-android.enableD8.desugaring.artifacts=true
+# Removed deprecated options: android.enableBuildCache, android.enableD8.desugaring, android.enableD8.desugaring.artifacts
 
 # Kotlin optimization
 kotlin.incremental=true

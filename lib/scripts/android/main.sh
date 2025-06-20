@@ -384,6 +384,17 @@ unset GRADLE_OPTS
 unset JAVA_OPTS
 unset _JAVA_OPTIONS
 
+# Clear Gradle caches to remove any cached deprecated options
+log "🧹 Clearing Gradle caches..."
+if [ -d "android" ]; then
+    cd android
+    if [ -f "gradlew" ]; then
+        ./gradlew clean --no-daemon 2>/dev/null || true
+        ./gradlew --stop 2>/dev/null || true
+    fi
+    cd ..
+fi
+
 # Configure JVM options - Fixed to avoid multiple garbage collector conflicts
 log "🔧 Configuring JVM options..."
 export JAVA_TOOL_OPTIONS="-Xmx4G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Dfile.encoding=UTF-8"
