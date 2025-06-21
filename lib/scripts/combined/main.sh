@@ -460,6 +460,20 @@ flutter build apk --release
 flutter build appbundle --release
 log "✅ Android build completed."
 
+# Verify Android package name in built APK
+log "📦 Verifying Android package name in built APK..."
+if [ -f "lib/scripts/android/verify_package_name.sh" ]; then
+    chmod +x lib/scripts/android/verify_package_name.sh
+    if lib/scripts/android/verify_package_name.sh; then
+        log "✅ Android package name verification successful"
+    else
+        log "❌ Android package name verification failed"
+        log "⚠️ Continuing with build process despite package name verification failure"
+    fi
+else
+    log "⚠️ Package name verification script not found"
+fi
+
 # Build iOS artifact
 log "🚀 Building iOS artifact (IPA)..."
 flutter build ipa --release --export-options-plist=output/ios/export_options.plist

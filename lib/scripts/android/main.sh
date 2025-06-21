@@ -605,6 +605,21 @@ else
     log "⚠️ Signing verification script not found"
 fi
 
+# Verify package name in built APK
+log "📦 Verifying package name in built APK..."
+if [ -f "lib/scripts/android/verify_package_name.sh" ]; then
+    chmod +x lib/scripts/android/verify_package_name.sh
+    if lib/scripts/android/verify_package_name.sh; then
+        log "✅ Package name verification successful"
+    else
+        log "❌ Package name verification failed"
+        # Don't exit here, just log the failure for investigation
+        log "⚠️ Continuing with build process despite package name verification failure"
+    fi
+else
+    log "⚠️ Package name verification script not found"
+fi
+
 # Process artifact URLs
 log "📦 Processing artifact URLs for email notification..."
 source "lib/scripts/utils/process_artifacts.sh"
