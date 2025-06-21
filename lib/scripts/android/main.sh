@@ -278,19 +278,7 @@ else
     log "⚠️ Version management script not found, skipping..."
 fi
 
-# Update package names dynamically (replaces any old package names with PKG_NAME)
-log "📦 Running dynamic package name update..."
-if [ -f "lib/scripts/android/update_package_name.sh" ]; then
-    chmod +x lib/scripts/android/update_package_name.sh
-    if lib/scripts/android/update_package_name.sh; then
-        log "✅ Package name update completed"
-    else
-        log "❌ Package name update failed"
-        exit 1
-    fi
-else
-    log "⚠️ Package name update script not found, skipping..."
-fi
+
 
 # Enhanced asset download with parallel processing
 log "📥 Starting enhanced asset download..."
@@ -404,6 +392,20 @@ if [ -f "lib/scripts/android/keystore.sh" ]; then
     fi
 else
     log "⚠️ Android keystore script not found, skipping..."
+fi
+
+# Update package names dynamically (replaces any old package names with PKG_NAME)
+log "📦 Running dynamic package name update..."
+if [ -f "lib/scripts/android/update_package_name.sh" ]; then
+    chmod +x lib/scripts/android/update_package_name.sh
+    if lib/scripts/android/update_package_name.sh; then
+        log "✅ Package name update completed"
+    else
+        log "❌ Package name update failed"
+        exit 1
+    fi
+else
+    log "⚠️ Package name update script not found, skipping..."
 fi
 
 # Force regenerate environment configuration to ensure latest variables
