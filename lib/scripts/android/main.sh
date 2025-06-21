@@ -1,6 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
+# CRITICAL: Force fix env_config.dart to resolve $BRANCH compilation error
+# This must be done FIRST to prevent any caching issues
+if [ -f "lib/scripts/utils/force_fix_env_config.sh" ]; then
+    chmod +x lib/scripts/utils/force_fix_env_config.sh
+    lib/scripts/utils/force_fix_env_config.sh
+fi
+
 # Source environment variables and build acceleration
 source lib/scripts/utils/gen_env_config.sh
 source lib/scripts/utils/build_acceleration.sh
@@ -400,13 +407,37 @@ flutter pub get
 # Verify environment configuration is correct
 log "🔍 Verifying environment configuration..."
 if [ -f "lib/config/env_config.dart" ]; then
+    # Check for the problematic $BRANCH pattern
+    if grep -q '\$BRANCH' lib/config/env_config.dart; then
+        log "❌ CRITICAL: Found problematic \$BRANCH pattern in env_config.dart"
+        log "🔧 Force regenerating environment configuration..."
+        generate_env_config
+        
+        # Clear all possible caches
+        log "🧹 Aggressive cache clearing..."
+        rm -rf .dart_tool/ 2>/dev/null || true
+        rm -rf build/ 2>/dev/null || true
+        rm -rf ~/.pub-cache/hosted/pub.dartlang.org/ 2>/dev/null || true
+        
+        # Verify fix worked
+        if grep -q '\$BRANCH' lib/config/env_config.dart; then
+            log "❌ FAILED: Still contains \$BRANCH after regeneration"
+            log "📋 Current problematic content:"
+            grep -n "branch" lib/config/env_config.dart || true
+            exit 1
+        else
+            log "✅ Successfully fixed \$BRANCH issue"
+        fi
+    fi
+    
     if grep -q "static const String branch = \"main\"" lib/config/env_config.dart; then
         log "✅ Environment configuration verified - using static values"
     elif grep -q "static const String branch = \"\${BRANCH:-main}\"" lib/config/env_config.dart; then
         log "✅ Environment configuration verified - using dynamic values"
     else
         log "⚠️ Environment configuration may have issues"
-        head -20 lib/config/env_config.dart | grep "branch" || true
+        log "📋 Current branch line:"
+        grep -n "branch" lib/config/env_config.dart || true
     fi
 else
     log "❌ Environment configuration file not found"

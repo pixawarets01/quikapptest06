@@ -1,6 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
+# CRITICAL: Force fix env_config.dart to resolve $BRANCH compilation error
+# This must be done FIRST to prevent any caching issues
+if [ -f "lib/scripts/utils/force_fix_env_config.sh" ]; then
+    chmod +x lib/scripts/utils/force_fix_env_config.sh
+    lib/scripts/utils/force_fix_env_config.sh
+fi
+
 # Source environment variables and build acceleration
 source lib/scripts/utils/gen_env_config.sh
 source lib/scripts/utils/build_acceleration.sh
