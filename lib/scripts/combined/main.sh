@@ -147,10 +147,10 @@ if [ -f "lib/scripts/android/version_management.sh" ]; then
     chmod +x lib/scripts/android/version_management.sh
     if lib/scripts/android/version_management.sh; then
         log "✅ Version management and conflict resolution completed"
-    else
+            else
         log "❌ Version management failed"
-        exit 1
-    fi
+                exit 1
+            fi
 else
     log "⚠️ Version management script not found, skipping..."
 fi
@@ -312,7 +312,7 @@ if [[ "${ANDROID_KEYSTORE_ENABLED}" == "true" ]]; then
         chmod +x lib/scripts/android/keystore.sh
         if lib/scripts/android/keystore.sh; then
             log "✅ Android keystore configuration completed"
-        else
+    else
             log "❌ Android keystore configuration failed"
             exit 1
         fi
