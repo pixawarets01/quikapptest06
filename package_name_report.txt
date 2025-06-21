@@ -1,0 +1,25 @@
+Package Name Verification Report
+================================
+
+Generated: Sat Jun 21 09:26:39 IST 2025
+Environment: local
+
+Environment Variables:
+- PKG_NAME: NOT_SET
+- BUNDLE_ID: NOT_SET
+- WORKFLOW_ID: NOT_SET
+- APP_NAME: NOT_SET
+- VERSION_NAME: NOT_SET
+- VERSION_CODE: NOT_SET
+
+Android Configuration:
+- applicationId: com.example.quikapptest06
+- namespace: com.example.quikapptest06
+
+iOS Configuration:
+- CFBundleIdentifier: $(EXECUTABLE_NAME)
+$(PRODUCT_BUNDLE_IDENTIFIER)
+
+Issues Found:
+- PKG_NAME is not set
+- BUNDLE_ID is not set
