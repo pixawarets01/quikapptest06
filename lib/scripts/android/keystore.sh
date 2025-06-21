@@ -1,4 +1,10 @@
 #!/bin/bash
+# Enhanced Android Keystore Management Script
+
+# Save current directory and ensure it's restored on exit
+pushd . > /dev/null
+trap "popd > /dev/null" EXIT
+
 set -euo pipefail
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"; }
 handle_error() { log "ERROR: $1"; exit 1; }
