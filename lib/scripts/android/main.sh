@@ -455,6 +455,9 @@ log "🏗️ Determining build command for workflow: ${WORKFLOW_ID:-unknown}"
 if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "combined" ]]; then
     log "🚀 Building AAB for production..."
     flutter build appbundle --release
+    
+    log "🚀 Building APK for testing..."
+    flutter build apk --release
 else
     log "🚀 Building APK for testing..."
     flutter build apk --release
@@ -517,10 +520,22 @@ if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "co
     done
 fi
 
-# Verify required artifacts were found
-if [ "$APK_FOUND" = false ]; then
-    log "❌ APK file not found in any expected location"
-    exit 1
+# Verify required artifacts were found based on workflow
+if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "combined" ]]; then
+    # For production workflows, AAB is required, APK is optional
+    if [ "$AAB_FOUND" = false ]; then
+        log "❌ AAB file not found for production workflow"
+        exit 1
+    fi
+    if [ "$APK_FOUND" = false ]; then
+        log "ℹ️ APK not built for production workflow (AAB only)"
+    fi
+else
+    # For testing workflows, APK is required
+    if [ "$APK_FOUND" = false ]; then
+        log "❌ APK file not found in any expected location"
+        exit 1
+    fi
 fi
 
 if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "combined" ]]; then
@@ -532,11 +547,26 @@ fi
 
 # Final verification
 log "🔍 Final artifact verification..."
-if [ "$APK_FOUND" = true ] && [ -f "output/android/app-release.apk" ]; then
-    log "✅ APK verified in output directory"
+if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "combined" ]]; then
+    # Verify AAB for production workflows
+    if [ "$AAB_FOUND" = true ] && [ -f "output/android/app-release.aab" ]; then
+        log "✅ AAB verified in output directory"
+    else
+        log "❌ AAB verification failed"
+        exit 1
+    fi
+    # APK is optional for production workflows
+    if [ "$APK_FOUND" = true ] && [ -f "output/android/app-release.apk" ]; then
+        log "✅ APK also available in output directory"
+    fi
 else
-    log "❌ APK verification failed"
-    exit 1
+    # Verify APK for testing workflows
+    if [ "$APK_FOUND" = true ] && [ -f "output/android/app-release.apk" ]; then
+        log "✅ APK verified in output directory"
+    else
+        log "❌ APK verification failed"
+        exit 1
+    fi
 fi
 
 if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "combined" ]]; then
