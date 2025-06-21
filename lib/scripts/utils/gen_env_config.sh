@@ -81,9 +81,22 @@ generate_env_config() {
 
     # Generate environment config with enhanced error handling
     log "📝 Generating Dart environment configuration (lib/config/env_config.dart)..."
+    
+    # Debug: Show current environment variables
+    log "🔍 Current environment variables:"
+    log "   BRANCH: ${BRANCH:-not_set}"
+    log "   APP_NAME: ${APP_NAME:-not_set}"
+    log "   PKG_NAME: ${PKG_NAME:-not_set}"
+    log "   WORKFLOW_ID: ${WORKFLOW_ID:-not_set}"
 
     # Create the directory if it doesn't exist
     mkdir -p lib/config
+    
+    # Backup existing file if it exists
+    if [ -f "lib/config/env_config.dart" ]; then
+        cp lib/config/env_config.dart lib/config/env_config.dart.backup
+        log "📋 Backed up existing env_config.dart"
+    fi
 
     # Use a heredoc (cat <<EOF) to write the entire file content at once.
     # This is a robust way to generate multi-line files from a shell script.
@@ -191,6 +204,12 @@ class EnvConfig {
 EOF
 
     log "✅ Dart environment configuration generated successfully."
+    
+    # Show first few lines of generated file for verification
+    log "🔍 Generated file preview:"
+    head -20 lib/config/env_config.dart | while IFS= read -r line; do
+        log "   $line"
+    done
 
     # Validate generated config
     if [ -f "lib/config/env_config.dart" ]; then

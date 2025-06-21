@@ -380,13 +380,38 @@ else
     log "⚠️ Android keystore script not found, skipping..."
 fi
 
+# Force regenerate environment configuration to ensure latest variables
+log "🔄 Force regenerating environment configuration..."
+generate_env_config
+
 # Clean Flutter build cache first
 log "🧹 Cleaning Flutter build cache..."
 flutter clean
 
+# Clear Dart analysis cache to ensure fresh compilation
+log "🧹 Clearing Dart analysis cache..."
+rm -rf .dart_tool/package_config.json 2>/dev/null || true
+rm -rf .dart_tool/package_config_subset 2>/dev/null || true
+
 # Get Flutter dependencies
 log "📦 Getting Flutter dependencies..."
 flutter pub get
+
+# Verify environment configuration is correct
+log "🔍 Verifying environment configuration..."
+if [ -f "lib/config/env_config.dart" ]; then
+    if grep -q "static const String branch = \"main\"" lib/config/env_config.dart; then
+        log "✅ Environment configuration verified - using static values"
+    elif grep -q "static const String branch = \"\${BRANCH:-main}\"" lib/config/env_config.dart; then
+        log "✅ Environment configuration verified - using dynamic values"
+    else
+        log "⚠️ Environment configuration may have issues"
+        head -20 lib/config/env_config.dart | grep "branch" || true
+    fi
+else
+    log "❌ Environment configuration file not found"
+    exit 1
+fi
 
 # Determine build command based on workflow
 log "🏗️ Determining build command for workflow: ${WORKFLOW_ID:-unknown}"
