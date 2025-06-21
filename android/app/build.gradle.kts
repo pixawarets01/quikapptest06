@@ -9,7 +9,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.quikapptest06"
+    namespace = "com.garbcode.garbcodeapp"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.0.12077973"
 
@@ -32,7 +32,7 @@ android {
 
     defaultConfig {
         // Application ID will be updated by customization script
-        applicationId = "com.example.quikapptest06"
+        applicationId = "com.garbcode.garbcodeapp"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

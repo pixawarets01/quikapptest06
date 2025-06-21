@@ -167,6 +167,22 @@ else
     log "⚠️ Version management script not found, skipping..."
 fi
 
+# Update package names dynamically (replaces any old package names with PKG_NAME/BUNDLE_ID)
+log "📦 Running dynamic package name update for combined workflow..."
+if [ -f "lib/scripts/android/update_package_name.sh" ]; then
+    chmod +x lib/scripts/android/update_package_name.sh
+    # Set WORKFLOW_ID for the script to know it's a combined workflow
+    export WORKFLOW_ID="combined"
+    if lib/scripts/android/update_package_name.sh; then
+        log "✅ Package name update completed for both Android and iOS"
+    else
+        log "❌ Package name update failed"
+        exit 1
+    fi
+else
+    log "⚠️ Package name update script not found, skipping..."
+fi
+
 # Enhanced asset download with parallel processing
 log "📥 Starting enhanced asset download..."
 if [ -f "lib/scripts/android/branding.sh" ]; then
