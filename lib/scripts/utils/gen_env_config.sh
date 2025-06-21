@@ -151,6 +151,42 @@ class EnvConfig {
   static const String bottommenuActiveTabColor = "${BOTTOMMENU_ACTIVE_TAB_COLOR:-#0000FF}";
   static const String bottommenuIconPosition = "${BOTTOMMENU_ICON_POSITION:-top}";
   static const String bottommenuVisibleOn = "${BOTTOMMENU_VISIBLE_ON:-}";
+
+  // Firebase Configuration
+  static const String firebaseConfigAndroid = "${FIREBASE_CONFIG_ANDROID:-}";
+  static const String firebaseConfigIos = "${FIREBASE_CONFIG_IOS:-}";
+
+  // Android Signing
+  static const String keyStoreUrl = "${KEY_STORE_URL:-}";
+  static const String cmKeystorePassword = "${CM_KEYSTORE_PASSWORD:-}";
+  static const String cmKeyAlias = "${CM_KEY_ALIAS:-}";
+  static const String cmKeyPassword = "${CM_KEY_PASSWORD:-}";
+
+  // iOS Signing
+  static const String appleTeamId = "${APPLE_TEAM_ID:-}";
+  static const String apnsKeyId = "${APNS_KEY_ID:-}";
+  static const String apnsAuthKeyUrl = "${APNS_AUTH_KEY_URL:-}";
+  static const String certPassword = "${CERT_PASSWORD:-}";
+  static const String profileUrl = "${PROFILE_URL:-}";
+  static const String certP12Url = "${CERT_P12_URL:-}";
+  static const String certCerUrl = "${CERT_CER_URL:-}";
+  static const String certKeyUrl = "${CERT_KEY_URL:-}";
+  static const String profileType = "${PROFILE_TYPE:-app-store}";
+  static const String appStoreConnectKeyIdentifier = "${APP_STORE_CONNECT_KEY_IDENTIFIER:-}";
+
+  // Build Environment
+  static const String buildId = "${CM_BUILD_ID:-unknown}";
+  static const String buildDir = "${CM_BUILD_DIR:-}";
+  static const String projectRoot = "${PROJECT_ROOT:-}";
+  static const String outputDir = "${OUTPUT_DIR:-output}";
+
+  // Utility Methods
+  static bool get isAndroidBuild => workflowId.startsWith('android');
+  static bool get isIosBuild => workflowId.contains('ios');
+  static bool get isCombinedBuild => workflowId == 'combined';
+  static bool get hasFirebase => firebaseConfigAndroid.isNotEmpty || firebaseConfigIos.isNotEmpty;
+  static bool get hasKeystore => keyStoreUrl.isNotEmpty;
+  static bool get hasIosSigning => certPassword.isNotEmpty && profileUrl.isNotEmpty;
 }
 EOF
 
