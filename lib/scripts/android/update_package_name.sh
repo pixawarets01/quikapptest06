@@ -47,19 +47,94 @@ update_package_in_file() {
     fi
 }
 
+# Function to ensure package attribute is present in AndroidManifest.xml
+ensure_package_attribute() {
+    local new_pkg="$1"
+    local manifest_file="android/app/src/main/AndroidManifest.xml"
+    
+    if [ -f "$manifest_file" ]; then
+        log "🔍 Ensuring package attribute is present in AndroidManifest.xml"
+        
+        # Check if package attribute exists
+        if ! grep -q "package=" "$manifest_file"; then
+            log "   📝 Adding missing package attribute: $new_pkg"
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i '' "s|<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">|<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\" package=\"${new_pkg}\">|g" "$manifest_file"
+            else
+                sed -i "s|<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">|<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\" package=\"${new_pkg}\">|g" "$manifest_file"
+            fi
+            log "   ✅ Added package attribute: $new_pkg"
+            return 0
+        else
+            log "   ✅ Package attribute already exists"
+            return 0
+        fi
+    else
+        log "   ⚠️ AndroidManifest.xml not found: $manifest_file"
+        return 1
+    fi
+}
+
 # Function to update Android manifest files
 update_android_manifests() {
     local old_pkg="$1"
     local new_pkg="$2"
     
     # Update main AndroidManifest.xml
-    update_package_in_file "android/app/src/main/AndroidManifest.xml" "package=\"${old_pkg}\"" "package=\"${new_pkg}\"" "main AndroidManifest.xml"
+    local manifest_file="android/app/src/main/AndroidManifest.xml"
+    if [ -f "$manifest_file" ]; then
+        log "🔧 Updating main AndroidManifest.xml: $manifest_file"
+        
+        # Check if package attribute exists
+        if grep -q "package=" "$manifest_file"; then
+            # Package attribute exists, update it
+            if grep -q "package=\"${old_pkg}\"" "$manifest_file"; then
+                if [[ "$OSTYPE" == "darwin"* ]]; then
+                    sed -i '' "s|package=\"${old_pkg}\"|package=\"${new_pkg}\"|g" "$manifest_file"
+                else
+                    sed -i "s|package=\"${old_pkg}\"|package=\"${new_pkg}\"|g" "$manifest_file"
+                fi
+                log "   ✅ Updated package attribute: $old_pkg → $new_pkg"
+            fi
+        else
+            # Package attribute is missing, add it
+            log "   📝 Adding missing package attribute: $new_pkg"
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i '' "s|<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">|<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\" package=\"${new_pkg}\">|g" "$manifest_file"
+            else
+                sed -i "s|<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">|<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\" package=\"${new_pkg}\">|g" "$manifest_file"
+            fi
+            log "   ✅ Added package attribute: $new_pkg"
+        fi
+    fi
     
     # Update debug AndroidManifest.xml if exists
-    update_package_in_file "android/app/src/debug/AndroidManifest.xml" "package=\"${old_pkg}\"" "package=\"${new_pkg}\"" "debug AndroidManifest.xml"
+    local debug_manifest="android/app/src/debug/AndroidManifest.xml"
+    if [ -f "$debug_manifest" ]; then
+        log "🔧 Updating debug AndroidManifest.xml: $debug_manifest"
+        if grep -q "package=\"${old_pkg}\"" "$debug_manifest"; then
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i '' "s|package=\"${old_pkg}\"|package=\"${new_pkg}\"|g" "$debug_manifest"
+            else
+                sed -i "s|package=\"${old_pkg}\"|package=\"${new_pkg}\"|g" "$debug_manifest"
+            fi
+            log "   ✅ Updated debug manifest package: $old_pkg → $new_pkg"
+        fi
+    fi
     
     # Update profile AndroidManifest.xml if exists  
-    update_package_in_file "android/app/src/profile/AndroidManifest.xml" "package=\"${old_pkg}\"" "package=\"${new_pkg}\"" "profile AndroidManifest.xml"
+    local profile_manifest="android/app/src/profile/AndroidManifest.xml"
+    if [ -f "$profile_manifest" ]; then
+        log "🔧 Updating profile AndroidManifest.xml: $profile_manifest"
+        if grep -q "package=\"${old_pkg}\"" "$profile_manifest"; then
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i '' "s|package=\"${old_pkg}\"|package=\"${new_pkg}\"|g" "$profile_manifest"
+            else
+                sed -i "s|package=\"${old_pkg}\"|package=\"${new_pkg}\"|g" "$profile_manifest"
+            fi
+            log "   ✅ Updated profile manifest package: $old_pkg → $new_pkg"
+        fi
+    fi
 }
 
 # Function to update build.gradle files
@@ -236,5 +311,9 @@ if [ "$CHANGES_MADE" = true ]; then
 else
     log "ℹ️ No package name changes needed - already using: $NEW_PACKAGE_NAME"
 fi
+
+# Always ensure package attribute is present in AndroidManifest.xml
+log "🔍 Ensuring package attribute is present in AndroidManifest.xml..."
+ensure_package_attribute "$NEW_PACKAGE_NAME"
 
 log "🎉 Package name update process completed" 
