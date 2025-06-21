@@ -344,7 +344,7 @@ log "⚙️ Configuring global build optimizations..."
 
 # Configure JVM options
 log "🔧 Configuring JVM options..."
-export JAVA_TOOL_OPTIONS="-Xmx4G -XX:MaxPermSize=512m -XX:+UseParallelGC"
+export JAVA_TOOL_OPTIONS="-Xmx4G -XX:MaxMetaspaceSize=1G -XX:+UseG1GC"
 
 # Configure environment
 log "🔧 Configuring build environment..."
@@ -356,7 +356,7 @@ export LC_ALL=en_US.UTF-8
 log "📝 Creating optimized gradle.properties..."
 if [ ! -f android/gradle.properties ] || ! grep -q "org.gradle.jvmargs" android/gradle.properties; then
     cat >> android/gradle.properties << EOF
-org.gradle.jvmargs=-Xmx4G -XX:MaxPermSize=512m -XX:+UseParallelGC -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+org.gradle.jvmargs=-Xmx4G -XX:MaxMetaspaceSize=1G -XX:+UseG1GC -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
 org.gradle.parallel=true
 org.gradle.daemon=true
 org.gradle.caching=true
