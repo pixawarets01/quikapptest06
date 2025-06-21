@@ -755,25 +755,31 @@ if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "co
     fi
 fi
 
-# Generate installation helper
-log "🔧 Generating installation helper and guide..."
-if [ -f "lib/scripts/android/install_helper.sh" ]; then
-    chmod +x lib/scripts/android/install_helper.sh
-    # Run installation helper to generate guides (without actual installation)
-    lib/scripts/android/install_helper.sh output/android/app-release.apk false 2>/dev/null || true
+# Verify signing (if applicable)
+log "✅ Build successful, verifying signing..."
+if [ -f "lib/scripts/android/verify_signing.sh" ]; then
+    chmod +x lib/scripts/android/verify_signing.sh
+    if lib/scripts/android/verify_signing.sh "output/android/app-release.apk"; then
+        log "✅ Signing verification successful"
+    else
+        log "⚠️ Signing verification failed, but continuing..."
+    fi
+else
+    log "⚠️ Signing verification script not found"
 fi
+
+# Process artifact URLs
+log "📦 Processing artifact URLs for email notification..."
+source "lib/scripts/utils/process_artifacts.sh"
+artifact_urls=$(process_artifacts)
+log "Artifact URLs: $artifact_urls"
 
 # Send build success email
+log "🎉 Build successful! Sending success email..."
 if [ -f "lib/scripts/utils/send_email.sh" ]; then
     chmod +x lib/scripts/utils/send_email.sh
-    # Pass platform and build ID for individual artifact URL generation
-    lib/scripts/utils/send_email.sh "build_success" "Android" "${CM_BUILD_ID:-unknown}" || true
+    lib/scripts/utils/send_email.sh "build_success" "Android" "${CM_BUILD_ID:-unknown}" "Build successful" "$artifact_urls"
 fi
 
-log "🎉 Android build completed successfully with acceleration!"
-log "📊 Build artifacts available in output/android/"
-log "📋 Installation guides available:"
-log "   - output/android/INSTALL_GUIDE.txt (Version management guide)"
-log "   - output/android/installation_report.txt (Installation helper guide)"
-
+log "✅ Android build process completed successfully!"
 exit 0 

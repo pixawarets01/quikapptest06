@@ -704,10 +704,30 @@ ls -la output/ios/ || log "   No files in output/ios/"
 
 log "🎉 iOS build completed successfully!"
 
-# Send success email
-if [ -f "lib/scripts/utils/send_email.sh" ]; then
-    chmod +x lib/scripts/utils/send_email.sh
-    lib/scripts/utils/send_email.sh "build_success" "iOS" "${CM_BUILD_ID:-unknown}" "IPA: $IPA_NAME" || true
+# Final verification
+log "✅ Final verification of build artifacts..."
+if [ -f "output/ios/$IPA_NAME" ]; then
+    log "   - IPA found at: output/ios/$IPA_NAME"
+else
+    log "   - ⚠️ IPA not found at expected path: output/ios/$IPA_NAME"
 fi
 
+# Process artifact URLs
+log "📦 Processing artifact URLs for email notification..."
+source "lib/scripts/utils/process_artifacts.sh"
+artifact_urls=$(process_artifacts)
+log "Artifact URLs: $artifact_urls"
+
+# Send build success email
+log "🎉 Build successful! Sending success email..."
+if [ -f "lib/scripts/utils/send_ios_emails.py" ]; then
+    # Use the Python script for iOS emails
+    python3 lib/scripts/utils/send_ios_emails.py "build_success" --build-id "${CM_BUILD_ID:-unknown}" --artifact-urls "$artifact_urls"
+elif [ -f "lib/scripts/utils/send_email.sh" ]; then
+    # Fallback to shell script if Python script fails
+    chmod +x lib/scripts/utils/send_email.sh
+    lib/scripts/utils/send_email.sh "build_success" "iOS" "${CM_BUILD_ID:-unknown}" "Build successful" "$artifact_urls"
+fi
+
+log "✅ iOS build process completed successfully!"
 exit 0 

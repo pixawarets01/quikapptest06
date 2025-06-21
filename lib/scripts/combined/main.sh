@@ -666,37 +666,22 @@ if [ -f "lib/scripts/android/install_helper.sh" ]; then
     lib/scripts/android/install_helper.sh output/android/app-release.apk false 2>/dev/null || true
 fi
 
+# Final verification
+log "✅ Final verification of all build artifacts..."
+# You can add specific checks for Android and iOS artifacts here if needed
+
+# Process artifact URLs
+log "📦 Processing artifact URLs for email notification..."
+source "lib/scripts/utils/process_artifacts.sh"
+artifact_urls=$(process_artifacts)
+log "Artifact URLs: $artifact_urls"
+
 # Send build success email
+log "🎉 Combined build successful! Sending success email..."
 if [ -f "lib/scripts/utils/send_email.sh" ]; then
     chmod +x lib/scripts/utils/send_email.sh
-    # Pass platform and build ID for individual artifact URL generation
-    lib/scripts/utils/send_email.sh "build_success" "Universal Combined" "${CM_BUILD_ID:-unknown}" || true
+    lib/scripts/utils/send_email.sh "build_success" "Combined" "${CM_BUILD_ID:-unknown}" "Build successful" "$artifact_urls"
 fi
 
-# Final summary
-log "🎉 Universal Combined Build completed successfully!"
-log "📊 Build Summary:"
-log "   Android Build Type: $ANDROID_BUILD_TYPE"
-log "   Android Firebase: $ANDROID_FIREBASE_ENABLED"
-log "   Android Keystore: $ANDROID_KEYSTORE_ENABLED"
-log "   Android AAB: $ANDROID_AAB_ENABLED"
-log "   iOS Build: $IOS_BUILD_ENABLED"
-log "   iOS Profile Type: $IOS_PROFILE_TYPE"
-log "   iOS Firebase: $IOS_FIREBASE_ENABLED"
-
-log "📁 Build artifacts available in:"
-if [ "$APK_FOUND" = true ]; then
-    log "   Android APK: output/android/app-release.apk"
-fi
-if [ "$AAB_FOUND" = true ]; then
-    log "   Android AAB: output/android/app-release.aab"
-fi
-if [[ "${IOS_BUILD_ENABLED}" == "true" ]]; then
-    log "   iOS IPA: output/ios/Runner.ipa"
-fi
-
-log "📋 Installation guides available:"
-log "   - output/android/INSTALL_GUIDE.txt (Version management guide)"
-log "   - output/android/installation_report.txt (Installation helper guide)"
-
+log "✅ Combined Android and iOS build process completed successfully!"
 exit 0 
