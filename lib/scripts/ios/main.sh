@@ -449,156 +449,22 @@ fi
 # Enhanced iOS build with acceleration
 log "📱 Starting enhanced iOS build..."
 
-# Configure JVM options for CocoaPods and Xcode
-log "🔧 Configuring JVM options..."
-export JAVA_TOOL_OPTIONS="-Xmx2048m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError"
+# Generate Dart environment configuration
+log "⚙️ Generating Dart environment configuration..."
+source "lib/scripts/utils/gen_env_config.sh"
+generate_env_config
 
-# Configure CocoaPods environment
-log "🔧 Configuring CocoaPods environment..."
-export LANG=en_US.UTF-8
-export LANGUAGE=en_US.UTF-8
-export LC_ALL=en_US.UTF-8
+# Get Flutter dependencies
+log "📦 Getting Flutter dependencies..."
+flutter pub get
 
-# Pre-install CocoaPods dependencies
-log "📦 Pre-installing CocoaPods dependencies..."
-cd ios
+# Build the iOS app
+log "🚀 Building iOS application (IPA)..."
+flutter build ipa --release --export-options-plist=output/ios/export_options.plist
 
-# Clean CocoaPods cache if needed
-if [ "${CLEAN_PODS_CACHE:-false}" = "true" ]; then
-    log "🧹 Cleaning CocoaPods cache..."
-    rm -rf "${HOME}/Library/Caches/CocoaPods"
-    rm -rf "Pods/"
-    rm -f "Podfile.lock"
-fi
+log "✅ Flutter build completed successfully."
 
-# Install pods with optimized settings
-if [ "${COCOAPODS_FAST_INSTALL:-true}" = "true" ]; then
-    log "📦 Fast installing pods with repo update..."
-    if ! pod install --repo-update --verbose; then
-        log "⚠️ Fast pod install failed, trying regular install..."
-        if ! pod install --verbose; then
-            log "❌ Pod installation failed"
-            exit 1
-        fi
-    fi
-else
-    log "📦 Regular pod installation..."
-    if ! pod install --verbose; then
-        log "❌ Pod installation failed"
-        exit 1
-    fi
-fi
-
-cd ..
-
-# Clean Flutter build cache first
-log "🧹 Cleaning Flutter build cache..."
-flutter clean
-
-# Create a list of safe environment variables to pass to Flutter
-log "🔧 Preparing environment variables for Flutter..."
-ENV_ARGS=""
-
-# Define a list of safe variables that can be passed to Flutter
-SAFE_VARS=(
-    "APP_ID" "WORKFLOW_ID" "BRANCH" "VERSION_NAME" "VERSION_CODE" 
-    "APP_NAME" "ORG_NAME" "WEB_URL" "BUNDLE_ID" "EMAIL_ID" "USER_NAME"
-    "PUSH_NOTIFY" "IS_CHATBOT" "IS_DOMAIN_URL" "IS_SPLASH" "IS_PULLDOWN"
-    "IS_BOTTOMMENU" "IS_LOAD_IND" "IS_CAMERA" "IS_LOCATION" "IS_MIC"
-    "IS_NOTIFICATION" "IS_CONTACT" "IS_BIOMETRIC" "IS_CALENDAR" "IS_STORAGE"
-    "LOGO_URL" "SPLASH_URL" "SPLASH_BG_URL" "SPLASH_BG_COLOR" "SPLASH_TAGLINE" 
-    "SPLASH_TAGLINE_COLOR" "SPLASH_ANIMATION" "SPLASH_DURATION" "BOTTOMMENU_FONT" 
-    "BOTTOMMENU_FONT_SIZE" "BOTTOMMENU_FONT_BOLD" "BOTTOMMENU_FONT_ITALIC" 
-    "BOTTOMMENU_BG_COLOR" "BOTTOMMENU_TEXT_COLOR" "BOTTOMMENU_ICON_COLOR" 
-    "BOTTOMMENU_ACTIVE_TAB_COLOR" "BOTTOMMENU_ICON_POSITION"
-    "FIREBASE_CONFIG_ANDROID" "FIREBASE_CONFIG_IOS"
-    "ENABLE_EMAIL_NOTIFICATIONS" "EMAIL_SMTP_SERVER" "EMAIL_SMTP_PORT"
-    "EMAIL_SMTP_USER" "CM_BUILD_ID" "CM_WORKFLOW_NAME" "CM_BRANCH"
-    "FCI_BUILD_ID" "FCI_WORKFLOW_NAME" "FCI_BRANCH" "CONTINUOUS_INTEGRATION"
-    "CI" "BUILD_NUMBER" "PROJECT_BUILD_NUMBER"
-)
-
-# Only pass safe variables to Flutter
-for var_name in "${SAFE_VARS[@]}"; do
-    if [ -n "${!var_name:-}" ]; then
-        # Escape the value to handle special characters
-        var_value="${!var_name}"
-        # Remove any newlines or problematic characters
-        var_value=$(echo "$var_value" | tr '\n' ' ' | sed 's/[[:space:]]*$//')
-        
-        # Special handling for APP_NAME to properly escape spaces
-        if [ "$var_name" = "APP_NAME" ]; then
-            var_value=$(printf '%q' "$var_value")
-        fi
-        
-        ENV_ARGS="$ENV_ARGS --dart-define=$var_name=$var_value"
-    fi
-done
-
-# Add essential build arguments
-ENV_ARGS="$ENV_ARGS --dart-define=FLUTTER_BUILD_NAME=$VERSION_NAME"
-ENV_ARGS="$ENV_ARGS --dart-define=FLUTTER_BUILD_NUMBER=$VERSION_CODE"
-
-log "📋 Prepared $ENV_ARGS environment variables for Flutter build"
-
-# Build iOS app with optimizations
-log "🔨 Building iOS app with optimizations..."
-
-if flutter build ios --release --no-codesign \
-    --dart-define=ENABLE_BITCODE=NO \
-    --dart-define=STRIP_STYLE=non-global \
-    $ENV_ARGS; then
-    log "✅ iOS build completed successfully"
-else
-    log "❌ iOS build failed"
-    exit 1
-fi
-
-# Archive and export IPA with optimizations
-log "📦 Archiving and exporting IPA with optimizations..."
-cd ios
-
-# Create archive with optimized settings
-log "📦 Creating archive..."
-if xcodebuild -workspace Runner.xcworkspace \
-    -scheme Runner \
-    -configuration Release \
-    -archivePath build/Runner.xcarchive \
-    -destination 'generic/platform=iOS' \
-    -allowProvisioningUpdates \
-    ENABLE_BITCODE=NO \
-    STRIP_STYLE=non-global \
-    COMPILER_INDEX_STORE_ENABLE=NO \
-    archive; then
-    log "✅ Archive created successfully"
-else
-    log "❌ Archive creation failed"
-    exit 1
-fi
-
-# Export IPA with optimized settings
-log "📦 Exporting IPA..."
-if xcodebuild -exportArchive \
-    -archivePath build/Runner.xcarchive \
-    -exportPath build/ios/ipa \
-    -exportOptionsPlist ExportOptions.plist \
-    -allowProvisioningUpdates \
-    ENABLE_BITCODE=NO \
-    STRIP_STYLE=non-global \
-    COMPILER_INDEX_STORE_ENABLE=NO; then
-    log "✅ IPA exported successfully"
-else
-    log "❌ IPA export failed"
-    exit 1
-fi
-
-cd ..
-
-# Copy artifacts to output directory
-log "📁 Copying artifacts to output directory..."
-mkdir -p output/ios
-
-# Find and copy the IPA file with multiple detection methods
+# Find the generated IPA
 log "📦 Locating and copying IPA file..."
 IPA_FOUND=false
 IPA_NAME=""

@@ -28,24 +28,36 @@ process_artifacts() {
 
     log "Raw artifact JSON: $CM_ARTIFACT_LINKS"
 
-    # Use jq to parse the JSON and extract the 'url' for each artifact
-    # The 'select(.url)' ensures we only process entries that have a URL
-    # The '@text' ensures the output is a plain string
-    local artifact_urls
-    artifact_urls=$(echo "$CM_ARTIFACT_LINKS" | jq -r '.[] | select(.url) | .url | @text')
+    # Try to extract public URLs first. These are non-expiring and accessible without login.
+    local public_urls
+    public_urls=$(echo "$CM_ARTIFACT_LINKS" | jq -r '.[] | .public_url | select(.)')
 
-    if [[ -z "$artifact_urls" ]]; then
-        log "⚠️ Could not parse any URLs from CM_ARTIFACT_LINKS."
-        echo "Artifacts not available."
-        return
+    if [[ -n "$public_urls" ]]; then
+        log "Successfully extracted public artifact URLs."
+        export ARTIFACT_URLS="$public_urls"
+    else
+        # If no public URLs are found, fall back to private URLs and issue a warning.
+        log "WARNING: No public artifact URLs found. Falling back to private, expiring URLs."
+        log "         This will result in 'FORBIDDEN' errors when accessing links from email without being logged into Codemagic."
+        log "         To enable public links, a team admin must follow the guide at: docs/enabling_public_artifact_urls.md"
+        
+        local private_urls
+        private_urls=$(echo "$CM_ARTIFACT_LINKS" | jq -r '.[] | .url | select(.)')
+        export ARTIFACT_URLS="$private_urls"
+    fi
+
+    # Final check to see if any URLs were found at all.
+    if [[ -z "$ARTIFACT_URLS" ]]; then
+        log "No artifact URLs could be parsed from the CM_ARTIFACT_LINKS variable. No artifacts to process."
+        return 0
     fi
 
     log "✅ Successfully processed artifact URLs:"
     # Log each URL for debugging
     while IFS= read -r url; do
         log "   - $url"
-    done <<< "$artifact_urls"
+    done <<< "$ARTIFACT_URLS"
 
     # Return the newline-separated list of URLs
-    echo "$artifact_urls"
+    echo "$ARTIFACT_URLS"
 } 

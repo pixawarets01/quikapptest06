@@ -380,225 +380,231 @@ else
     log "⚠️ Android keystore script not found, skipping..."
 fi
 
-# Enhanced Flutter build with acceleration
-log "📱 Starting enhanced Flutter build..."
-cd android
-
-# Configure global build optimizations
-log "⚙️ Configuring global build optimizations..."
-
-# Clear any conflicting JVM options first
-log "🧹 Clearing conflicting JVM options..."
-unset GRADLE_OPTS
-unset JAVA_OPTS
-unset _JAVA_OPTIONS
-
-# Clear Gradle caches to remove any cached deprecated options
-log "🧹 Clearing Gradle caches..."
-if [ -d "android" ]; then
-    cd android
-    if [ -f "gradlew" ]; then
-        ./gradlew clean --no-daemon --no-configuration-cache 2>/dev/null || true
-        ./gradlew --stop 2>/dev/null || true
-    fi
-    cd ..
-fi
-
-# Configure JVM options - Fixed to avoid multiple garbage collector conflicts
-log "🔧 Configuring JVM options..."
-export JAVA_TOOL_OPTIONS="-Xmx4G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Dfile.encoding=UTF-8"
-
-# Configure environment
-log "🔧 Configuring build environment..."
-export LANG=en_US.UTF-8
-export LANGUAGE=en_US.UTF-8
-export LC_ALL=en_US.UTF-8
-
-# Create optimized gradle.properties
-log "📝 Creating optimized gradle.properties..."
-if [ ! -f gradle.properties ] || ! grep -q "org.gradle.jvmargs" gradle.properties; then
-    cat >> gradle.properties << EOF
-org.gradle.jvmargs=-Xmx4G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Dfile.encoding=UTF-8
-org.gradle.parallel=true
-org.gradle.daemon=true
-org.gradle.caching=true
-android.useAndroidX=true
-android.enableJetifier=true
-android.enableR8.fullMode=true
-kotlin.code.style=official
-EOF
-    log "✅ Created/updated gradle.properties with optimized settings"
-else
-    log "✅ gradle.properties already exists with JVM args"
-fi
-
 # Clean Flutter build cache first
 log "🧹 Cleaning Flutter build cache..."
 flutter clean
 
-# Create a list of safe environment variables to pass to Flutter
-log "🔧 Preparing environment variables for Flutter..."
+# Get Flutter dependencies
+log "📦 Getting Flutter dependencies..."
+flutter pub get
 
-# Create a temporary file for environment variables
-ENV_FILE=$(mktemp)
-# shellcheck disable=SC2064
-trap "rm -f $ENV_FILE" EXIT
+# Go back to the root directory to run flutter build
+cd ..
 
-# Write essential environment variables to file
-cat > "$ENV_FILE" << EOF
---dart-define=APP_ID=${APP_ID:-}
---dart-define=WORKFLOW_ID=${WORKFLOW_ID:-}
---dart-define=BRANCH=${BRANCH:-}
---dart-define=VERSION_NAME=${VERSION_NAME:-}
---dart-define=VERSION_CODE=${VERSION_CODE:-}
---dart-define=APP_NAME=$(printf '%q' "${APP_NAME:-}")
---dart-define=ORG_NAME=${ORG_NAME:-}
---dart-define=WEB_URL=${WEB_URL:-}
---dart-define=PKG_NAME=${PKG_NAME:-}
---dart-define=EMAIL_ID=${EMAIL_ID:-}
---dart-define=USER_NAME=${USER_NAME:-}
---dart-define=PUSH_NOTIFY=${PUSH_NOTIFY:-false}
---dart-define=IS_CHATBOT=${IS_CHATBOT:-false}
---dart-define=IS_DOMAIN_URL=${IS_DOMAIN_URL:-false}
---dart-define=IS_SPLASH=${IS_SPLASH:-false}
---dart-define=IS_PULLDOWN=${IS_PULLDOWN:-false}
---dart-define=IS_BOTTOMMENU=${IS_BOTTOMMENU:-false}
---dart-define=IS_LOAD_IND=${IS_LOAD_IND:-false}
---dart-define=IS_CAMERA=${IS_CAMERA:-false}
---dart-define=IS_LOCATION=${IS_LOCATION:-false}
---dart-define=IS_MIC=${IS_MIC:-false}
---dart-define=IS_NOTIFICATION=${IS_NOTIFICATION:-false}
---dart-define=IS_CONTACT=${IS_CONTACT:-false}
---dart-define=IS_BIOMETRIC=${IS_BIOMETRIC:-false}
---dart-define=IS_CALENDAR=${IS_CALENDAR:-false}
---dart-define=IS_STORAGE=${IS_STORAGE:-false}
---dart-define=LOGO_URL=${LOGO_URL:-}
---dart-define=SPLASH_URL=${SPLASH_URL:-}
---dart-define=SPLASH_BG_URL=${SPLASH_BG_URL:-}
---dart-define=SPLASH_BG_COLOR=${SPLASH_BG_COLOR:-}
---dart-define=SPLASH_TAGLINE=${SPLASH_TAGLINE:-}
---dart-define=SPLASH_TAGLINE_COLOR=${SPLASH_TAGLINE_COLOR:-}
---dart-define=SPLASH_ANIMATION=${SPLASH_ANIMATION:-}
---dart-define=SPLASH_DURATION=${SPLASH_DURATION:-}
---dart-define=BOTTOMMENU_FONT=${BOTTOMMENU_FONT:-}
---dart-define=BOTTOMMENU_FONT_SIZE=${BOTTOMMENU_FONT_SIZE:-}
---dart-define=BOTTOMMENU_FONT_BOLD=${BOTTOMMENU_FONT_BOLD:-false}
---dart-define=BOTTOMMENU_FONT_ITALIC=${BOTTOMMENU_FONT_ITALIC:-false}
---dart-define=BOTTOMMENU_BG_COLOR=${BOTTOMMENU_BG_COLOR:-}
---dart-define=BOTTOMMENU_TEXT_COLOR=${BOTTOMMENU_TEXT_COLOR:-}
---dart-define=BOTTOMMENU_ICON_COLOR=${BOTTOMMENU_ICON_COLOR:-}
---dart-define=BOTTOMMENU_ACTIVE_TAB_COLOR=${BOTTOMMENU_ACTIVE_TAB_COLOR:-}
---dart-define=BOTTOMMENU_ICON_POSITION=${BOTTOMMENU_ICON_POSITION:-}
---dart-define=FIREBASE_CONFIG_ANDROID=${FIREBASE_CONFIG_ANDROID:-}
---dart-define=FLUTTER_BUILD_NAME=${VERSION_NAME:-}
---dart-define=FLUTTER_BUILD_NUMBER=${VERSION_CODE:-}
+# Determine build command based on workflow
+log "🏗️ Determining build command for workflow: ${WORKFLOW_ID:-unknown}"
 
-EOF
-
-# Read the environment variables from file
-ENV_ARGS=$(cat "$ENV_FILE" | tr '\n' ' ')
-
-log "📋 Prepared environment variables for Flutter build"
-
-# Debug: Show the exact Flutter build command that will be executed
-log "🔍 Debug: Flutter build command will be:"
-log "   flutter build apk --release $ENV_ARGS"
-log "🔍 Debug: Environment variables content:"
-cat "$ENV_FILE" | head -10
-
-# Debug: Show the actual ENV_ARGS variable
-log "🔍 Debug: ENV_ARGS variable content:"
-echo "ENV_ARGS: '$ENV_ARGS'"
-
-# Debug: Test if the environment variables are valid
-log "🔍 Debug: Testing environment variable format..."
-if echo "$ENV_ARGS" | grep -q "APP_NAME"; then
-    log "✅ APP_NAME found in ENV_ARGS"
+if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "combined" ]]; then
+    log "🚀 Building AAB for production..."
+    flutter build appbundle --release
 else
-    log "❌ APP_NAME not found in ENV_ARGS"
+    log "🚀 Building APK for testing..."
+    flutter build apk --release
 fi
 
-if echo "$ENV_ARGS" | grep -q "VERSION_NAME"; then
-    log "✅ VERSION_NAME found in ENV_ARGS"
-else
-    log "❌ VERSION_NAME not found in ENV_ARGS"
-fi
+log "✅ Flutter build completed successfully"
+cd android
 
-# Validate critical environment variables
-log "🔍 Debug: Validating critical environment variables..."
-if [ -z "${APP_NAME:-}" ]; then
-    log "⚠️ Warning: APP_NAME is empty"
-else
-    log "✅ APP_NAME: ${APP_NAME}"
-fi
+# Enhanced error handling with recovery
+trap 'handle_error $LINENO $?' ERR
 
-if [ -z "${PKG_NAME:-}" ]; then
-    log "⚠️ Warning: PKG_NAME is empty"
-else
-    log "✅ PKG_NAME: ${PKG_NAME}"
-fi
-
-if [ -z "${VERSION_NAME:-}" ]; then
-    log "⚠️ Warning: VERSION_NAME is empty"
-else
-    log "✅ VERSION_NAME: ${VERSION_NAME}"
-fi
-
-if [ -z "${VERSION_CODE:-}" ]; then
-    log "⚠️ Warning: VERSION_CODE is empty"
-else
-    log "✅ VERSION_CODE: ${VERSION_CODE}"
-fi
-
-# Debug: Show current directory and Flutter project structure
-log "🔍 Debug: Current directory: $(pwd)"
-log "🔍 Debug: Flutter project structure:"
-ls -la | head -10
-log "🔍 Debug: pubspec.yaml exists: $([ -f pubspec.yaml ] && echo 'YES' || echo 'NO')"
-log "🔍 Debug: android/ directory exists: $([ -d android ] && echo 'YES' || echo 'NO')"
-
-# Verify Flutter is working
-log "🔍 Debug: Flutter doctor:"
-flutter doctor --verbose 2>&1 | head -20 || true
-
-# Test basic Flutter build without environment variables first
-log "🧪 Testing basic Flutter build without environment variables..."
-log "🔍 Debug: Running: flutter build apk --release"
-if flutter build apk --release 2>&1 | tee /tmp/flutter_build_test.log; then
-    log "✅ Basic Flutter build test successful"
-    # Clean after successful test build
-    flutter clean
-else
-    log "❌ Basic Flutter build test failed - there's a fundamental issue"
-    log "🔍 Debug: Full build log:"
-    cat /tmp/flutter_build_test.log || true
-    log "🔍 Debug: Trying to get more information about the failure..."
+handle_error() {
+    local line_no=$1
+    local exit_code=$2
+    local error_msg="Error occurred at line $line_no. Exit code: $exit_code"
     
-    # Try to get more specific error information
-    log "🔍 Debug: Checking Flutter project structure..."
-    flutter analyze 2>&1 | head -30 || true
+    log "❌ $error_msg"
     
-    log "🔍 Debug: Checking pub dependencies..."
-    flutter pub deps 2>&1 | head -20 || true
+    # Perform emergency cleanup
+    log "🚨 Performing emergency cleanup..."
     
-    log "🔍 Debug: Checking Android configuration..."
-    if [ -d "android" ]; then
-        cd android
-        if [ -f "gradlew" ]; then
-            # Use a simpler command to avoid JVM conflicts
-            ./gradlew --version 2>&1 | head -10 || true
-            log "🔍 Debug: Gradle wrapper is executable"
-        else
-            log "🔍 Debug: Gradle wrapper not found"
-        fi
+    # Stop all Gradle processes
+    log "🛑 Stopping Gradle daemon..."
+    # Ensure we're in the project root directory first
+    if [ "$(basename "$PWD")" = "android" ]; then
         cd ..
     fi
+
+    if [ -d "android" ]; then
+        cd android
+        if [ -f gradlew ]; then
+            ./gradlew --stop || true
+        fi
+        cd ..
+    else
+        log "⚠️ android directory not found, skipping Gradle daemon stop"
+    fi
     
-    exit 1
+    # Clear all caches
+    flutter clean 2>/dev/null || true
+    rm -rf ~/.gradle/caches/ 2>/dev/null || true
+    rm -rf .dart_tool/ 2>/dev/null || true
+    rm -rf build/ 2>/dev/null || true
+    
+    # Force garbage collection
+    java -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -Xmx1G -version 2>/dev/null || true
+    
+    # Generate detailed error report
+    log "📊 Generating detailed error report..."
+    
+    # System diagnostics
+    if command -v free >/dev/null 2>&1; then
+        AVAILABLE_MEM=$(free -m | awk 'NR==2{printf "%.0f", $7}')
+        log "📊 Memory at failure: ${AVAILABLE_MEM}MB available"
+    fi
+    
+    # shellcheck disable=SC2317
+    if command -v df >/dev/null 2>&1; then
+        DISK_SPACE=$(df -h . | awk 'NR==2{print $4}')
+        log "💾 Disk space at failure: $DISK_SPACE"
+    fi
+    
+    # Send build failed email
+    # shellcheck disable=SC2317
+    if [ -f "lib/scripts/utils/send_email.sh" ]; then
+        chmod +x lib/scripts/utils/send_email.sh
+        lib/scripts/utils/send_email.sh "build_failed" "Android" "${CM_BUILD_ID:-unknown}" "$error_msg" || true
+    fi
+    
+    exit "$exit_code"
+}
+
+# Send build started email
+if [ -f "lib/scripts/utils/send_email.sh" ]; then
+    chmod +x lib/scripts/utils/send_email.sh
+    lib/scripts/utils/send_email.sh "build_started" "Android" "${CM_BUILD_ID:-unknown}" || true
 fi
 
-# Clean after test build
-flutter clean
+# Create necessary directories
+mkdir -p output/android
+
+# Run version management first (resolves package conflicts)
+log "🔄 Running version management and conflict resolution..."
+if [ -f "lib/scripts/android/version_management.sh" ]; then
+    chmod +x lib/scripts/android/version_management.sh
+    if lib/scripts/android/version_management.sh; then
+        log "✅ Version management and conflict resolution completed"
+    else
+        log "❌ Version management failed"
+        exit 1
+    fi
+else
+    log "⚠️ Version management script not found, skipping..."
+fi
+
+# Enhanced asset download with parallel processing
+log "📥 Starting enhanced asset download..."
+if [ -f "lib/scripts/android/branding.sh" ]; then
+    chmod +x lib/scripts/android/branding.sh
+    if lib/scripts/android/branding.sh; then
+        log "✅ Android branding completed with acceleration"
+        
+        # Validate required assets after branding
+        log "🔍 Validating Android assets..."
+        required_assets=("assets/images/logo.png" "assets/images/splash.png")
+        for asset in "${required_assets[@]}"; do
+            if [ -f "$asset" ] && [ -s "$asset" ]; then
+                log "✅ $asset exists and has content"
+            else
+                log "❌ $asset is missing or empty after branding"
+                exit 1
+            fi
+        done
+        log "✅ All Android assets validated"
+    else
+        log "❌ Android branding failed"
+        exit 1
+    fi
+else
+    log "⚠️ Android branding script not found, skipping..."
+fi
+
+# Download custom icons for bottom menu
+log "🎨 Downloading custom icons for bottom menu..."
+if [ "${IS_BOTTOMMENU:-false}" = "true" ]; then
+    if [ -f "lib/scripts/utils/download_custom_icons.sh" ]; then
+        chmod +x lib/scripts/utils/download_custom_icons.sh
+        if lib/scripts/utils/download_custom_icons.sh; then
+            log "✅ Custom icons download completed"
+            
+            # Validate custom icons if BOTTOMMENU_ITEMS contains custom icons
+            if [ -n "${BOTTOMMENU_ITEMS:-}" ]; then
+                log "🔍 Validating custom icons..."
+                if [ -d "assets/icons" ] && [ "$(ls -A assets/icons 2>/dev/null)" ]; then
+                    log "✅ Custom icons found in assets/icons/"
+                    ls -la assets/icons/ | while read -r line; do
+                        log "   $line"
+                    done
+                else
+                    log "ℹ️ No custom icons found (using preset icons only)"
+                fi
+            fi
+        else
+            log "❌ Custom icons download failed"
+            exit 1
+        fi
+    else
+        log "⚠️ Custom icons download script not found, skipping..."
+    fi
+else
+    log "ℹ️ Bottom menu disabled (IS_BOTTOMMENU=false), skipping custom icons download"
+fi
+
+# Run customization with acceleration
+log "⚙️ Running Android customization with acceleration..."
+if [ -f "lib/scripts/android/customization.sh" ]; then
+    chmod +x lib/scripts/android/customization.sh
+    if lib/scripts/android/customization.sh; then
+        log "✅ Android customization completed"
+    else
+        log "❌ Android customization failed"
+        exit 1
+    fi
+else
+    log "⚠️ Android customization script not found, skipping..."
+fi
+
+# Run permissions with acceleration
+log "🔒 Running Android permissions with acceleration..."
+if [ -f "lib/scripts/android/permissions.sh" ]; then
+    chmod +x lib/scripts/android/permissions.sh
+    if lib/scripts/android/permissions.sh; then
+        log "✅ Android permissions configured"
+    else
+        log "❌ Android permissions configuration failed"
+        exit 1
+    fi
+else
+    log "⚠️ Android permissions script not found, skipping..."
+fi
+
+# Run Firebase with acceleration
+log "🔥 Running Android Firebase with acceleration..."
+if [ -f "lib/scripts/android/firebase.sh" ]; then
+    chmod +x lib/scripts/android/firebase.sh
+    if lib/scripts/android/firebase.sh; then
+        log "✅ Android Firebase configuration completed"
+    else
+        log "❌ Android Firebase configuration failed"
+        exit 1
+    fi
+else
+    log "⚠️ Android Firebase script not found, skipping..."
+fi
+
+# Run keystore with acceleration
+log "🔐 Running Android keystore with acceleration..."
+if [ -f "lib/scripts/android/keystore.sh" ]; then
+    chmod +x lib/scripts/android/keystore.sh
+    if lib/scripts/android/keystore.sh; then
+        log "✅ Android keystore configuration completed"
+    else
+        log "❌ Android keystore configuration failed"
+        exit 1
+    fi
+else
+    log "⚠️ Android keystore script not found, skipping..."
+fi
 
 # Build with optimizations
 log "🔨 Building Android APK with optimizations..."

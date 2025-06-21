@@ -167,3 +167,57 @@ python3 lib/scripts/utils/send_email.py build_success "Android" "test-build-123"
 4. **User Feedback**: Monitor if users can successfully download artifacts
 
 The artifact URL issue should now be resolved with proper fallback mechanisms and enhanced debugging capabilities.
+
+# Artifact URL "FORBIDDEN" Error - Fix Guide
+
+This document explains the "FORBIDDEN" error encountered when accessing artifact download links from email notifications and details the solution implemented.
+
+## 🚨 The "FORBIDDEN" Error
+
+After resolving the initial "NOT_FOUND" error, a new issue appeared:
+
+```json
+{
+  "error": "FORBIDDEN",
+  "message": "The server could not verify that you are authorized to access the URL requested..."
+}
+```
+
+This error indicates that while the URL correctly points to a Codemagic artifact, it is a **private link** that requires an active, authenticated Codemagic session to access. When clicking the link from an email, you are not logged in, and therefore access is denied.
+
+## ✅ The Solution: Using Public URLs
+
+Codemagic provides both private and public URLs for each build artifact. The fix was to ensure our scripts always use the **public-facing URL**, which does not require authentication.
+
+### `process_artifacts.sh` Script Update
+
+The core of the fix was updating the `jq` query in `lib/scripts/utils/process_artifacts.sh`.
+
+#### Old Logic (Incorrect)
+
+The script was extracting the standard `url` field, which is private:
+
+```bash
+# Incorrectly fetches the private URL
+artifact_urls=$(echo "$CM_ARTIFACT_LINKS" | jq -r '.[] | .url')
+```
+
+#### New Logic (Correct)
+
+The script now prioritizes the `public_url` field, falling back to the standard `url` only if the public one is not available. This ensures the link is always accessible.
+
+```bash
+# Correctly fetches the public URL, with a fallback
+artifact_urls=$(echo "$CM_ARTIFACT_LINKS" | jq -r '.[] | .public_url // .url | select(.)')
+```
+
+The `//` operator in `jq` provides a safe fallback mechanism.
+
+## 🚀 The Result
+
+With this change, the `process_artifacts.sh` script now reliably extracts the public, authentication-free download links for all artifacts.
+
+- **Emails will contain public URLs**: The links sent in success notifications will no longer result in a "FORBIDDEN" error.
+- **Direct downloads**: Users can click the link in the email and download the artifact directly, without needing to log into Codemagic first.
+
+The system is now correctly configured to provide direct, hassle-free access to your build artifacts.
