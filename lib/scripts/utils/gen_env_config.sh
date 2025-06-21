@@ -84,7 +84,7 @@ generate_env_config() {
     
     # Debug: Show current environment variables
     log "🔍 Current environment variables:"
-    log "   BRANCH: ${BRANCH:-not_set}"
+    log "   BRANCH: ${BRANCH:-not_set} (using static 'main' instead)"
     log "   APP_NAME: ${APP_NAME:-not_set}"
     log "   PKG_NAME: ${PKG_NAME:-not_set}"
     log "   WORKFLOW_ID: ${WORKFLOW_ID:-not_set}"
@@ -116,7 +116,7 @@ class EnvConfig {
   static const String webUrl = "${WEB_URL:-}";
   static const String userName = "${USER_NAME:-}";
   static const String emailId = "${EMAIL_ID:-}";
-  static const String branch = "${BRANCH:-main}";
+  static const String branch = "main";
   static const String workflowId = "${WORKFLOW_ID:-}";
 
   // Package Identifiers

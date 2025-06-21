@@ -15,6 +15,11 @@ source lib/scripts/utils/build_acceleration.sh
 # Generate environment configuration
 generate_env_config
 
+# CRITICAL: Force fix again after environment generation to ensure no $BRANCH patterns
+if [ -f "lib/scripts/utils/force_fix_env_config.sh" ]; then
+    lib/scripts/utils/force_fix_env_config.sh
+fi
+
 # Initialize logging
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"; }
 
