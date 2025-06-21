@@ -106,7 +106,7 @@ org.gradle.daemon=true
 org.gradle.parallel=true
 org.gradle.caching=true
 org.gradle.configureondemand=true
-org.gradle.jvmargs=-Xmx12G -XX:MaxMetaspaceSize=6G -XX:ReservedCodeCacheSize=1G -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -XX:+UseParallelGC -XX:ParallelGCThreads=4 -XX:ConcGCThreads=2
+org.gradle.jvmargs=-Xmx8G -XX:MaxMetaspaceSize=2G -XX:ReservedCodeCacheSize=512m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat
 
 # Android optimization (updated for AGP 8.7.3)
 android.useAndroidX=true
