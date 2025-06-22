@@ -97,6 +97,34 @@ This document provides a comprehensive overview of all workflows available in th
   - Android: `output/android/app-release.apk` (always) + `output/android/app-release.aab` (if keystore)
   - iOS: `output/ios/Runner.ipa` (if iOS prerequisites met)
 - **Use Case**: **All use cases** - development, beta, production, with any combination of features
+- **✅ Android Part Validation**: **Confirmed to follow exact same logic as `android-publish` workflow**
+
+#### **Combined Workflow Android Part Logic** ✅ **VALIDATED**
+
+The Android part of the combined workflow follows the **exact same logic** as the `android-publish` workflow:
+
+1. **Firebase Setup**:
+
+   - ✅ Conditionally enabled when `PUSH_NOTIFY=true` AND `FIREBASE_CONFIG_ANDROID` is provided
+   - ✅ Disabled when `PUSH_NOTIFY=false` or no Firebase config
+
+2. **Keystore Setup**:
+
+   - ✅ **Always required** for release signing (all 4 credentials needed)
+   - ✅ `KEY_STORE_URL`, `CM_KEYSTORE_PASSWORD`, `CM_KEY_ALIAS`, `CM_KEY_PASSWORD`
+   - ✅ Builds APK + AAB with release signing when available
+   - ✅ Falls back to APK only with debug signing when missing
+
+3. **Required Variables**:
+
+   - ✅ `PKG_NAME`, `APP_NAME`, `VERSION_NAME`, `VERSION_CODE`
+   - ✅ Build fails if any required variable is missing
+
+4. **Configuration Logging**:
+   - ✅ Detailed workflow-specific logging
+   - ✅ Clear status indicators for all components
+
+**Test Results**: All validation tests PASSED ✅ (`bash test_combined_workflow.sh`)
 
 ## 📊 Workflow Comparison Matrix
 

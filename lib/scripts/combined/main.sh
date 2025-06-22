@@ -26,8 +26,10 @@ log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"; }
 # Universal Combined Build Configuration Detection
 log "🚀 Starting Universal Combined Build Configuration Detection..."
 
-# Detect Android Configuration
-log "🤖 Detecting Android Configuration..."
+# 🔧 WORKFLOW-SPECIFIC VALIDATION: Combined Workflow Android Part
+log "🔍 Validating Combined Workflow Android Configuration..."
+log "📋 Workflow: Combined (Android + iOS)"
+log "📱 Android Part Configuration:"
 
 # Android Build Type Detection
 ANDROID_BUILD_TYPE="debug"
@@ -35,23 +37,52 @@ ANDROID_FIREBASE_ENABLED="false"
 ANDROID_KEYSTORE_ENABLED="false"
 ANDROID_AAB_ENABLED="false"
 
-# Check if Firebase is enabled for Android
+# Check if Firebase is enabled for Android (Conditional based on PUSH_NOTIFY)
 if [[ "${PUSH_NOTIFY:-false}" == "true" ]] && [[ -n "${FIREBASE_CONFIG_ANDROID:-}" ]]; then
     ANDROID_FIREBASE_ENABLED="true"
-    log "✅ Android Firebase detected and enabled"
+    log "✅ Android Firebase: ENABLED (PUSH_NOTIFY=true and FIREBASE_CONFIG_ANDROID provided)"
 else
-    log "ℹ️ Android Firebase not enabled (PUSH_NOTIFY=false or no FIREBASE_CONFIG_ANDROID)"
+    log "ℹ️ Android Firebase: DISABLED (PUSH_NOTIFY=false or no FIREBASE_CONFIG_ANDROID)"
 fi
 
-# Check if Keystore is available for Android
+# Check if Keystore is available for Android (Required for release signing)
 if [[ -n "${KEY_STORE_URL:-}" ]] && [[ -n "${CM_KEYSTORE_PASSWORD:-}" ]] && [[ -n "${CM_KEY_ALIAS:-}" ]] && [[ -n "${CM_KEY_PASSWORD:-}" ]]; then
     ANDROID_KEYSTORE_ENABLED="true"
     ANDROID_BUILD_TYPE="release"
     ANDROID_AAB_ENABLED="true"
-    log "✅ Android Keystore detected - will build APK + AAB with release signing"
+    log "✅ Android Keystore: ENABLED (All credentials provided) - Will build APK + AAB with release signing"
 else
-    log "ℹ️ Android Keystore not available - will build APK only with debug signing"
+    log "❌ Android Keystore: DISABLED (Missing credentials) - Will build APK only with debug signing"
+    log "   Required: KEY_STORE_URL, CM_KEYSTORE_PASSWORD, CM_KEY_ALIAS, CM_KEY_PASSWORD"
 fi
+
+# Validate required Android variables for combined workflow
+log "🔍 Validating required Android variables for combined workflow..."
+REQUIRED_ANDROID_VARS=("PKG_NAME" "APP_NAME" "VERSION_NAME" "VERSION_CODE")
+MISSING_ANDROID_VARS=()
+
+for var in "${REQUIRED_ANDROID_VARS[@]}"; do
+    if [[ -z "${!var:-}" ]]; then
+        MISSING_ANDROID_VARS+=("$var")
+    fi
+done
+
+if [[ ${#MISSING_ANDROID_VARS[@]} -gt 0 ]]; then
+    log "❌ Missing required Android variables: ${MISSING_ANDROID_VARS[*]}"
+    log "❌ Combined workflow Android part cannot proceed"
+    exit 1
+else
+    log "✅ All required Android variables present"
+fi
+
+log "📊 Combined Workflow Android Configuration Summary:"
+log "   Build Type: $ANDROID_BUILD_TYPE"
+log "   Firebase: $ANDROID_FIREBASE_ENABLED"
+log "   Keystore: $ANDROID_KEYSTORE_ENABLED"
+log "   AAB Build: $ANDROID_AAB_ENABLED"
+log "   Package Name: ${PKG_NAME:-not set}"
+log "   App Name: ${APP_NAME:-not set}"
+log "   Version: ${VERSION_NAME:-not set} (${VERSION_CODE:-not set})"
 
 # Detect iOS Configuration
 log "🍎 Detecting iOS Configuration..."

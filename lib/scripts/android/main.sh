@@ -500,7 +500,62 @@ fi
 
 # Run Firebase with acceleration
 log "🔥 Running Android Firebase with acceleration..."
-if [ -f "lib/scripts/android/firebase.sh" ]; then
+if [ "${WORKFLOW_ID:-}" = "android-free" ]; then
+    log "ℹ️ android-free workflow detected - skipping Firebase setup (PUSH_NOTIFY=false)"
+    log "✅ Firebase setup skipped for android-free workflow"
+elif [ "${WORKFLOW_ID:-}" = "android-paid" ]; then
+    if [ "${PUSH_NOTIFY:-}" = "true" ]; then
+        log "ℹ️ android-paid workflow detected with PUSH_NOTIFY=true - enabling Firebase setup"
+        if [ -n "${FIREBASE_CONFIG_ANDROID:-}" ]; then
+            log "✅ Firebase config URL provided - proceeding with Firebase setup"
+            if [ -f "lib/scripts/android/firebase.sh" ]; then
+                chmod +x lib/scripts/android/firebase.sh
+                if lib/scripts/android/firebase.sh; then
+                    log "✅ Android Firebase configuration completed for android-paid workflow"
+                else
+                    log "❌ Android Firebase configuration failed"
+                    exit 1
+                fi
+            else
+                log "❌ Android Firebase script not found"
+                exit 1
+            fi
+        else
+            log "❌ PUSH_NOTIFY=true but no FIREBASE_CONFIG_ANDROID provided"
+            log "❌ Firebase setup cannot proceed without configuration URL"
+            exit 1
+        fi
+    else
+        log "ℹ️ android-paid workflow detected with PUSH_NOTIFY=false - skipping Firebase setup"
+        log "✅ Firebase setup skipped for android-paid workflow (push notifications disabled)"
+    fi
+elif [ "${WORKFLOW_ID:-}" = "android-publish" ]; then
+    if [ "${PUSH_NOTIFY:-}" = "true" ]; then
+        log "ℹ️ android-publish workflow detected with PUSH_NOTIFY=true - enabling Firebase setup"
+        if [ -n "${FIREBASE_CONFIG_ANDROID:-}" ]; then
+            log "✅ Firebase config URL provided - proceeding with Firebase setup"
+            if [ -f "lib/scripts/android/firebase.sh" ]; then
+                chmod +x lib/scripts/android/firebase.sh
+                if lib/scripts/android/firebase.sh; then
+                    log "✅ Android Firebase configuration completed for android-publish workflow"
+                else
+                    log "❌ Android Firebase configuration failed"
+                    exit 1
+                fi
+            else
+                log "❌ Android Firebase script not found"
+                exit 1
+            fi
+        else
+            log "❌ PUSH_NOTIFY=true but no FIREBASE_CONFIG_ANDROID provided"
+            log "❌ Firebase setup cannot proceed without configuration URL"
+            exit 1
+        fi
+    else
+        log "ℹ️ android-publish workflow detected with PUSH_NOTIFY=false - skipping Firebase setup"
+        log "✅ Firebase setup skipped for android-publish workflow (push notifications disabled)"
+    fi
+elif [ -f "lib/scripts/android/firebase.sh" ]; then
     chmod +x lib/scripts/android/firebase.sh
     if lib/scripts/android/firebase.sh; then
         log "✅ Android Firebase configuration completed"
@@ -514,7 +569,36 @@ fi
 
 # Run keystore with acceleration
 log "🔐 Running Android keystore with acceleration..."
-if [ -f "lib/scripts/android/keystore.sh" ]; then
+if [ "${WORKFLOW_ID:-}" = "android-free" ] || [ "${WORKFLOW_ID:-}" = "android-paid" ]; then
+    log "ℹ️ ${WORKFLOW_ID:-} workflow detected - skipping keystore setup (debug signing enabled)"
+    log "✅ Keystore setup skipped for ${WORKFLOW_ID:-} workflow - will use debug signing"
+elif [ "${WORKFLOW_ID:-}" = "android-publish" ]; then
+    log "ℹ️ android-publish workflow detected - enabling keystore setup (release signing)"
+    if [ -n "${KEY_STORE_URL:-}" ] && [ -n "${CM_KEYSTORE_PASSWORD:-}" ] && [ -n "${CM_KEY_ALIAS:-}" ] && [ -n "${CM_KEY_PASSWORD:-}" ]; then
+        log "✅ All keystore credentials provided - proceeding with keystore setup"
+        if [ -f "lib/scripts/android/keystore.sh" ]; then
+            chmod +x lib/scripts/android/keystore.sh
+            if lib/scripts/android/keystore.sh; then
+                log "✅ Android keystore configuration completed for android-publish workflow"
+            else
+                log "❌ Android keystore configuration failed"
+                exit 1
+            fi
+        else
+            log "❌ Android keystore script not found"
+            exit 1
+        fi
+    else
+        log "❌ Incomplete keystore configuration for android-publish workflow"
+        log "❌ Required: KEY_STORE_URL, CM_KEYSTORE_PASSWORD, CM_KEY_ALIAS, CM_KEY_PASSWORD"
+        log "❌ Missing variables:"
+        [ -z "${KEY_STORE_URL:-}" ] && log "   - KEY_STORE_URL"
+        [ -z "${CM_KEYSTORE_PASSWORD:-}" ] && log "   - CM_KEYSTORE_PASSWORD"
+        [ -z "${CM_KEY_ALIAS:-}" ] && log "   - CM_KEY_ALIAS"
+        [ -z "${CM_KEY_PASSWORD:-}" ] && log "   - CM_KEY_PASSWORD"
+        exit 1
+    fi
+elif [ -f "lib/scripts/android/keystore.sh" ]; then
     chmod +x lib/scripts/android/keystore.sh
     if lib/scripts/android/keystore.sh; then
         log "✅ Android keystore configuration completed"
@@ -828,6 +912,79 @@ else
 fi
 
 log "🔍 ===== END PRE-BUILD CONFIGURATION DISPLAY ====="
+
+# ============================================================================
+
+# ============================================================================
+# 🎯 WORKFLOW-SPECIFIC CONFIGURATION SUMMARY
+# ============================================================================
+
+log "🎯 ===== WORKFLOW CONFIGURATION SUMMARY ====="
+log "   Workflow ID: ${WORKFLOW_ID:-Unknown}"
+log "   App Name: ${APP_NAME:-Unknown}"
+log "   Package: ${PKG_NAME:-Unknown}"
+
+case "${WORKFLOW_ID:-}" in
+    "android-free")
+        log "📱 ===== ANDROID-FREE WORKFLOW CONFIGURATION ====="
+        log "   ✅ Push Notifications: DISABLED (PUSH_NOTIFY=false)"
+        log "   ✅ Firebase Setup: SKIPPED (no Firebase config)"
+        log "   ✅ Keystore Setup: SKIPPED (debug signing enabled)"
+        log "   ✅ Build Type: DEBUG SIGNED APK"
+        log "   ✅ Features: Basic app functionality only"
+        log "   ℹ️  Note: This APK cannot be uploaded to Google Play Store"
+        ;;
+    "android-paid")
+        log "📱 ===== ANDROID-PAID WORKFLOW CONFIGURATION ====="
+        if [ "${PUSH_NOTIFY:-}" = "true" ]; then
+            log "   🔥 Push Notifications: ENABLED (PUSH_NOTIFY=true)"
+            log "   🔥 Firebase Setup: ENABLED (if FIREBASE_CONFIG_ANDROID provided)"
+            log "   ✅ Keystore Setup: SKIPPED (debug signing enabled)"
+            log "   ✅ Build Type: DEBUG SIGNED APK with Firebase"
+            log "   ✅ Features: Firebase + push notifications + basic app functionality"
+        else
+            log "   🔕 Push Notifications: DISABLED (PUSH_NOTIFY=false)"
+            log "   🔥 Firebase Setup: SKIPPED (push notifications disabled)"
+            log "   ✅ Keystore Setup: SKIPPED (debug signing enabled)"
+            log "   ✅ Build Type: DEBUG SIGNED APK without Firebase"
+            log "   ✅ Features: Basic app functionality only"
+        fi
+        log "   ℹ️  Note: This APK cannot be uploaded to Google Play Store"
+        ;;
+    "android-publish")
+        log "📱 ===== ANDROID-PUBLISH WORKFLOW CONFIGURATION ====="
+        if [ "${PUSH_NOTIFY:-}" = "true" ]; then
+            log "   🔥 Push Notifications: ENABLED (PUSH_NOTIFY=true)"
+            log "   🔥 Firebase Setup: ENABLED (if FIREBASE_CONFIG_ANDROID provided)"
+            log "   🔐 Keystore Setup: ENABLED (release signing required)"
+            log "   🔐 Build Type: RELEASE SIGNED APK + AAB with Firebase"
+            log "   ✅ Features: Firebase + push notifications + release signing"
+        else
+            log "   🔕 Push Notifications: DISABLED (PUSH_NOTIFY=false)"
+            log "   🔥 Firebase Setup: SKIPPED (push notifications disabled)"
+            log "   🔐 Keystore Setup: ENABLED (release signing required)"
+            log "   🔐 Build Type: RELEASE SIGNED APK + AAB without Firebase"
+            log "   ✅ Features: Release signing + basic app functionality"
+        fi
+        log "   ✅ Note: This build can be uploaded to Google Play Store"
+        ;;
+    "combined")
+        log "📱 ===== COMBINED WORKFLOW CONFIGURATION ====="
+        log "   🔥 Push Notifications: ${PUSH_NOTIFY:-false}"
+        log "   🔥 Firebase Setup: ENABLED (Android + iOS if PUSH_NOTIFY=true)"
+        log "   🔐 Android Keystore: ENABLED (release signing)"
+        log "   🍎 iOS Signing: ENABLED (release signing)"
+        log "   🔐 Build Type: RELEASE SIGNED APK + AAB"
+        log "   ✅ Features: Full production build for both platforms"
+        log "   ✅ Note: All builds can be uploaded to app stores"
+        ;;
+    *)
+        log "⚠️  Unknown workflow ID: ${WORKFLOW_ID:-Unknown}"
+        log "   Using default configuration"
+        ;;
+esac
+
+log "🎯 ===== END WORKFLOW CONFIGURATION SUMMARY ====="
 
 # ============================================================================
 
