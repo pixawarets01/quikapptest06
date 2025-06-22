@@ -124,8 +124,8 @@ workflows:
     environment:
       flutter: 3.32.2
       java: 17
-      android_signing:
-        - keystore_reference
+#      android_signing:
+#        - keystore_reference
       vars:
         <<: *common_vars
         <<: *app_config
@@ -209,8 +209,8 @@ workflows:
     environment:
       flutter: 3.32.2
       java: 17
-      android_signing:
-        - keystore_reference
+#      android_signing:
+#        - keystore_reference
       vars:
         <<: *common_vars
         <<: *app_config
