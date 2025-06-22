@@ -121,21 +121,6 @@ class _MainHomeState extends State<MainHome> {
   late double _chatIconSize;
   late double _bottomMenuHeight;
 
-  // Method to ensure chat icon is within bounds
-  void _ensureChatIconInBounds() {
-    if (_screenSize.width > 0) {
-      double maxX = _screenSize.width - _chatIconSize - 16;
-      double minX = 16;
-      double maxY = _screenSize.height - _chatIconSize - _bottomMenuHeight - 16;
-      double minY = 16;
-
-      _dragPosition = Offset(
-        _dragPosition.dx.clamp(minX, maxX),
-        _dragPosition.dy.clamp(minY, maxY),
-      );
-    }
-  }
-
   // Method to set initial position based on screen size
   void _setInitialChatPosition() {
     if (_screenSize.width > 0) {
@@ -146,6 +131,21 @@ class _MainHomeState extends State<MainHome> {
             _chatIconSize -
             _bottomMenuHeight -
             80, // Above bottom menu
+      );
+    }
+  }
+
+  // Method to ensure chat icon is within bounds
+  void _ensureChatIconInBounds() {
+    if (_screenSize.width > 0) {
+      double maxX = _screenSize.width - _chatIconSize - 16;
+      double minX = 16;
+      double maxY = _screenSize.height - _chatIconSize - _bottomMenuHeight - 16;
+      double minY = MediaQuery.of(context).padding.top + 16;
+
+      _dragPosition = Offset(
+        _dragPosition.dx.clamp(minX, maxX),
+        _dragPosition.dy.clamp(minY, maxY),
       );
     }
   }
@@ -468,15 +468,7 @@ class _MainHomeState extends State<MainHome> {
     _ensureChatIconInBounds();
 
     return WillPopScope(
-      onWillPop: () async {
-        if (webViewController != null) {
-          if (await webViewController!.canGoBack()) {
-            webViewController!.goBack();
-            return false;
-          }
-        }
-        return true;
-      },
+      onWillPop: _onBackPressed,
       child: Scaffold(
         body: SafeArea(
           child: Stack(
@@ -620,11 +612,11 @@ class _MainHomeState extends State<MainHome> {
                           ),
                         ),
 
-                      // Chat Widget
+                      // Chat Icon
                       if (EnvConfig.isChatbot)
                         Positioned(
-                          right: _dragPosition.dx,
-                          bottom: _dragPosition.dy,
+                          left: _dragPosition.dx,
+                          top: _dragPosition.dy,
                           child: GestureDetector(
                             onPanUpdate: (details) {
                               setState(() {
@@ -633,15 +625,15 @@ class _MainHomeState extends State<MainHome> {
                                     _dragPosition + details.delta;
 
                                 // Apply boundary constraints
-                                double maxX = _screenSize.width -
-                                    _chatIconSize -
-                                    16; // Right edge
-                                double minX = 16; // Left edge
+                                double maxX =
+                                    _screenSize.width - _chatIconSize - 16;
+                                double minX = 16;
                                 double maxY = _screenSize.height -
                                     _chatIconSize -
                                     _bottomMenuHeight -
-                                    16; // Bottom edge (accounting for bottom menu)
-                                double minY = 16; // Top edge
+                                    16;
+                                double minY =
+                                    MediaQuery.of(context).padding.top + 16;
 
                                 // Constrain position within bounds
                                 newPosition = Offset(
@@ -653,34 +645,73 @@ class _MainHomeState extends State<MainHome> {
                               });
                             },
                             onPanEnd: (details) {
-                              // Ensure final position is within bounds
+                              // Snap to edges if close enough
                               setState(() {
+                                double snapThreshold = 32.0;
+                                double leftEdge = 16.0;
+                                double rightEdge =
+                                    _screenSize.width - _chatIconSize - 16;
+
+                                if (_dragPosition.dx <
+                                    leftEdge + snapThreshold) {
+                                  _dragPosition =
+                                      Offset(leftEdge, _dragPosition.dy);
+                                } else if (_dragPosition.dx >
+                                    rightEdge - snapThreshold) {
+                                  _dragPosition =
+                                      Offset(rightEdge, _dragPosition.dy);
+                                }
+
                                 _ensureChatIconInBounds();
                               });
                             },
-                            child: FloatingActionButton(
-                              onPressed: () {
-                                setState(() {
-                                  isChatVisible = !isChatVisible;
-                                });
-                              },
-                              child: const Icon(Icons.chat),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: FloatingActionButton(
+                                onPressed: () {
+                                  setState(() {
+                                    isChatVisible = !isChatVisible;
+                                  });
+                                },
+                                backgroundColor: const Color(0xFF667eea),
+                                child:
+                                    const Icon(Icons.chat, color: Colors.white),
+                              ),
                             ),
                           ),
                         ),
 
+                      // Chat Widget
                       if (EnvConfig.isChatbot && isChatVisible)
-                        Positioned(
-                          right: 16,
-                          bottom: 80,
-                          child: ChatWidget(
-                            webViewController: webViewController!,
-                            currentUrl: InitialCurrentURL,
-                            onVisibilityChanged: (visible) {
-                              setState(() {
-                                isChatVisible = visible;
-                              });
-                            },
+                        Positioned.fill(
+                          child: Container(
+                            margin: EdgeInsets.only(
+                              top: MediaQuery.of(context).padding.top + 16,
+                              left: 16,
+                              right: 16,
+                              bottom: widget.isBottomMenu ? 96 : 16,
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: ChatWidget(
+                                webViewController: webViewController!,
+                                currentUrl: InitialCurrentURL,
+                                onVisibilityChanged: (visible) {
+                                  setState(() {
+                                    isChatVisible = visible;
+                                  });
+                                },
+                              ),
+                            ),
                           ),
                         ),
                     ],

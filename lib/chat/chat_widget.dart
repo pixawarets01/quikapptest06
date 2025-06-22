@@ -71,7 +71,26 @@ class _ChatWidgetState extends State<ChatWidget> {
   Future<void> _startListening() async {
     try {
       if (!_isListening) {
-        bool available = await _speech.initialize();
+        bool available = await _speech.initialize(
+          onStatus: (status) {
+            if (status == 'done' || status == 'notListening') {
+              setState(() => _isListening = false);
+              // Auto send message when voice input is complete
+              if (_messageController.text.isNotEmpty) {
+                _handleSend();
+              }
+            }
+          },
+          onError: (error) {
+            setState(() => _isListening = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error: $error'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          },
+        );
         if (available) {
           setState(() {
             _isListening = true;
@@ -81,15 +100,10 @@ class _ChatWidgetState extends State<ChatWidget> {
             onResult: (result) {
               setState(() {
                 _messageController.text = result.recognizedWords;
-                if (result.finalResult) {
-                  _isListening = false;
-                  if (_messageController.text.isNotEmpty) {
-                    // _handleSend();
-                    _showVoiceCard = false;
-                  }
-                }
               });
             },
+            localeId: 'en_US',
+            listenMode: stt.ListenMode.confirmation,
           );
         }
       } else {
@@ -170,107 +184,83 @@ class _ChatWidgetState extends State<ChatWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    return Stack(
-      children: [
-        Center(
-          child: Card(
-            elevation: 8,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+    return Card(
+      elevation: 8,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF667eea), // QuikApp primary gradient color
+                Color(0xFF764ba2), // QuikApp secondary gradient color
+              ],
             ),
-            child: Container(
-              width: size.width * 0.9,
-              height: size.height * 0.9,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                color: Colors.white,
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildHeader(),
-                  Expanded(child: _buildChatList()),
-                  _buildInputArea(),
-                ],
-              ),
-            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildHeader(),
+              Expanded(child: _buildChatList()),
+              _buildInputArea(),
+            ],
           ),
         ),
-        if (_showVoiceCard)
-          Positioned.fill(
-            child: Container(
-              color: Colors.black54,
-              child: VoiceInputCard(
-                isListening: _isListening,
-                recognizedText: _messageController.text,
-                onClose: () {
-                  setState(() {
-                    _isListening = false;
-                    _showVoiceCard = false;
-                  });
-                  _speech.stop();
-                },
-                onResult: (String text) {},
-              ),
-            ),
-          ),
-      ],
+      ),
     );
-  }
-
-  String _getCleanHost(Uri uri) {
-    final host = uri.host;
-    return host.startsWith('www.') ? host.substring(4) : host;
   }
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Theme.of(context).primaryColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        color: Colors.white.withOpacity(0.1),
+        border: Border(
+          bottom: BorderSide(
+            color: Colors.white.withOpacity(0.1),
+          ),
+        ),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Icon(Icons.chat, color: Colors.white),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Assistant',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.chat_bubble_outline,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
-            ),
-          ),
-          //  Expanded(
-          //   child: Text(
-          //     '${_getCleanHost(Uri.parse(widget.currentUrl))} Assistant',
-          //     style: const TextStyle(
-          //       color: Colors.white,
-          //       fontSize: 18,
-          //       fontWeight: FontWeight.bold,
-          //     ),
-          //   ),
-          // ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.white),
-            onPressed: () async {
-              await _chatService.clearHistory();
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Chat history cleared')),
-                );
-              }
-            },
-            tooltip: 'Clear Chat',
+              const SizedBox(width: 12),
+              const Text(
+                'QuikApp Assistant',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
           ),
           IconButton(
             icon: const Icon(Icons.close, color: Colors.white),
-            onPressed: () => widget.onVisibilityChanged(false),
-            tooltip: 'Close Chat',
+            onPressed: () {
+              widget.onVisibilityChanged(false);
+            },
           ),
         ],
       ),
@@ -278,261 +268,41 @@ class _ChatWidgetState extends State<ChatWidget> {
   }
 
   Widget _buildChatList() {
-    return StreamBuilder<List<ChatMessage>>(
-      stream: _chatService.chatStream,
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        }
-
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(
-            child: Text('No messages yet. Start a conversation!'),
-          );
-        }
-
-        final messages = snapshot.data!;
-        WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
-
-        return ListView.builder(
-          controller: _scrollController,
-          padding: const EdgeInsets.all(16),
-          itemCount: messages.length,
-          itemBuilder: (context, index) {
-            final message = messages[index];
-            return _buildMessageBubble(message);
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildMessageBubble(ChatMessage message) {
-    final isUser = message.isUser;
-    final bubbleColor = isUser
-        ? Theme.of(context).primaryColor.withOpacity(0.1)
-        : Colors.grey.shade100;
-    final textColor = isUser ? Theme.of(context).primaryColor : Colors.black87;
-    final alignment =
-        isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Column(
-        crossAxisAlignment: alignment,
-        children: [
-          Row(
-            mainAxisAlignment:
-                isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-            children: [
-              if (!isUser) ...[
-                CircleAvatar(
-                  backgroundColor: Theme.of(context).primaryColor,
-                  radius: 16,
-                  child: const Icon(
-                    Icons.assistant,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 8),
-              ],
-              Flexible(
-                child: Container(
-                  constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(context).size.width * 0.7,
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: bubbleColor,
-                    borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(16),
-                      topRight: const Radius.circular(16),
-                      bottomLeft: Radius.circular(isUser ? 16 : 4),
-                      bottomRight: Radius.circular(isUser ? 4 : 16),
-                    ),
-                    border: Border.all(
-                      color: isUser
-                          ? Theme.of(context).primaryColor.withOpacity(0.2)
-                          : Colors.grey.shade300,
-                      width: 1,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SelectableText.rich(
-                        TextSpan(children: _parseMessageText(message.text)),
-                        style: TextStyle(color: textColor, fontSize: 16),
-                      ),
-                      if (message.searchResults != null &&
-                          message.searchResults!.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        ...message.searchResults!.map(
-                          (result) => Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${result.index}. ${result.title}',
-                                style: TextStyle(
-                                  color: textColor,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                result.content,
-                                style: TextStyle(
-                                  color: textColor,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              ElevatedButton(
-                                onPressed: () => _handleUrl(result.url),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Theme.of(
-                                    context,
-                                  ).primaryColor,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 8,
-                                  ),
-                                ),
-                                child: const Text('View More'),
-                              ),
-                              const SizedBox(height: 16),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
+    return Container(
+      color: Colors.white,
+      child: StreamBuilder<List<ChatMessage>>(
+        stream: _chatService.chatStream,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF667eea)),
               ),
-              if (isUser) ...[
-                const SizedBox(width: 8),
-                CircleAvatar(
-                  backgroundColor: Theme.of(context).primaryColor,
-                  radius: 16,
-                  child: const Icon(
-                    Icons.person,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-              ],
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              _formatTimestamp(message.timestamp),
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-            ),
-          ),
-        ],
+            );
+          }
+
+          final messages = snapshot.data!;
+          return ListView.builder(
+            controller: _scrollController,
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+            itemCount: messages.length,
+            itemBuilder: (context, index) {
+              final message = messages[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: _buildMessageBubble(message),
+              );
+            },
+          );
+        },
       ),
     );
   }
 
-  List<InlineSpan> _parseMessageText(String text) {
-    final spans = <InlineSpan>[];
-    final linkPattern = RegExp(r'\[(.*?)\]\((.*?)\)');
-    final boldPattern = RegExp(r'\*\*(.*?)\*\*');
-
-    var currentIndex = 0;
-
-    while (currentIndex < text.length) {
-      // Try to find the next markdown element
-      final linkMatch = linkPattern.firstMatch(text.substring(currentIndex));
-      final boldMatch = boldPattern.firstMatch(text.substring(currentIndex));
-
-      // Find which comes first
-      final linkStart = linkMatch?.start ?? text.length;
-      final boldStart = boldMatch?.start ?? text.length;
-
-      if (linkStart < boldStart) {
-        // Add text before the link
-        if (linkStart > 0) {
-          spans.add(
-            TextSpan(
-              text: text.substring(currentIndex, currentIndex + linkStart),
-            ),
-          );
-        }
-
-        // Add the link
-        spans.add(
-          TextSpan(
-            text: linkMatch![1],
-            style: TextStyle(
-              color: Theme.of(context).primaryColor,
-              decoration: TextDecoration.underline,
-            ),
-            recognizer: TapGestureRecognizer()
-              ..onTap = () => _handleUrl(linkMatch[2]!),
-          ),
-        );
-
-        currentIndex += linkMatch.end;
-      } else if (boldStart < text.length) {
-        // Add text before the bold
-        if (boldStart > 0) {
-          spans.add(
-            TextSpan(
-              text: text.substring(currentIndex, currentIndex + boldStart),
-            ),
-          );
-        }
-
-        // Add the bold text
-        spans.add(
-          TextSpan(
-            text: boldMatch![1],
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-        );
-
-        currentIndex += boldMatch.end;
-      } else {
-        // Add remaining text
-        spans.add(TextSpan(text: text.substring(currentIndex)));
-        break;
-      }
-    }
-
-    return spans;
-  }
-
-  String _formatTimestamp(DateTime timestamp) {
-    final now = DateTime.now();
-    final difference = now.difference(timestamp);
-
-    if (difference.inMinutes < 1) {
-      return 'Just now';
-    } else if (difference.inHours < 1) {
-      return '${difference.inMinutes}m ago';
-    } else if (difference.inDays < 1) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays}d ago';
-    } else {
-      return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
-    }
-  }
-
   Widget _buildInputArea() {
     return Container(
-      padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
@@ -541,101 +311,272 @@ class _ChatWidgetState extends State<ChatWidget> {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          // Microphone Button with Wave Animation
-          Stack(
-            alignment: Alignment.center,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
             children: [
-              if (_isListening)
-                TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0.0, end: 1.0),
-                  duration: const Duration(seconds: 1),
-                  builder: (context, value, child) {
-                    return Container(
-                      width: 40 + (value * 10),
-                      height: 40 + (value * 10),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.red.withOpacity(0.3 - (value * 0.3)),
+              // Voice Input Button
+              Container(
+                margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: _isListening
+                      ? const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Color(0xFFff4b4b), // Red gradient for active state
+                            Color(0xFFff6b6b),
+                          ],
+                        )
+                      : const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Color(0xFF667eea),
+                            Color(0xFF764ba2),
+                          ],
+                        ),
+                ),
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: _startListening,
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Icon(
+                            _isListening ? Icons.mic : Icons.mic_none,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                          if (_isListening)
+                            SizedBox(
+                              width: 36,
+                              height: 36,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: const AlwaysStoppedAnimation<Color>(
+                                    Colors.white),
+                                backgroundColor: Colors.white.withOpacity(0.3),
+                              ),
+                            ),
+                        ],
                       ),
-                    );
-                  },
-                  onEnd: () {
-                    setState(() {
-                      // Restart animation
-                      if (_isListening) {
-                        setState(() {});
-                      }
-                    });
-                  },
+                    ),
+                  ),
                 ),
-              FloatingActionButton(
-                onPressed: _startListening,
-                mini: true,
-                backgroundColor:
-                    _isListening ? Colors.red : Colors.grey.shade200,
-                child: Icon(
-                  _isListening ? Icons.mic : Icons.mic_none,
-                  color: _isListening ? Colors.white : Colors.grey.shade700,
+              ),
+
+              // Text Input Field
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: const Color(0xFF667eea).withOpacity(0.2),
+                    ),
+                  ),
+                  child: TextField(
+                    controller: _messageController,
+                    decoration: InputDecoration(
+                      hintText: _isListening
+                          ? 'Listening...'
+                          : 'Type your message...',
+                      hintStyle: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                    ),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF2D3748),
+                    ),
+                    onSubmitted: (_) => _handleSend(),
+                  ),
                 ),
+              ),
+
+              // Send Button (only visible when text is typed manually)
+              if (!_isListening && _messageController.text.isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.only(left: 8),
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color(0xFF667eea),
+                        Color(0xFF764ba2),
+                      ],
+                    ),
+                  ),
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(20),
+                      onTap: _handleSend,
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
+                                ),
+                              )
+                            : const Icon(
+                                Icons.send,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMessageBubble(ChatMessage message) {
+    final isUser = message.isUser;
+
+    return Align(
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isUser ? const Color(0xFF667eea) : Colors.grey[100],
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(16),
+              topRight: const Radius.circular(16),
+              bottomLeft: Radius.circular(isUser ? 16 : 4),
+              bottomRight: Radius.circular(isUser ? 4 : 16),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
-          const SizedBox(width: 8),
-          // Text Input Field
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.grey.shade300, width: 1),
-              ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: _buildMessageContent(
+                message, isUser ? Colors.white : Colors.black87),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMessageContent(ChatMessage message, Color textColor) {
+    final messageLines = message.text.split('\n');
+    final linkPattern = RegExp(r'\[([^\]]+)\]\(([^)]+)\)');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: messageLines.map((line) {
+        // Check if line contains a link
+        final match = linkPattern.firstMatch(line);
+        if (match != null) {
+          // Extract link title and URL
+          final title = match.group(1)!;
+          final url = match.group(2)!;
+
+          // If it's a numbered list item with a link
+          final numberMatch = RegExp(r'^\d+\.\s*').firstMatch(line);
+          if (numberMatch != null) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      decoration: InputDecoration(
-                        hintText: _isListening
-                            ? 'Listening...'
-                            : 'Type your message...',
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
-                      ),
-                      onSubmitted: (_) => _handleSend(),
+                  Text(
+                    numberMatch.group(0)!,
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 14,
+                      height: 1.5,
                     ),
                   ),
-                  // Send Button
-                  Padding(
-                    padding: const EdgeInsets.only(right: 4),
-                    child: FloatingActionButton(
-                      onPressed: _isLoading ? null : _handleSend,
-                      mini: true,
-                      backgroundColor: Theme.of(context).primaryColor,
-                      child: _isLoading
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
-                                ),
-                              ),
-                            )
-                          : const Icon(Icons.send, color: Colors.white),
+                  Expanded(
+                    child: Material(
+                      type: MaterialType.transparency,
+                      child: InkWell(
+                        onTap: () => _handleUrl(url),
+                        child: Text(
+                          title,
+                          style: const TextStyle(
+                            color: Color(0xFF4fd1c5),
+                            fontSize: 14,
+                            height: 1.5,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
+            );
+          }
+
+          // Regular link without number
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Material(
+              type: MaterialType.transparency,
+              child: InkWell(
+                onTap: () => _handleUrl(url),
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: Color(0xFF4fd1c5),
+                    fontSize: 14,
+                    height: 1.5,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        // Regular text line
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text(
+            line,
+            style: TextStyle(
+              color: textColor,
+              fontSize: 14,
+              height: 1.5,
             ),
           ),
-        ],
-      ),
+        );
+      }).toList(),
     );
   }
 }
