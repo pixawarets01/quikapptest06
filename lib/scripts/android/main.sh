@@ -66,7 +66,7 @@ if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "co
                 
                 keyAlias = keystoreProperties["keyAlias"] as String
                 keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = file(keystoreProperties["storeFile"] as String)
+                storeFile = file("src/" + keystoreProperties["storeFile"] as String)
                 storePassword = keystoreProperties["storePassword"] as String
             }
         }'
@@ -83,9 +83,11 @@ if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "co
             val keystorePropertiesFile = rootProject.file("app/src/keystore.properties")
             if (keystorePropertiesFile.exists()) {
                 signingConfig = signingConfigs.getByName("release")
+                println("🔐 Using RELEASE signing with keystore")
             } else {
                 // Fallback to debug signing if keystore not available
                 signingConfig = signingConfigs.getByName("debug")
+                println("⚠️ Using DEBUG signing (keystore not found)")
             }
             isMinifyEnabled = true
             isShrinkResources = true

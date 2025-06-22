@@ -1,532 +1,668 @@
+# 🚀 Common Variables Block - Shared across all workflows
+common_vars: &common_vars # 🚀 Enhanced Build Success Rate Optimizations
+  GRADLE_OPTS: "-Xmx12G -XX:MaxMetaspaceSize=3G -XX:ReservedCodeCacheSize=1G -XX:+UseG1GC -XX:MaxGCPauseMillis=50 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -XX:+TieredCompilation -XX:TieredStopAtLevel=1"
+  XCODE_PARALLEL_JOBS: "8"
+
+  # 🔧 Build Stability Variables
+  GRADLE_DAEMON: "true"
+  GRADLE_PARALLEL: "true"
+  GRADLE_CACHING: "true"
+  GRADLE_OFFLINE: "false"
+  GRADLE_CONFIGURE_ON_DEMAND: "true"
+  GRADLE_BUILD_CACHE: "true"
+  GRADLE_WORKER_MAX_HEAP_SIZE: "2G"
+
+  # 🎯 Flutter Optimizations
+  FLUTTER_PUB_CACHE: "true"
+  FLUTTER_VERBOSE: "false"
+  FLUTTER_ANALYZE: "true"
+  FLUTTER_TEST: "false"
+  FLUTTER_BUILD_NUMBER: "auto"
+
+  # 📦 Asset & Network Optimizations
+  ASSET_OPTIMIZATION: "true"
+  IMAGE_COMPRESSION: "true"
+  PARALLEL_DOWNLOADS: "true"
+  DOWNLOAD_TIMEOUT: "300"
+  DOWNLOAD_RETRIES: "3"
+
+  # 🛡️ Error Prevention
+  FAIL_ON_WARNINGS: "false"
+  CONTINUE_ON_ERROR: "true"
+  RETRY_ON_FAILURE: "true"
+  MAX_RETRIES: "2"
+
+  # 📧 Email Notifications
+  ENABLE_EMAIL_NOTIFICATIONS: "true"
+  EMAIL_SMTP_SERVER: "smtp.gmail.com"
+  EMAIL_SMTP_PORT: "587"
+  EMAIL_SMTP_USER: "prasannasrie@gmail.com"
+  EMAIL_SMTP_PASS: "lrnu krfm aarp urux"
+
+  # 🔄 Build Recovery
+  ENABLE_BUILD_RECOVERY: "true"
+  CLEAN_ON_FAILURE: "true"
+  CACHE_ON_SUCCESS: "true"
+
+# 📱 App Configuration Block
+app_config: &app_config
+  APP_ID: $APP_ID
+  BRANCH: $BRANCH
+  VERSION_NAME: $VERSION_NAME
+  VERSION_CODE: $VERSION_CODE
+  APP_NAME: $APP_NAME
+  ORG_NAME: $ORG_NAME
+  WEB_URL: $WEB_URL
+  EMAIL_ID: $EMAIL_ID
+  USER_NAME: $USER_NAME
+
+# 🔧 Feature Flags Block
+feature_flags: &feature_flags
+  IS_CHATBOT: $IS_CHATBOT
+  IS_SPLASH: $IS_SPLASH
+  IS_PULLDOWN: $IS_PULLDOWN
+  IS_BOTTOMMENU: $IS_BOTTOMMENU
+  IS_LOAD_IND: $IS_LOAD_IND
+
+# 🔐 Permissions Block
+permissions: &permissions
+  IS_CAMERA: $IS_CAMERA
+  IS_LOCATION: $IS_LOCATION
+  IS_MIC: $IS_MIC
+  IS_NOTIFICATION: $IS_NOTIFICATION
+  IS_CONTACT: $IS_CONTACT
+  IS_BIOMETRIC: $IS_BIOMETRIC
+  IS_CALENDAR: $IS_CALENDAR
+  IS_STORAGE: $IS_STORAGE
+
+# 🎨 UI Configuration Block
+ui_config: &ui_config
+  LOGO_URL: $LOGO_URL
+  SPLASH_URL: $SPLASH_URL
+  SPLASH_BG_URL: $SPLASH_BG_URL
+  SPLASH_BG_COLOR: $SPLASH_BG_COLOR
+  SPLASH_TAGLINE: $SPLASH_TAGLINE
+  SPLASH_TAGLINE_COLOR: $SPLASH_TAGLINE_COLOR
+  SPLASH_ANIMATION: $SPLASH_ANIMATION
+  SPLASH_DURATION: $SPLASH_DURATION
+
+# 🍎 iOS Build Acceleration Block
+ios_build_acceleration: &ios_build_acceleration
+  XCODE_FAST_BUILD: "true"
+  COCOAPODS_FAST_INSTALL: "true"
+  XCODE_SKIP_SIGNING: "false"
+  XCODE_OPTIMIZATION: "true"
+  XCODE_CLEAN_BUILD: "true"
+  XCODE_PARALLEL_BUILD: "true"
+
+# 🍎 iOS Signing Configuration Block
+ios_signing_config: &ios_signing_config
+  APPLE_TEAM_ID: $APPLE_TEAM_ID
+  APNS_KEY_ID: $APNS_KEY_ID
+  APNS_AUTH_KEY_URL: $APNS_AUTH_KEY_URL
+  CERT_PASSWORD: $CERT_PASSWORD
+  PROFILE_URL: $PROFILE_URL
+  CERT_P12_URL: $CERT_P12_URL
+  CERT_CER_URL: $CERT_CER_URL
+  CERT_KEY_URL: $CERT_KEY_URL
+  PROFILE_TYPE: $PROFILE_TYPE
+  APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
+
+# 📱 iOS Distribution Options Block
+ios_distribution_options: &ios_distribution_options
+  ENABLE_DEVICE_SPECIFIC_BUILDS: $ENABLE_DEVICE_SPECIFIC_BUILDS
+  INSTALL_URL: $INSTALL_URL
+  DISPLAY_IMAGE_URL: $DISPLAY_IMAGE_URL
+  FULL_SIZE_IMAGE_URL: $FULL_SIZE_IMAGE_URL
+  THINNING: $THINNING
+
 workflows:
   android-free:
     name: Android Free Build
-    max_build_duration: 60
+    max_build_duration: 90
     instance_type: mac_mini_m2
     environment:
       flutter: 3.32.2
       java: 17
+      android_signing:
+        - keystore_reference
       vars:
-        # Enhanced build time optimization variables
-        GRADLE_OPTS: "-Xmx8G -XX:MaxMetaspaceSize=2G -XX:ReservedCodeCacheSize=512m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat "
-        XCODE_PARALLEL_JOBS: "6"
-
-        # Build acceleration variables
-        GRADLE_DAEMON: "true"
-        GRADLE_PARALLEL: "true"
-        GRADLE_CACHING: "true"
-        FLUTTER_PUB_CACHE: "true"
-        ENABLE_GRADLE_DAEMON: "true"
-        GRADLE_OPTS_DAEMON: "-Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.configureondemand=true"
-
-        # Asset optimization
-        ASSET_OPTIMIZATION: "true"
-        IMAGE_COMPRESSION: "true"
-        PARALLEL_DOWNLOADS: "true"
-
-        APP_ID: $APP_ID
+        <<: *common_vars
+        <<: *app_config
         WORKFLOW_ID: "android-free"
-        BRANCH: $BRANCH
-        VERSION_NAME: $VERSION_NAME
-        VERSION_CODE: $VERSION_CODE
-        APP_NAME: $APP_NAME
-        ORG_NAME: $ORG_NAME
-        WEB_URL: $WEB_URL
         PKG_NAME: $PKG_NAME
-        EMAIL_ID: $EMAIL_ID
-        USER_NAME: $USER_NAME
+
+        # 🔧 Feature Flags (Optimized for Free)
         PUSH_NOTIFY: "false"
-        IS_CHATBOT: $IS_CHATBOT
         IS_DOMAIN_URL: "false"
-        IS_SPLASH: $IS_SPLASH
-        IS_PULLDOWN: $IS_PULLDOWN
-        IS_BOTTOMMENU: $IS_BOTTOMMENU
-        IS_LOAD_IND: $IS_LOAD_IND
-        IS_CAMERA: $IS_CAMERA
-        IS_LOCATION: $IS_LOCATION
-        IS_MIC: $IS_MIC
-        IS_NOTIFICATION: $IS_NOTIFICATION
-        IS_CONTACT: $IS_CONTACT
-        IS_BIOMETRIC: $IS_BIOMETRIC
-        IS_CALENDAR: $IS_CALENDAR
-        IS_STORAGE: $IS_STORAGE
-        LOGO_URL: $LOGO_URL
-        SPLASH_URL: $SPLASH_URL
-        SPLASH_BG_URL: $SPLASH_BG_URL
-        SPLASH_BG_COLOR: $SPLASH_BG_COLOR
-        SPLASH_TAGLINE: $SPLASH_TAGLINE
-        SPLASH_TAGLINE_COLOR: $SPLASH_TAGLINE_COLOR
-        SPLASH_ANIMATION: $SPLASH_ANIMATION
-        SPLASH_DURATION: $SPLASH_DURATION
-        #        KEY_STORE_URL: ""
-        ENABLE_EMAIL_NOTIFICATIONS: "true"
-        EMAIL_SMTP_SERVER: "smtp.gmail.com"
-        EMAIL_SMTP_PORT: "587"
-        EMAIL_SMTP_USER: "prasannasrie@gmail.com"
-        EMAIL_SMTP_PASS: "lrnu krfm aarp urux"
+        <<: *feature_flags
+        <<: *permissions
+        <<: *ui_config
+
     scripts:
+      - name: Pre-build Setup
+        script: |
+          echo "🚀 Starting Android Free Build with enhanced success rate optimizations..."
+          echo "📊 Build Environment:"
+          echo "  - Flutter: $(flutter --version | head -1)"
+          echo "  - Java: $(java -version 2>&1 | head -1)"
+          echo "  - Gradle: $(./android/gradlew --version | grep "Gradle" | head -1)"
+          echo "  - Memory: $(sysctl -n hw.memsize | awk '{print $0/1024/1024/1024 " GB"}')"
+
+          # Enhanced error handling
+          set -euo pipefail
+          trap 'echo "❌ Error occurred at line $LINENO. Exit code: $?" >&2; exit 1' ERR
+
+          # Pre-build cleanup and optimization
+          echo "🧹 Pre-build cleanup..."
+          flutter clean
+          rm -rf ~/.gradle/caches/ 2>/dev/null || true
+          rm -rf .dart_tool/ 2>/dev/null || true
+
+          # Optimize Gradle
+          echo "⚡ Optimizing Gradle configuration..."
+          export GRADLE_OPTS="$GRADLE_OPTS"
+          export GRADLE_DAEMON=true
+          export GRADLE_PARALLEL=true
+
+          # Verify environment
+          echo "✅ Environment verification completed"
+
       - name: Build Android APK
         script: |
           chmod +x lib/scripts/android/*.sh
           chmod +x lib/scripts/utils/*.sh
-          ./lib/scripts/android/main.sh
+
+          # Enhanced build with retry logic
+          MAX_RETRIES=${MAX_RETRIES:-2}
+          RETRY_COUNT=0
+
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            echo "🏗️ Build attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
+          
+            if ./lib/scripts/android/main.sh; then
+              echo "✅ Build completed successfully!"
+              break
+            else
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                echo "⚠️ Build failed, retrying in 5 seconds..."
+                sleep 5
+                flutter clean
+              else
+                echo "❌ Build failed after $MAX_RETRIES attempts"
+                exit 1
+              fi
+            fi
+          done
+
     artifacts:
       - build/app/outputs/flutter-apk/app-release.apk
       - output/android/app-release.apk
+      - build/app/outputs/mapping/release/mapping.txt
+      - build/app/outputs/logs/
 
   android-paid:
     name: Android Paid Build
-    max_build_duration: 60
+    max_build_duration: 90
     instance_type: mac_mini_m2
     environment:
       flutter: 3.32.2
       java: 17
+      android_signing:
+        - keystore_reference
       vars:
-        # Enhanced build time optimization variables
-        GRADLE_OPTS: "-Xmx8G -XX:MaxMetaspaceSize=2G -XX:ReservedCodeCacheSize=512m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat "
-        XCODE_PARALLEL_JOBS: "6"
-
-        # Build acceleration variables
-        GRADLE_DAEMON: "true"
-        GRADLE_PARALLEL: "true"
-        GRADLE_CACHING: "true"
-        FLUTTER_PUB_CACHE: "true"
-        ENABLE_GRADLE_DAEMON: "true"
-        GRADLE_OPTS_DAEMON: "-Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.configureondemand=true"
-
-        # Asset optimization
-        ASSET_OPTIMIZATION: "true"
-        IMAGE_COMPRESSION: "true"
-        PARALLEL_DOWNLOADS: "true"
-
-        APP_ID: $APP_ID
+        <<: *common_vars
+        <<: *app_config
         WORKFLOW_ID: "android-paid"
-        BRANCH: $BRANCH
-        VERSION_NAME: $VERSION_NAME
-        VERSION_CODE: $VERSION_CODE
-        APP_NAME: $APP_NAME
-        ORG_NAME: $ORG_NAME
-        WEB_URL: $WEB_URL
         PKG_NAME: $PKG_NAME
-        EMAIL_ID: $EMAIL_ID
-        USER_NAME: $USER_NAME
+
+        # 🔧 Feature Flags (Paid Features)
         PUSH_NOTIFY: $PUSH_NOTIFY
-        IS_CHATBOT: $IS_CHATBOT
         IS_DOMAIN_URL: $IS_DOMAIN_URL
-        IS_SPLASH: $IS_SPLASH
-        IS_PULLDOWN: $IS_PULLDOWN
-        IS_BOTTOMMENU: $IS_BOTTOMMENU
-        IS_LOAD_IND: $IS_LOAD_IND
-        IS_CAMERA: $IS_CAMERA
-        IS_LOCATION: $IS_LOCATION
-        IS_MIC: $IS_MIC
-        IS_NOTIFICATION: $IS_NOTIFICATION
-        IS_CONTACT: $IS_CONTACT
-        IS_BIOMETRIC: $IS_BIOMETRIC
-        IS_CALENDAR: $IS_CALENDAR
-        IS_STORAGE: $IS_STORAGE
-        LOGO_URL: $LOGO_URL
-        SPLASH_URL: $SPLASH_URL
-        SPLASH_BG_URL: $SPLASH_BG_URL
-        SPLASH_BG_COLOR: $SPLASH_BG_COLOR
-        SPLASH_TAGLINE: $SPLASH_TAGLINE
-        SPLASH_TAGLINE_COLOR: $SPLASH_TAGLINE_COLOR
-        SPLASH_ANIMATION: $SPLASH_ANIMATION
-        SPLASH_DURATION: $SPLASH_DURATION
+        <<: *feature_flags
+        <<: *permissions
+        <<: *ui_config
+
+        # 🔥 Firebase Configuration
         FIREBASE_CONFIG_ANDROID: $FIREBASE_CONFIG_ANDROID
-        #        KEY_STORE_URL: ""
-        ENABLE_EMAIL_NOTIFICATIONS: "true"
-        EMAIL_SMTP_SERVER: "smtp.gmail.com"
-        EMAIL_SMTP_PORT: "587"
-        EMAIL_SMTP_USER: "prasannasrie@gmail.com"
-        EMAIL_SMTP_PASS: "lrnu krfm aarp urux"
+
     scripts:
+      - name: Pre-build Setup
+        script: |
+          echo "🚀 Starting Android Paid Build with enhanced success rate optimizations..."
+          echo "📊 Build Environment:"
+          echo "  - Flutter: $(flutter --version | head -1)"
+          echo "  - Java: $(java -version 2>&1 | head -1)"
+          echo "  - Gradle: $(./android/gradlew --version | grep "Gradle" | head -1)"
+          echo "  - Memory: $(sysctl -n hw.memsize | awk '{print $0/1024/1024/1024 " GB"}')"
+
+          # Enhanced error handling
+          set -euo pipefail
+          trap 'echo "❌ Error occurred at line $LINENO. Exit code: $?" >&2; exit 1' ERR
+
+          # Pre-build cleanup and optimization
+          echo "🧹 Pre-build cleanup..."
+          flutter clean
+          rm -rf ~/.gradle/caches/ 2>/dev/null || true
+          rm -rf .dart_tool/ 2>/dev/null || true
+
+          # Optimize Gradle
+          echo "⚡ Optimizing Gradle configuration..."
+          export GRADLE_OPTS="$GRADLE_OPTS"
+          export GRADLE_DAEMON=true
+          export GRADLE_PARALLEL=true
+
+          # Verify Firebase configuration
+          if [ -n "$FIREBASE_CONFIG_ANDROID" ]; then
+            echo "🔥 Firebase configuration detected"
+          else
+            echo "⚠️ No Firebase configuration provided"
+          fi
+
+          # Verify environment
+          echo "✅ Environment verification completed"
+
       - name: Build Android APK
         script: |
           chmod +x lib/scripts/android/*.sh
           chmod +x lib/scripts/utils/*.sh
-          ./lib/scripts/android/main.sh
+
+          # Enhanced build with retry logic
+          MAX_RETRIES=${MAX_RETRIES:-2}
+          RETRY_COUNT=0
+
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            echo "🏗️ Build attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
+          
+            if ./lib/scripts/android/main.sh; then
+              echo "✅ Build completed successfully!"
+              break
+            else
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                echo "⚠️ Build failed, retrying in 5 seconds..."
+                sleep 5
+                flutter clean
+              else
+                echo "❌ Build failed after $MAX_RETRIES attempts"
+                exit 1
+              fi
+            fi
+          done
+
     artifacts:
       - build/app/outputs/flutter-apk/app-release.apk
       - output/android/app-release.apk
+      - build/app/outputs/mapping/release/mapping.txt
+      - build/app/outputs/logs/
 
   android-publish:
     name: Android Publish Build
-    max_build_duration: 60
-    instance_type: mac_mini_m2
-    environment:
-      flutter: 3.32.2
-      java: 17
-      vars:
-        # Enhanced build time optimization variables
-        GRADLE_OPTS: "-Xmx8G -XX:MaxMetaspaceSize=2G -XX:ReservedCodeCacheSize=512m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat "
-        XCODE_PARALLEL_JOBS: "6"
-
-        # Build acceleration variables
-        GRADLE_DAEMON: "true"
-        GRADLE_PARALLEL: "true"
-        GRADLE_CACHING: "true"
-        FLUTTER_PUB_CACHE: "true"
-        ENABLE_GRADLE_DAEMON: "true"
-        GRADLE_OPTS_DAEMON: "-Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.configureondemand=true"
-
-        # Asset optimization
-        ASSET_OPTIMIZATION: "true"
-        IMAGE_COMPRESSION: "true"
-        PARALLEL_DOWNLOADS: "true"
-
-        APP_ID: $APP_ID
-        WORKFLOW_ID: "android-publish"
-        BRANCH: $BRANCH
-        VERSION_NAME: $VERSION_NAME
-        VERSION_CODE: $VERSION_CODE
-        APP_NAME: $APP_NAME
-        ORG_NAME: $ORG_NAME
-        WEB_URL: $WEB_URL
-        PKG_NAME: $PKG_NAME
-        EMAIL_ID: $EMAIL_ID
-        USER_NAME: $USER_NAME
-        PUSH_NOTIFY: $PUSH_NOTIFY
-        IS_CHATBOT: $IS_CHATBOT
-        IS_DOMAIN_URL: $IS_DOMAIN_URL
-        IS_SPLASH: $IS_SPLASH
-        IS_PULLDOWN: $IS_PULLDOWN
-        IS_BOTTOMMENU: $IS_BOTTOMMENU
-        IS_LOAD_IND: $IS_LOAD_IND
-        IS_CAMERA: $IS_CAMERA
-        IS_LOCATION: $IS_LOCATION
-        IS_MIC: $IS_MIC
-        IS_NOTIFICATION: $IS_NOTIFICATION
-        IS_CONTACT: $IS_CONTACT
-        IS_BIOMETRIC: $IS_BIOMETRIC
-        IS_CALENDAR: $IS_CALENDAR
-        IS_STORAGE: $IS_STORAGE
-        LOGO_URL: $LOGO_URL
-        SPLASH_URL: $SPLASH_URL
-        SPLASH_BG_URL: $SPLASH_BG_URL
-        SPLASH_BG_COLOR: $SPLASH_BG_COLOR
-        SPLASH_TAGLINE: $SPLASH_TAGLINE
-        SPLASH_TAGLINE_COLOR: $SPLASH_TAGLINE_COLOR
-        SPLASH_ANIMATION: $SPLASH_ANIMATION
-        SPLASH_DURATION: $SPLASH_DURATION
-        FIREBASE_CONFIG_ANDROID: $FIREBASE_CONFIG_ANDROID
-        KEY_STORE_URL: $KEY_STORE_URL
-        CM_KEYSTORE_PASSWORD: $CM_KEYSTORE_PASSWORD
-        CM_KEY_ALIAS: $CM_KEY_ALIAS
-        CM_KEY_PASSWORD: $CM_KEY_PASSWORD
-        ENABLE_EMAIL_NOTIFICATIONS: "true"
-        EMAIL_SMTP_SERVER: "smtp.gmail.com"
-        EMAIL_SMTP_PORT: "587"
-        EMAIL_SMTP_USER: "prasannasrie@gmail.com"
-        EMAIL_SMTP_PASS: "lrnu krfm aarp urux"
-    scripts:
-      - name: Build Android APK and AAB
-        script: |
-          chmod +x lib/scripts/android/*.sh
-          chmod +x lib/scripts/utils/*.sh
-          ./lib/scripts/android/main.sh
-    artifacts:
-      - build/app/outputs/flutter-apk/app-release.apk
-      - build/app/outputs/bundle/release/app-release.aab
-      - output/android/app-release.apk
-      - output/android/app-release.aab
-
-  ios-appstore:
-    name: iOS App Store Build
-    max_build_duration: 60
-    instance_type: mac_mini_m2
-    environment:
-      flutter: 3.32.2
-      java: 17
-      xcode: 15.4
-      cocoapods: 1.16.2
-      vars:
-        # Enhanced build time optimization variables
-        GRADLE_OPTS: "-Xmx8G -XX:MaxMetaspaceSize=2G -XX:ReservedCodeCacheSize=512m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat "
-        XCODE_PARALLEL_JOBS: "6"
-
-        # iOS build acceleration
-        XCODE_FAST_BUILD: "true"
-        COCOAPODS_FAST_INSTALL: "true"
-        XCODE_SKIP_SIGNING: "false"
-        XCODE_OPTIMIZATION: "true"
-
-        # Asset optimization
-        ASSET_OPTIMIZATION: "true"
-        IMAGE_COMPRESSION: "true"
-        PARALLEL_DOWNLOADS: "true"
-
-        APP_ID: $APP_ID
-        WORKFLOW_ID: "ios-appstore"
-        BRANCH: $BRANCH
-        VERSION_NAME: $VERSION_NAME
-        VERSION_CODE: $VERSION_CODE
-        APP_NAME: $APP_NAME
-        ORG_NAME: $ORG_NAME
-        WEB_URL: $WEB_URL
-        BUNDLE_ID: $BUNDLE_ID
-        EMAIL_ID: $EMAIL_ID
-        USER_NAME: $USER_NAME
-        PUSH_NOTIFY: $PUSH_NOTIFY
-        IS_CHATBOT: $IS_CHATBOT
-        IS_DOMAIN_URL: $IS_DOMAIN_URL
-        IS_SPLASH: $IS_SPLASH
-        IS_PULLDOWN: $IS_PULLDOWN
-        IS_BOTTOMMENU: $IS_BOTTOMMENU
-        IS_LOAD_IND: $IS_LOAD_IND
-        IS_CAMERA: $IS_CAMERA
-        IS_LOCATION: $IS_LOCATION
-        IS_MIC: $IS_MIC
-        IS_NOTIFICATION: $IS_NOTIFICATION
-        IS_CONTACT: $IS_CONTACT
-        IS_BIOMETRIC: $IS_BIOMETRIC
-        IS_CALENDAR: $IS_CALENDAR
-        IS_STORAGE: $IS_STORAGE
-        LOGO_URL: $LOGO_URL
-        SPLASH_URL: $SPLASH_URL
-        SPLASH_BG_URL: $SPLASH_BG_URL
-        SPLASH_BG_COLOR: $SPLASH_BG_COLOR
-        SPLASH_TAGLINE: $SPLASH_TAGLINE
-        SPLASH_TAGLINE_COLOR: $SPLASH_TAGLINE_COLOR
-        SPLASH_ANIMATION: $SPLASH_ANIMATION
-        SPLASH_DURATION: $SPLASH_DURATION
-        FIREBASE_CONFIG_IOS: $FIREBASE_CONFIG_IOS
-        APPLE_TEAM_ID: $APPLE_TEAM_ID
-        APNS_KEY_ID: $APNS_KEY_ID
-        APNS_AUTH_KEY_URL: $APNS_AUTH_KEY_URL
-        CERT_PASSWORD: $CERT_PASSWORD
-        PROFILE_URL: $PROFILE_URL
-        CERT_P12_URL: $CERT_P12_URL
-        CERT_CER_URL: $CERT_CER_URL
-        CERT_KEY_URL: $CERT_KEY_URL
-        PROFILE_TYPE: "app-store"
-        APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
-        ENABLE_EMAIL_NOTIFICATIONS: "true"
-        EMAIL_SMTP_SERVER: "smtp.gmail.com"
-        EMAIL_SMTP_PORT: "587"
-        EMAIL_SMTP_USER: "prasannasrie@gmail.com"
-        EMAIL_SMTP_PASS: "lrnu krfm aarp urux"
-        ENABLE_DEVICE_SPECIFIC_BUILDS: $ENABLE_DEVICE_SPECIFIC_BUILDS
-        INSTALL_URL: $INSTALL_URL
-        DISPLAY_IMAGE_URL: $DISPLAY_IMAGE_URL
-        FULL_SIZE_IMAGE_URL: $FULL_SIZE_IMAGE_URL
-        THINNING: $THINNING
-    scripts:
-      - name: Build iOS App Store IPA
-        script: |
-          chmod +x lib/scripts/ios/*.sh
-          chmod +x lib/scripts/utils/*.sh
-          ./lib/scripts/ios/main.sh
-    artifacts:
-      - build/ios/ipa/*.ipa
-      - ios/build/ios/ipa/*.ipa
-      - output/ios/Runner.ipa
-
-  ios-adhoc:
-    name: iOS Ad Hoc Build
-    max_build_duration: 60
-    instance_type: mac_mini_m2
-    environment:
-      flutter: 3.32.2
-      java: 17
-      xcode: 15.4
-      cocoapods: 1.16.2
-      vars:
-        # Enhanced build time optimization variables
-        GRADLE_OPTS: "-Xmx8G -XX:MaxMetaspaceSize=2G -XX:ReservedCodeCacheSize=512m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat "
-        XCODE_PARALLEL_JOBS: "6"
-
-        # iOS build acceleration
-        XCODE_FAST_BUILD: "true"
-        COCOAPODS_FAST_INSTALL: "true"
-        XCODE_SKIP_SIGNING: "false"
-        XCODE_OPTIMIZATION: "true"
-
-        # Asset optimization
-        ASSET_OPTIMIZATION: "true"
-        IMAGE_COMPRESSION: "true"
-        PARALLEL_DOWNLOADS: "true"
-
-        APP_ID: $APP_ID
-        WORKFLOW_ID: "ios-adhoc"
-        BRANCH: $BRANCH
-        VERSION_NAME: $VERSION_NAME
-        VERSION_CODE: $VERSION_CODE
-        APP_NAME: $APP_NAME
-        ORG_NAME: $ORG_NAME
-        WEB_URL: $WEB_URL
-        BUNDLE_ID: $BUNDLE_ID
-        EMAIL_ID: $EMAIL_ID
-        USER_NAME: $USER_NAME
-        PUSH_NOTIFY: $PUSH_NOTIFY
-        IS_CHATBOT: $IS_CHATBOT
-        IS_DOMAIN_URL: $IS_DOMAIN_URL
-        IS_SPLASH: $IS_SPLASH
-        IS_PULLDOWN: $IS_PULLDOWN
-        IS_BOTTOMMENU: $IS_BOTTOMMENU
-        IS_LOAD_IND: $IS_LOAD_IND
-        IS_CAMERA: $IS_CAMERA
-        IS_LOCATION: $IS_LOCATION
-        IS_MIC: $IS_MIC
-        IS_NOTIFICATION: $IS_NOTIFICATION
-        IS_CONTACT: $IS_CONTACT
-        IS_BIOMETRIC: $IS_BIOMETRIC
-        IS_CALENDAR: $IS_CALENDAR
-        IS_STORAGE: $IS_STORAGE
-        LOGO_URL: $LOGO_URL
-        SPLASH_URL: $SPLASH_URL
-        SPLASH_BG_URL: $SPLASH_BG_URL
-        SPLASH_BG_COLOR: $SPLASH_BG_COLOR
-        SPLASH_TAGLINE: $SPLASH_TAGLINE
-        SPLASH_TAGLINE_COLOR: $SPLASH_TAGLINE_COLOR
-        SPLASH_ANIMATION: $SPLASH_ANIMATION
-        SPLASH_DURATION: $SPLASH_DURATION
-        FIREBASE_CONFIG_IOS: $FIREBASE_CONFIG_IOS
-        APPLE_TEAM_ID: $APPLE_TEAM_ID
-        APNS_KEY_ID: $APNS_KEY_ID
-        APNS_AUTH_KEY_URL: $APNS_AUTH_KEY_URL
-        CERT_PASSWORD: $CERT_PASSWORD
-        PROFILE_URL: $PROFILE_URL
-        CERT_P12_URL: $CERT_P12_URL
-        CERT_CER_URL: $CERT_CER_URL
-        CERT_KEY_URL: $CERT_KEY_URL
-        PROFILE_TYPE: "ad-hoc"
-        APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
-        ENABLE_EMAIL_NOTIFICATIONS: "true"
-        EMAIL_SMTP_SERVER: "smtp.gmail.com"
-        EMAIL_SMTP_PORT: "587"
-        EMAIL_SMTP_USER: "prasannasrie@gmail.com"
-        EMAIL_SMTP_PASS: "lrnu krfm aarp urux"
-        ENABLE_DEVICE_SPECIFIC_BUILDS: $ENABLE_DEVICE_SPECIFIC_BUILDS
-        INSTALL_URL: $INSTALL_URL
-        DISPLAY_IMAGE_URL: $DISPLAY_IMAGE_URL
-        FULL_SIZE_IMAGE_URL: $FULL_SIZE_IMAGE_URL
-        THINNING: $THINNING
-    scripts:
-      - name: Build iOS Ad Hoc IPA
-        script: |
-          chmod +x lib/scripts/ios/*.sh
-          chmod +x lib/scripts/utils/*.sh
-          ./lib/scripts/ios/main.sh
-    artifacts:
-      - build/ios/ipa/*.ipa
-      - ios/build/ios/ipa/*.ipa
-      - output/ios/Runner.ipa
-
-  combined:
-    name: Universal Combined Build (Android + iOS)
     max_build_duration: 120
     instance_type: mac_mini_m2
     environment:
       flutter: 3.32.2
       java: 17
-      xcode: 15.4
-      cocoapods: 1.16.2
+#      android_signing:
+#        - keystore_reference
       vars:
-        # Enhanced build time optimization variables
-        GRADLE_OPTS: "-Xmx8G -XX:MaxMetaspaceSize=2G -XX:ReservedCodeCacheSize=512m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat "
-        XCODE_PARALLEL_JOBS: "6"
-
-        # Build acceleration variables
-        GRADLE_DAEMON: "true"
-        GRADLE_PARALLEL: "true"
-        GRADLE_CACHING: "true"
-        FLUTTER_PUB_CACHE: "true"
-        ENABLE_GRADLE_DAEMON: "true"
-        GRADLE_OPTS_DAEMON: "-Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.configureondemand=true"
-
-        # iOS build acceleration
-        XCODE_FAST_BUILD: "true"
-        COCOAPODS_FAST_INSTALL: "true"
-        XCODE_SKIP_SIGNING: "false"
-        XCODE_OPTIMIZATION: "true"
-
-        # Asset optimization
-        ASSET_OPTIMIZATION: "true"
-        IMAGE_COMPRESSION: "true"
-        PARALLEL_DOWNLOADS: "true"
-
-        # Universal App Configuration
-        APP_ID: $APP_ID
-        WORKFLOW_ID: "combined"
-        BRANCH: $BRANCH
-        VERSION_NAME: $VERSION_NAME
-        VERSION_CODE: $VERSION_CODE
-        APP_NAME: $APP_NAME
-        ORG_NAME: $ORG_NAME
-        WEB_URL: $WEB_URL
+        <<: *common_vars
+        MAX_RETRIES: "3" # Override for publish workflow
+        <<: *app_config
+        WORKFLOW_ID: "android-publish"
         PKG_NAME: $PKG_NAME
-        BUNDLE_ID: $BUNDLE_ID
-        EMAIL_ID: $EMAIL_ID
-        USER_NAME: $USER_NAME
 
-        # Feature Flags (Auto-detected)
+        # 🔧 Feature Flags (Production Features)
         PUSH_NOTIFY: $PUSH_NOTIFY
-        IS_CHATBOT: $IS_CHATBOT
         IS_DOMAIN_URL: $IS_DOMAIN_URL
-        IS_SPLASH: $IS_SPLASH
-        IS_PULLDOWN: $IS_PULLDOWN
-        IS_BOTTOMMENU: $IS_BOTTOMMENU
-        IS_LOAD_IND: $IS_LOAD_IND
-        IS_CAMERA: $IS_CAMERA
-        IS_LOCATION: $IS_LOCATION
-        IS_MIC: $IS_MIC
-        IS_NOTIFICATION: $IS_NOTIFICATION
-        IS_CONTACT: $IS_CONTACT
-        IS_BIOMETRIC: $IS_BIOMETRIC
-        IS_CALENDAR: $IS_CALENDAR
-        IS_STORAGE: $IS_STORAGE
+        <<: *feature_flags
+        <<: *permissions
+        <<: *ui_config
 
-        # UI/Branding Configuration
-        LOGO_URL: $LOGO_URL
-        SPLASH_URL: $SPLASH_URL
-        SPLASH_BG_URL: $SPLASH_BG_URL
-        SPLASH_BG_COLOR: $SPLASH_BG_COLOR
-        SPLASH_TAGLINE: $SPLASH_TAGLINE
-        SPLASH_TAGLINE_COLOR: $SPLASH_TAGLINE_COLOR
-        SPLASH_ANIMATION: $SPLASH_ANIMATION
-        SPLASH_DURATION: $SPLASH_DURATION
-
-        # Android Configuration (Auto-detected)
+        # 🔥 Firebase Configuration
         FIREBASE_CONFIG_ANDROID: $FIREBASE_CONFIG_ANDROID
+
+        # 🔐 Keystore Configuration
         KEY_STORE_URL: $KEY_STORE_URL
         CM_KEYSTORE_PASSWORD: $CM_KEYSTORE_PASSWORD
         CM_KEY_ALIAS: $CM_KEY_ALIAS
         CM_KEY_PASSWORD: $CM_KEY_PASSWORD
 
-        # iOS Configuration (Auto-detected)
+    scripts:
+      - name: Pre-build Setup
+        script: |
+          echo "🚀 Starting Android Publish Build with enhanced success rate optimizations..."
+          echo "📊 Build Environment:"
+          echo "  - Flutter: $(flutter --version | head -1)"
+          echo "  - Java: $(java -version 2>&1 | head -1)"
+          echo "  - Gradle: $(./android/gradlew --version | grep "Gradle" | head -1)"
+          echo "  - Memory: $(sysctl -n hw.memsize | awk '{print $0/1024/1024/1024 " GB"}')"
+
+          # Enhanced error handling
+          set -euo pipefail
+          trap 'echo "❌ Error occurred at line $LINENO. Exit code: $?" >&2; exit 1' ERR
+
+          # Pre-build cleanup and optimization
+          echo "🧹 Pre-build cleanup..."
+          flutter clean
+          rm -rf ~/.gradle/caches/ 2>/dev/null || true
+          rm -rf .dart_tool/ 2>/dev/null || true
+
+          # Optimize Gradle
+          echo "⚡ Optimizing Gradle configuration..."
+          export GRADLE_OPTS="$GRADLE_OPTS"
+          export GRADLE_DAEMON=true
+          export GRADLE_PARALLEL=true
+
+          # Verify Firebase configuration
+          if [ -n "$FIREBASE_CONFIG_ANDROID" ]; then
+            echo "🔥 Firebase configuration detected"
+          else
+            echo "⚠️ No Firebase configuration provided"
+          fi
+
+          # Verify keystore configuration
+          if [ -n "$KEY_STORE_URL" ]; then
+            echo "🔐 Keystore configuration detected"
+          else
+            echo "⚠️ No keystore configuration provided"
+          fi
+
+          # Verify environment
+          echo "✅ Environment verification completed"
+
+      - name: Build Android APK and AAB
+        script: |
+          chmod +x lib/scripts/android/*.sh
+          chmod +x lib/scripts/utils/*.sh
+
+          # Enhanced build with retry logic
+          MAX_RETRIES=${MAX_RETRIES:-3}
+          RETRY_COUNT=0
+
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            echo "🏗️ Build attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
+          
+            if ./lib/scripts/android/main.sh; then
+              echo "✅ Build completed successfully!"
+              break
+            else
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                echo "⚠️ Build failed, retrying in 60 seconds..."
+                sleep 60
+                flutter clean
+              else
+                echo "❌ Build failed after $MAX_RETRIES attempts"
+                exit 1
+              fi
+            fi
+          done
+
+    artifacts:
+      - build/app/outputs/flutter-apk/app-release.apk
+      - build/app/outputs/bundle/release/app-release.aab
+      - output/android/app-release.apk
+      - output/android/app-release.aab
+      - build/app/outputs/mapping/release/mapping.txt
+      - build/app/outputs/logs/
+
+  ios-workflow:
+    name: iOS Universal Build (App Store + Ad Hoc)
+    max_build_duration: 90
+    instance_type: mac_mini_m2
+    environment:
+      flutter: 3.32.2
+      java: 17
+      xcode: 15.4
+      cocoapods: 1.16.2
+      vars:
+        <<: *common_vars
+        <<: *ios_build_acceleration
+        <<: *app_config
+        WORKFLOW_ID: "ios-workflow"
+        BUNDLE_ID: $BUNDLE_ID
+
+        # 🔧 Feature Flags
+        PUSH_NOTIFY: $PUSH_NOTIFY
+        IS_DOMAIN_URL: $IS_DOMAIN_URL
+        <<: *feature_flags
+        <<: *permissions
+        <<: *ui_config
+
+        # 🔥 Firebase Configuration
         FIREBASE_CONFIG_IOS: $FIREBASE_CONFIG_IOS
-        APPLE_TEAM_ID: $APPLE_TEAM_ID
-        APNS_KEY_ID: $APNS_KEY_ID
-        APNS_AUTH_KEY_URL: $APNS_AUTH_KEY_URL
-        CERT_PASSWORD: $CERT_PASSWORD
-        PROFILE_URL: $PROFILE_URL
-        CERT_P12_URL: $CERT_P12_URL
-        CERT_CER_URL: $CERT_CER_URL
-        CERT_KEY_URL: $CERT_KEY_URL
-        PROFILE_TYPE: $PROFILE_TYPE
-        APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
 
-        # Email Configuration
-        ENABLE_EMAIL_NOTIFICATIONS: "true"
-        EMAIL_SMTP_SERVER: "smtp.gmail.com"
-        EMAIL_SMTP_PORT: "587"
-        EMAIL_SMTP_USER: "prasannasrie@gmail.com"
-        EMAIL_SMTP_PASS: "lrnu krfm aarp urux"
+        # 🍎 iOS Signing Configuration (Universal)
+        <<: *ios_signing_config
 
-        # iOS Distribution Options
-        ENABLE_DEVICE_SPECIFIC_BUILDS: $ENABLE_DEVICE_SPECIFIC_BUILDS
-        INSTALL_URL: $INSTALL_URL
-        DISPLAY_IMAGE_URL: $DISPLAY_IMAGE_URL
-        FULL_SIZE_IMAGE_URL: $FULL_SIZE_IMAGE_URL
-        THINNING: $THINNING
+        # 📱 iOS Distribution Options
+        <<: *ios_distribution_options
 
     scripts:
+      - name: Pre-build Setup
+        script: |
+          echo "🚀 Starting iOS Universal Build with enhanced success rate optimizations..."
+          echo "📊 Build Environment:"
+          echo "  - Flutter: $(flutter --version | head -1)"
+          echo "  - Java: $(java -version 2>&1 | head -1)"
+          echo "  - Xcode: $(xcodebuild -version | head -1)"
+          echo "  - CocoaPods: $(pod --version)"
+          echo "  - Memory: $(sysctl -n hw.memsize | awk '{print $0/1024/1024/1024 " GB"}')"
+          echo "  - Profile Type: $PROFILE_TYPE"
+
+          # Enhanced error handling
+          set -euo pipefail
+          trap 'echo "❌ Error occurred at line $LINENO. Exit code: $?" >&2; exit 1' ERR
+
+          # Pre-build cleanup and optimization
+          echo "🧹 Pre-build cleanup..."
+          flutter clean
+          rm -rf ~/.gradle/caches/ 2>/dev/null || true
+          rm -rf .dart_tool/ 2>/dev/null || true
+          rm -rf ios/Pods/ 2>/dev/null || true
+          rm -rf ios/build/ 2>/dev/null || true
+
+          # Optimize Xcode
+          echo "⚡ Optimizing Xcode configuration..."
+          export XCODE_FAST_BUILD=true
+          export COCOAPODS_FAST_INSTALL=true
+
+          # Verify Firebase configuration
+          if [ -n "$FIREBASE_CONFIG_IOS" ]; then
+            echo "🔥 Firebase configuration detected"
+          else
+            echo "⚠️ No Firebase configuration provided"
+          fi
+
+          # Verify iOS signing configuration
+          if [ -n "$CERT_PASSWORD" ] && [ -n "$PROFILE_URL" ]; then
+            echo "🔐 iOS signing configuration detected"
+          else
+            echo "⚠️ Incomplete iOS signing configuration"
+          fi
+
+          # Verify profile type
+          if [ "$PROFILE_TYPE" = "app-store" ] || [ "$PROFILE_TYPE" = "ad-hoc" ]; then
+            echo "✅ Profile type: $PROFILE_TYPE"
+          else
+            echo "❌ Invalid profile type: $PROFILE_TYPE (must be 'app-store' or 'ad-hoc')"
+            exit 1
+          fi
+
+          # Verify environment
+          echo "✅ Environment verification completed"
+
+      - name: Build iOS Universal IPA
+        script: |
+          chmod +x lib/scripts/ios/*.sh
+          chmod +x lib/scripts/utils/*.sh
+
+          # Enhanced build with retry logic
+          MAX_RETRIES=${MAX_RETRIES:-2}
+          RETRY_COUNT=0
+
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            echo "🏗️ Build attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
+            echo "🍎 Building for profile type: $PROFILE_TYPE"
+          
+            if ./lib/scripts/ios/main.sh; then
+              echo "✅ Build completed successfully!"
+              break
+            else
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                echo "⚠️ Build failed, retrying in 5 seconds..."
+                sleep 5
+                flutter clean
+              else
+                echo "❌ Build failed after $MAX_RETRIES attempts"
+                exit 1
+              fi
+            fi
+          done
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - ios/build/ios/ipa/*.ipa
+      - output/ios/Runner.ipa
+      - build/ios/logs/
+
+  combined:
+    name: Universal Combined Build (Android + iOS)
+    max_build_duration: 150
+    instance_type: mac_mini_m2
+    environment:
+      flutter: 3.32.2
+      java: 17
+      xcode: 15.4
+      cocoapods: 1.16.2
+      vars:
+        <<: *common_vars
+        MAX_RETRIES: "3" # Override for combined workflow
+        <<: *ios_build_acceleration
+        <<: *app_config
+        WORKFLOW_ID: "combined"
+        PKG_NAME: $PKG_NAME
+        BUNDLE_ID: $BUNDLE_ID
+
+        # 🔧 Feature Flags (Auto-detected)
+        PUSH_NOTIFY: $PUSH_NOTIFY
+        IS_DOMAIN_URL: $IS_DOMAIN_URL
+        <<: *feature_flags
+        <<: *permissions
+        <<: *ui_config
+
+        # 🔥 Firebase Configuration (Auto-detected)
+        FIREBASE_CONFIG_ANDROID: $FIREBASE_CONFIG_ANDROID
+        FIREBASE_CONFIG_IOS: $FIREBASE_CONFIG_IOS
+
+        # 🔐 Android Keystore Configuration
+        KEY_STORE_URL: $KEY_STORE_URL
+        CM_KEYSTORE_PASSWORD: $CM_KEYSTORE_PASSWORD
+        CM_KEY_ALIAS: $CM_KEY_ALIAS
+        CM_KEY_PASSWORD: $CM_KEY_PASSWORD
+
+        # 🍎 iOS Signing Configuration
+        <<: *ios_signing_config
+
+        # 📱 iOS Distribution Options
+        <<: *ios_distribution_options
+
+    scripts:
+      - name: Pre-build Setup
+        script: |
+          echo "🚀 Starting Universal Combined Build with enhanced success rate optimizations..."
+          echo "📊 Build Environment:"
+          echo "  - Flutter: $(flutter --version | head -1)"
+          echo "  - Java: $(java -version 2>&1 | head -1)"
+          echo "  - Xcode: $(xcodebuild -version | head -1)"
+          echo "  - CocoaPods: $(pod --version)"
+          echo "  - Gradle: $(./android/gradlew --version | grep "Gradle" | head -1)"
+          echo "  - Memory: $(sysctl -n hw.memsize | awk '{print $0/1024/1024/1024 " GB"}')"
+
+          # Enhanced error handling
+          set -euo pipefail
+          trap 'echo "❌ Error occurred at line $LINENO. Exit code: $?" >&2; exit 1' ERR
+
+          # Pre-build cleanup and optimization
+          echo "🧹 Pre-build cleanup..."
+          flutter clean
+          rm -rf ~/.gradle/caches/ 2>/dev/null || true
+          rm -rf .dart_tool/ 2>/dev/null || true
+          rm -rf ios/Pods/ 2>/dev/null || true
+          rm -rf ios/build/ 2>/dev/null || true
+
+          # Optimize Gradle
+          echo "⚡ Optimizing Gradle configuration..."
+          export GRADLE_OPTS="$GRADLE_OPTS"
+          export GRADLE_DAEMON=true
+          export GRADLE_PARALLEL=true
+
+          # Optimize Xcode
+          echo "⚡ Optimizing Xcode configuration..."
+          export XCODE_FAST_BUILD=true
+          export COCOAPODS_FAST_INSTALL=true
+
+          # Verify Firebase configuration
+          if [ -n "$FIREBASE_CONFIG_ANDROID" ]; then
+            echo "🔥 Android Firebase configuration detected"
+          else
+            echo "⚠️ No Android Firebase configuration provided"
+          fi
+
+          if [ -n "$FIREBASE_CONFIG_IOS" ]; then
+            echo "🔥 iOS Firebase configuration detected"
+          else
+            echo "⚠️ No iOS Firebase configuration provided"
+          fi
+
+          # Verify Android keystore configuration
+          if [ -n "$KEY_STORE_URL" ]; then
+            echo "🔐 Android keystore configuration detected"
+          else
+            echo "⚠️ No Android keystore configuration provided"
+          fi
+
+          # Verify iOS signing configuration
+          if [ -n "$CERT_PASSWORD" ] && [ -n "$PROFILE_URL" ]; then
+            echo "🔐 iOS signing configuration detected"
+          else
+            echo "⚠️ Incomplete iOS signing configuration"
+          fi
+
+          # Verify environment
+          echo "✅ Environment verification completed"
+
       - name: Universal Combined Build
         script: |
           chmod +x lib/scripts/combined/*.sh
           chmod +x lib/scripts/utils/*.sh
-          ./lib/scripts/combined/main.sh
+
+          # Enhanced build with retry logic
+          MAX_RETRIES=${MAX_RETRIES:-3}
+          RETRY_COUNT=0
+
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            echo "🏗️ Build attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
+          
+            if ./lib/scripts/combined/main.sh; then
+              echo "✅ Build completed successfully!"
+              break
+            else
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                echo "⚠️ Build failed, retrying in 10 seconds..."
+                sleep 10
+                flutter clean
+              else
+                echo "❌ Build failed after $MAX_RETRIES attempts"
+                exit 1
+              fi
+            fi
+          done
+
     artifacts:
       - build/app/outputs/flutter-apk/app-release.apk
       - build/app/outputs/bundle/release/app-release.aab
@@ -535,3 +671,544 @@ workflows:
       - output/android/app-release.apk
       - output/android/app-release.aab
       - output/ios/Runner.ipa
+      - build/app/outputs/mapping/release/mapping.txt
+      - build/app/outputs/logs/
+      - build/ios/logs/
+
+#workflows:
+#  android-free:
+#    name: Android Free Build
+#    max_build_duration: 60
+#    instance_type: mac_mini_m2
+#    environment:
+#      flutter: 3.32.2
+#      java: 17
+#      vars:
+#        # Enhanced build time optimization variables
+#        GRADLE_OPTS: "-Xmx8G -XX:MaxMetaspaceSize=2G -XX:ReservedCodeCacheSize=512m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat "
+#        XCODE_PARALLEL_JOBS: "6"
+#
+#        # Build acceleration variables
+#        GRADLE_DAEMON: "true"
+#        GRADLE_PARALLEL: "true"
+#        GRADLE_CACHING: "true"
+#        FLUTTER_PUB_CACHE: "true"
+#        ENABLE_GRADLE_DAEMON: "true"
+#        GRADLE_OPTS_DAEMON: "-Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.configureondemand=true"
+#
+#        # Asset optimization
+#        ASSET_OPTIMIZATION: "true"
+#        IMAGE_COMPRESSION: "true"
+#        PARALLEL_DOWNLOADS: "true"
+#
+#        APP_ID: $APP_ID
+#        WORKFLOW_ID: "android-free"
+#        BRANCH: $BRANCH
+#        VERSION_NAME: $VERSION_NAME
+#        VERSION_CODE: $VERSION_CODE
+#        APP_NAME: $APP_NAME
+#        ORG_NAME: $ORG_NAME
+#        WEB_URL: $WEB_URL
+#        PKG_NAME: $PKG_NAME
+#        EMAIL_ID: $EMAIL_ID
+#        USER_NAME: $USER_NAME
+#        PUSH_NOTIFY: "false"
+#        IS_CHATBOT: $IS_CHATBOT
+#        IS_DOMAIN_URL: "false"
+#        IS_SPLASH: $IS_SPLASH
+#        IS_PULLDOWN: $IS_PULLDOWN
+#        IS_BOTTOMMENU: $IS_BOTTOMMENU
+#        IS_LOAD_IND: $IS_LOAD_IND
+#        IS_CAMERA: $IS_CAMERA
+#        IS_LOCATION: $IS_LOCATION
+#        IS_MIC: $IS_MIC
+#        IS_NOTIFICATION: $IS_NOTIFICATION
+#        IS_CONTACT: $IS_CONTACT
+#        IS_BIOMETRIC: $IS_BIOMETRIC
+#        IS_CALENDAR: $IS_CALENDAR
+#        IS_STORAGE: $IS_STORAGE
+#        LOGO_URL: $LOGO_URL
+#        SPLASH_URL: $SPLASH_URL
+#        SPLASH_BG_URL: $SPLASH_BG_URL
+#        SPLASH_BG_COLOR: $SPLASH_BG_COLOR
+#        SPLASH_TAGLINE: $SPLASH_TAGLINE
+#        SPLASH_TAGLINE_COLOR: $SPLASH_TAGLINE_COLOR
+#        SPLASH_ANIMATION: $SPLASH_ANIMATION
+#        SPLASH_DURATION: $SPLASH_DURATION
+#        #        KEY_STORE_URL: ""
+#        ENABLE_EMAIL_NOTIFICATIONS: "true"
+#        EMAIL_SMTP_SERVER: "smtp.gmail.com"
+#        EMAIL_SMTP_PORT: "587"
+#        EMAIL_SMTP_USER: "prasannasrie@gmail.com"
+#        EMAIL_SMTP_PASS: "lrnu krfm aarp urux"
+#    scripts:
+#      - name: Build Android APK
+#        script: |
+#          chmod +x lib/scripts/android/*.sh
+#          chmod +x lib/scripts/utils/*.sh
+#          ./lib/scripts/android/main.sh
+#    artifacts:
+#      - build/app/outputs/flutter-apk/app-release.apk
+#      - output/android/app-release.apk
+#
+#  android-paid:
+#    name: Android Paid Build
+#    max_build_duration: 60
+#    instance_type: mac_mini_m2
+#    environment:
+#      flutter: 3.32.2
+#      java: 17
+#      vars:
+#        # Enhanced build time optimization variables
+#        GRADLE_OPTS: "-Xmx8G -XX:MaxMetaspaceSize=2G -XX:ReservedCodeCacheSize=512m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat "
+#        XCODE_PARALLEL_JOBS: "6"
+#
+#        # Build acceleration variables
+#        GRADLE_DAEMON: "true"
+#        GRADLE_PARALLEL: "true"
+#        GRADLE_CACHING: "true"
+#        FLUTTER_PUB_CACHE: "true"
+#        ENABLE_GRADLE_DAEMON: "true"
+#        GRADLE_OPTS_DAEMON: "-Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.configureondemand=true"
+#
+#        # Asset optimization
+#        ASSET_OPTIMIZATION: "true"
+#        IMAGE_COMPRESSION: "true"
+#        PARALLEL_DOWNLOADS: "true"
+#
+#        APP_ID: $APP_ID
+#        WORKFLOW_ID: "android-paid"
+#        BRANCH: $BRANCH
+#        VERSION_NAME: $VERSION_NAME
+#        VERSION_CODE: $VERSION_CODE
+#        APP_NAME: $APP_NAME
+#        ORG_NAME: $ORG_NAME
+#        WEB_URL: $WEB_URL
+#        PKG_NAME: $PKG_NAME
+#        EMAIL_ID: $EMAIL_ID
+#        USER_NAME: $USER_NAME
+#        PUSH_NOTIFY: $PUSH_NOTIFY
+#        IS_CHATBOT: $IS_CHATBOT
+#        IS_DOMAIN_URL: $IS_DOMAIN_URL
+#        IS_SPLASH: $IS_SPLASH
+#        IS_PULLDOWN: $IS_PULLDOWN
+#        IS_BOTTOMMENU: $IS_BOTTOMMENU
+#        IS_LOAD_IND: $IS_LOAD_IND
+#        IS_CAMERA: $IS_CAMERA
+#        IS_LOCATION: $IS_LOCATION
+#        IS_MIC: $IS_MIC
+#        IS_NOTIFICATION: $IS_NOTIFICATION
+#        IS_CONTACT: $IS_CONTACT
+#        IS_BIOMETRIC: $IS_BIOMETRIC
+#        IS_CALENDAR: $IS_CALENDAR
+#        IS_STORAGE: $IS_STORAGE
+#        LOGO_URL: $LOGO_URL
+#        SPLASH_URL: $SPLASH_URL
+#        SPLASH_BG_URL: $SPLASH_BG_URL
+#        SPLASH_BG_COLOR: $SPLASH_BG_COLOR
+#        SPLASH_TAGLINE: $SPLASH_TAGLINE
+#        SPLASH_TAGLINE_COLOR: $SPLASH_TAGLINE_COLOR
+#        SPLASH_ANIMATION: $SPLASH_ANIMATION
+#        SPLASH_DURATION: $SPLASH_DURATION
+#        FIREBASE_CONFIG_ANDROID: $FIREBASE_CONFIG_ANDROID
+#        #        KEY_STORE_URL: ""
+#        ENABLE_EMAIL_NOTIFICATIONS: "true"
+#        EMAIL_SMTP_SERVER: "smtp.gmail.com"
+#        EMAIL_SMTP_PORT: "587"
+#        EMAIL_SMTP_USER: "prasannasrie@gmail.com"
+#        EMAIL_SMTP_PASS: "lrnu krfm aarp urux"
+#    scripts:
+#      - name: Build Android APK
+#        script: |
+#          chmod +x lib/scripts/android/*.sh
+#          chmod +x lib/scripts/utils/*.sh
+#          ./lib/scripts/android/main.sh
+#    artifacts:
+#      - build/app/outputs/flutter-apk/app-release.apk
+#      - output/android/app-release.apk
+#
+#  android-publish:
+#    name: Android Publish Build
+#    max_build_duration: 60
+#    instance_type: mac_mini_m2
+#    environment:
+#      flutter: 3.32.2
+#      java: 17
+#      vars:
+#        # Enhanced build time optimization variables
+#        GRADLE_OPTS: "-Xmx8G -XX:MaxMetaspaceSize=2G -XX:ReservedCodeCacheSize=512m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat "
+#        XCODE_PARALLEL_JOBS: "6"
+#
+#        # Build acceleration variables
+#        GRADLE_DAEMON: "true"
+#        GRADLE_PARALLEL: "true"
+#        GRADLE_CACHING: "true"
+#        FLUTTER_PUB_CACHE: "true"
+#        ENABLE_GRADLE_DAEMON: "true"
+#        GRADLE_OPTS_DAEMON: "-Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.configureondemand=true"
+#
+#        # Asset optimization
+#        ASSET_OPTIMIZATION: "true"
+#        IMAGE_COMPRESSION: "true"
+#        PARALLEL_DOWNLOADS: "true"
+#
+#        APP_ID: $APP_ID
+#        WORKFLOW_ID: "android-publish"
+#        BRANCH: $BRANCH
+#        VERSION_NAME: $VERSION_NAME
+#        VERSION_CODE: $VERSION_CODE
+#        APP_NAME: $APP_NAME
+#        ORG_NAME: $ORG_NAME
+#        WEB_URL: $WEB_URL
+#        PKG_NAME: $PKG_NAME
+#        EMAIL_ID: $EMAIL_ID
+#        USER_NAME: $USER_NAME
+#        PUSH_NOTIFY: $PUSH_NOTIFY
+#        IS_CHATBOT: $IS_CHATBOT
+#        IS_DOMAIN_URL: $IS_DOMAIN_URL
+#        IS_SPLASH: $IS_SPLASH
+#        IS_PULLDOWN: $IS_PULLDOWN
+#        IS_BOTTOMMENU: $IS_BOTTOMMENU
+#        IS_LOAD_IND: $IS_LOAD_IND
+#        IS_CAMERA: $IS_CAMERA
+#        IS_LOCATION: $IS_LOCATION
+#        IS_MIC: $IS_MIC
+#        IS_NOTIFICATION: $IS_NOTIFICATION
+#        IS_CONTACT: $IS_CONTACT
+#        IS_BIOMETRIC: $IS_BIOMETRIC
+#        IS_CALENDAR: $IS_CALENDAR
+#        IS_STORAGE: $IS_STORAGE
+#        LOGO_URL: $LOGO_URL
+#        SPLASH_URL: $SPLASH_URL
+#        SPLASH_BG_URL: $SPLASH_BG_URL
+#        SPLASH_BG_COLOR: $SPLASH_BG_COLOR
+#        SPLASH_TAGLINE: $SPLASH_TAGLINE
+#        SPLASH_TAGLINE_COLOR: $SPLASH_TAGLINE_COLOR
+#        SPLASH_ANIMATION: $SPLASH_ANIMATION
+#        SPLASH_DURATION: $SPLASH_DURATION
+#        FIREBASE_CONFIG_ANDROID: $FIREBASE_CONFIG_ANDROID
+#        KEY_STORE_URL: $KEY_STORE_URL
+#        CM_KEYSTORE_PASSWORD: $CM_KEYSTORE_PASSWORD
+#        CM_KEY_ALIAS: $CM_KEY_ALIAS
+#        CM_KEY_PASSWORD: $CM_KEY_PASSWORD
+#        ENABLE_EMAIL_NOTIFICATIONS: "true"
+#        EMAIL_SMTP_SERVER: "smtp.gmail.com"
+#        EMAIL_SMTP_PORT: "587"
+#        EMAIL_SMTP_USER: "prasannasrie@gmail.com"
+#        EMAIL_SMTP_PASS: "lrnu krfm aarp urux"
+#    scripts:
+#      - name: Build Android APK and AAB
+#        script: |
+#          chmod +x lib/scripts/android/*.sh
+#          chmod +x lib/scripts/utils/*.sh
+#          ./lib/scripts/android/main.sh
+#    artifacts:
+#      - build/app/outputs/flutter-apk/app-release.apk
+#      - build/app/outputs/bundle/release/app-release.aab
+#      - output/android/app-release.apk
+#      - output/android/app-release.aab
+#
+#  ios-appstore:
+#    name: iOS App Store Build
+#    max_build_duration: 60
+#    instance_type: mac_mini_m2
+#    environment:
+#      flutter: 3.32.2
+#      java: 17
+#      xcode: 15.4
+#      cocoapods: 1.16.2
+#      vars:
+#        # Enhanced build time optimization variables
+#        GRADLE_OPTS: "-Xmx8G -XX:MaxMetaspaceSize=2G -XX:ReservedCodeCacheSize=512m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat "
+#        XCODE_PARALLEL_JOBS: "6"
+#
+#        # iOS build acceleration
+#        XCODE_FAST_BUILD: "true"
+#        COCOAPODS_FAST_INSTALL: "true"
+#        XCODE_SKIP_SIGNING: "false"
+#        XCODE_OPTIMIZATION: "true"
+#
+#        # Asset optimization
+#        ASSET_OPTIMIZATION: "true"
+#        IMAGE_COMPRESSION: "true"
+#        PARALLEL_DOWNLOADS: "true"
+#
+#        APP_ID: $APP_ID
+#        WORKFLOW_ID: "ios-appstore"
+#        BRANCH: $BRANCH
+#        VERSION_NAME: $VERSION_NAME
+#        VERSION_CODE: $VERSION_CODE
+#        APP_NAME: $APP_NAME
+#        ORG_NAME: $ORG_NAME
+#        WEB_URL: $WEB_URL
+#        BUNDLE_ID: $BUNDLE_ID
+#        EMAIL_ID: $EMAIL_ID
+#        USER_NAME: $USER_NAME
+#        PUSH_NOTIFY: $PUSH_NOTIFY
+#        IS_CHATBOT: $IS_CHATBOT
+#        IS_DOMAIN_URL: $IS_DOMAIN_URL
+#        IS_SPLASH: $IS_SPLASH
+#        IS_PULLDOWN: $IS_PULLDOWN
+#        IS_BOTTOMMENU: $IS_BOTTOMMENU
+#        IS_LOAD_IND: $IS_LOAD_IND
+#        IS_CAMERA: $IS_CAMERA
+#        IS_LOCATION: $IS_LOCATION
+#        IS_MIC: $IS_MIC
+#        IS_NOTIFICATION: $IS_NOTIFICATION
+#        IS_CONTACT: $IS_CONTACT
+#        IS_BIOMETRIC: $IS_BIOMETRIC
+#        IS_CALENDAR: $IS_CALENDAR
+#        IS_STORAGE: $IS_STORAGE
+#        LOGO_URL: $LOGO_URL
+#        SPLASH_URL: $SPLASH_URL
+#        SPLASH_BG_URL: $SPLASH_BG_URL
+#        SPLASH_BG_COLOR: $SPLASH_BG_COLOR
+#        SPLASH_TAGLINE: $SPLASH_TAGLINE
+#        SPLASH_TAGLINE_COLOR: $SPLASH_TAGLINE_COLOR
+#        SPLASH_ANIMATION: $SPLASH_ANIMATION
+#        SPLASH_DURATION: $SPLASH_DURATION
+#        FIREBASE_CONFIG_IOS: $FIREBASE_CONFIG_IOS
+#        APPLE_TEAM_ID: $APPLE_TEAM_ID
+#        APNS_KEY_ID: $APNS_KEY_ID
+#        APNS_AUTH_KEY_URL: $APNS_AUTH_KEY_URL
+#        CERT_PASSWORD: $CERT_PASSWORD
+#        PROFILE_URL: $PROFILE_URL
+#        CERT_P12_URL: $CERT_P12_URL
+#        CERT_CER_URL: $CERT_CER_URL
+#        CERT_KEY_URL: $CERT_KEY_URL
+#        PROFILE_TYPE: "app-store"
+#        APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
+#        ENABLE_EMAIL_NOTIFICATIONS: "true"
+#        EMAIL_SMTP_SERVER: "smtp.gmail.com"
+#        EMAIL_SMTP_PORT: "587"
+#        EMAIL_SMTP_USER: "prasannasrie@gmail.com"
+#        EMAIL_SMTP_PASS: "lrnu krfm aarp urux"
+#        ENABLE_DEVICE_SPECIFIC_BUILDS: $ENABLE_DEVICE_SPECIFIC_BUILDS
+#        INSTALL_URL: $INSTALL_URL
+#        DISPLAY_IMAGE_URL: $DISPLAY_IMAGE_URL
+#        FULL_SIZE_IMAGE_URL: $FULL_SIZE_IMAGE_URL
+#        THINNING: $THINNING
+#    scripts:
+#      - name: Build iOS App Store IPA
+#        script: |
+#          chmod +x lib/scripts/ios/*.sh
+#          chmod +x lib/scripts/utils/*.sh
+#          ./lib/scripts/ios/main.sh
+#    artifacts:
+#      - build/ios/ipa/*.ipa
+#      - ios/build/ios/ipa/*.ipa
+#      - output/ios/Runner.ipa
+#
+#  ios-adhoc:
+#    name: iOS Ad Hoc Build
+#    max_build_duration: 60
+#    instance_type: mac_mini_m2
+#    environment:
+#      flutter: 3.32.2
+#      java: 17
+#      xcode: 15.4
+#      cocoapods: 1.16.2
+#      vars:
+#        # Enhanced build time optimization variables
+#        GRADLE_OPTS: "-Xmx8G -XX:MaxMetaspaceSize=2G -XX:ReservedCodeCacheSize=512m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat "
+#        XCODE_PARALLEL_JOBS: "6"
+#
+#        # iOS build acceleration
+#        XCODE_FAST_BUILD: "true"
+#        COCOAPODS_FAST_INSTALL: "true"
+#        XCODE_SKIP_SIGNING: "false"
+#        XCODE_OPTIMIZATION: "true"
+#
+#        # Asset optimization
+#        ASSET_OPTIMIZATION: "true"
+#        IMAGE_COMPRESSION: "true"
+#        PARALLEL_DOWNLOADS: "true"
+#
+#        APP_ID: $APP_ID
+#        WORKFLOW_ID: "ios-adhoc"
+#        BRANCH: $BRANCH
+#        VERSION_NAME: $VERSION_NAME
+#        VERSION_CODE: $VERSION_CODE
+#        APP_NAME: $APP_NAME
+#        ORG_NAME: $ORG_NAME
+#        WEB_URL: $WEB_URL
+#        BUNDLE_ID: $BUNDLE_ID
+#        EMAIL_ID: $EMAIL_ID
+#        USER_NAME: $USER_NAME
+#        PUSH_NOTIFY: $PUSH_NOTIFY
+#        IS_CHATBOT: $IS_CHATBOT
+#        IS_DOMAIN_URL: $IS_DOMAIN_URL
+#        IS_SPLASH: $IS_SPLASH
+#        IS_PULLDOWN: $IS_PULLDOWN
+#        IS_BOTTOMMENU: $IS_BOTTOMMENU
+#        IS_LOAD_IND: $IS_LOAD_IND
+#        IS_CAMERA: $IS_CAMERA
+#        IS_LOCATION: $IS_LOCATION
+#        IS_MIC: $IS_MIC
+#        IS_NOTIFICATION: $IS_NOTIFICATION
+#        IS_CONTACT: $IS_CONTACT
+#        IS_BIOMETRIC: $IS_BIOMETRIC
+#        IS_CALENDAR: $IS_CALENDAR
+#        IS_STORAGE: $IS_STORAGE
+#        LOGO_URL: $LOGO_URL
+#        SPLASH_URL: $SPLASH_URL
+#        SPLASH_BG_URL: $SPLASH_BG_URL
+#        SPLASH_BG_COLOR: $SPLASH_BG_COLOR
+#        SPLASH_TAGLINE: $SPLASH_TAGLINE
+#        SPLASH_TAGLINE_COLOR: $SPLASH_TAGLINE_COLOR
+#        SPLASH_ANIMATION: $SPLASH_ANIMATION
+#        SPLASH_DURATION: $SPLASH_DURATION
+#        FIREBASE_CONFIG_IOS: $FIREBASE_CONFIG_IOS
+#        APPLE_TEAM_ID: $APPLE_TEAM_ID
+#        APNS_KEY_ID: $APNS_KEY_ID
+#        APNS_AUTH_KEY_URL: $APNS_AUTH_KEY_URL
+#        CERT_PASSWORD: $CERT_PASSWORD
+#        PROFILE_URL: $PROFILE_URL
+#        CERT_P12_URL: $CERT_P12_URL
+#        CERT_CER_URL: $CERT_CER_URL
+#        CERT_KEY_URL: $CERT_KEY_URL
+#        PROFILE_TYPE: "ad-hoc"
+#        APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
+#        ENABLE_EMAIL_NOTIFICATIONS: "true"
+#        EMAIL_SMTP_SERVER: "smtp.gmail.com"
+#        EMAIL_SMTP_PORT: "587"
+#        EMAIL_SMTP_USER: "prasannasrie@gmail.com"
+#        EMAIL_SMTP_PASS: "lrnu krfm aarp urux"
+#        ENABLE_DEVICE_SPECIFIC_BUILDS: $ENABLE_DEVICE_SPECIFIC_BUILDS
+#        INSTALL_URL: $INSTALL_URL
+#        DISPLAY_IMAGE_URL: $DISPLAY_IMAGE_URL
+#        FULL_SIZE_IMAGE_URL: $FULL_SIZE_IMAGE_URL
+#        THINNING: $THINNING
+#    scripts:
+#      - name: Build iOS Ad Hoc IPA
+#        script: |
+#          chmod +x lib/scripts/ios/*.sh
+#          chmod +x lib/scripts/utils/*.sh
+#          ./lib/scripts/ios/main.sh
+#    artifacts:
+#      - build/ios/ipa/*.ipa
+#      - ios/build/ios/ipa/*.ipa
+#      - output/ios/Runner.ipa
+#
+#  combined:
+#    name: Universal Combined Build (Android + iOS)
+#    max_build_duration: 120
+#    instance_type: mac_mini_m2
+#    environment:
+#      flutter: 3.32.2
+#      java: 17
+#      xcode: 15.4
+#      cocoapods: 1.16.2
+#      vars:
+#        # Enhanced build time optimization variables
+#        GRADLE_OPTS: "-Xmx8G -XX:MaxMetaspaceSize=2G -XX:ReservedCodeCacheSize=512m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat "
+#        XCODE_PARALLEL_JOBS: "6"
+#
+#        # Build acceleration variables
+#        GRADLE_DAEMON: "true"
+#        GRADLE_PARALLEL: "true"
+#        GRADLE_CACHING: "true"
+#        FLUTTER_PUB_CACHE: "true"
+#        ENABLE_GRADLE_DAEMON: "true"
+#        GRADLE_OPTS_DAEMON: "-Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.configureondemand=true"
+#
+#        # iOS build acceleration
+#        XCODE_FAST_BUILD: "true"
+#        COCOAPODS_FAST_INSTALL: "true"
+#        XCODE_SKIP_SIGNING: "false"
+#        XCODE_OPTIMIZATION: "true"
+#
+#        # Asset optimization
+#        ASSET_OPTIMIZATION: "true"
+#        IMAGE_COMPRESSION: "true"
+#        PARALLEL_DOWNLOADS: "true"
+#
+#        # Universal App Configuration
+#        APP_ID: $APP_ID
+#        WORKFLOW_ID: "combined"
+#        BRANCH: $BRANCH
+#        VERSION_NAME: $VERSION_NAME
+#        VERSION_CODE: $VERSION_CODE
+#        APP_NAME: $APP_NAME
+#        ORG_NAME: $ORG_NAME
+#        WEB_URL: $WEB_URL
+#        PKG_NAME: $PKG_NAME
+#        BUNDLE_ID: $BUNDLE_ID
+#        EMAIL_ID: $EMAIL_ID
+#        USER_NAME: $USER_NAME
+#
+#        # Feature Flags (Auto-detected)
+#        PUSH_NOTIFY: $PUSH_NOTIFY
+#        IS_CHATBOT: $IS_CHATBOT
+#        IS_DOMAIN_URL: $IS_DOMAIN_URL
+#        IS_SPLASH: $IS_SPLASH
+#        IS_PULLDOWN: $IS_PULLDOWN
+#        IS_BOTTOMMENU: $IS_BOTTOMMENU
+#        IS_LOAD_IND: $IS_LOAD_IND
+#        IS_CAMERA: $IS_CAMERA
+#        IS_LOCATION: $IS_LOCATION
+#        IS_MIC: $IS_MIC
+#        IS_NOTIFICATION: $IS_NOTIFICATION
+#        IS_CONTACT: $IS_CONTACT
+#        IS_BIOMETRIC: $IS_BIOMETRIC
+#        IS_CALENDAR: $IS_CALENDAR
+#        IS_STORAGE: $IS_STORAGE
+#
+#        # UI/Branding Configuration
+#        LOGO_URL: $LOGO_URL
+#        SPLASH_URL: $SPLASH_URL
+#        SPLASH_BG_URL: $SPLASH_BG_URL
+#        SPLASH_BG_COLOR: $SPLASH_BG_COLOR
+#        SPLASH_TAGLINE: $SPLASH_TAGLINE
+#        SPLASH_TAGLINE_COLOR: $SPLASH_TAGLINE_COLOR
+#        SPLASH_ANIMATION: $SPLASH_ANIMATION
+#        SPLASH_DURATION: $SPLASH_DURATION
+#
+#        # Android Configuration (Auto-detected)
+#        FIREBASE_CONFIG_ANDROID: $FIREBASE_CONFIG_ANDROID
+#        KEY_STORE_URL: $KEY_STORE_URL
+#        CM_KEYSTORE_PASSWORD: $CM_KEYSTORE_PASSWORD
+#        CM_KEY_ALIAS: $CM_KEY_ALIAS
+#        CM_KEY_PASSWORD: $CM_KEY_PASSWORD
+#
+#        # iOS Configuration (Auto-detected)
+#        FIREBASE_CONFIG_IOS: $FIREBASE_CONFIG_IOS
+#        APPLE_TEAM_ID: $APPLE_TEAM_ID
+#        APNS_KEY_ID: $APNS_KEY_ID
+#        APNS_AUTH_KEY_URL: $APNS_AUTH_KEY_URL
+#        CERT_PASSWORD: $CERT_PASSWORD
+#        PROFILE_URL: $PROFILE_URL
+#        CERT_P12_URL: $CERT_P12_URL
+#        CERT_CER_URL: $CERT_CER_URL
+#        CERT_KEY_URL: $CERT_KEY_URL
+#        PROFILE_TYPE: $PROFILE_TYPE
+#        APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
+#
+#        # Email Configuration
+#        ENABLE_EMAIL_NOTIFICATIONS: "true"
+#        EMAIL_SMTP_SERVER: "smtp.gmail.com"
+#        EMAIL_SMTP_PORT: "587"
+#        EMAIL_SMTP_USER: "prasannasrie@gmail.com"
+#        EMAIL_SMTP_PASS: "lrnu krfm aarp urux"
+#
+#        # iOS Distribution Options
+#        ENABLE_DEVICE_SPECIFIC_BUILDS: $ENABLE_DEVICE_SPECIFIC_BUILDS
+#        INSTALL_URL: $INSTALL_URL
+#        DISPLAY_IMAGE_URL: $DISPLAY_IMAGE_URL
+#        FULL_SIZE_IMAGE_URL: $FULL_SIZE_IMAGE_URL
+#        THINNING: $THINNING
+#
+#    scripts:
+#      - name: Universal Combined Build
+#        script: |
+#          chmod +x lib/scripts/combined/*.sh
+#          chmod +x lib/scripts/utils/*.sh
+#          ./lib/scripts/combined/main.sh
+#    artifacts:
+#      - build/app/outputs/flutter-apk/app-release.apk
+#      - build/app/outputs/bundle/release/app-release.aab
+#      - build/ios/ipa/*.ipa
+#      - ios/build/ios/ipa/*.ipa
+#      - output/android/app-release.apk
+#      - output/android/app-release.aab
+#      - output/ios/Runner.ipa

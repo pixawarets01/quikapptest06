@@ -14,10 +14,10 @@ class EnvConfig {
   static const String userName = "";
   static const String emailId = "";
   static const String branch = "main";
-  static const String workflowId = "";
+  static const String workflowId = "android-publish";
 
   // Package Identifiers
-  static const String pkgName = "";
+  static const String pkgName = "com.garbcode.garbcodeapp";
   static const String bundleId = "";
 
   // Feature Flags (converted to bool)
@@ -50,7 +50,7 @@ class EnvConfig {
   static const int splashDuration = 3;
 
   // Bottom Menu Configuration
-  static const String bottommenuItems = "[]";
+  static const String bottommenuItems = """[]""";
   static const String bottommenuBgColor = "#FFFFFF";
   static const String bottommenuIconColor = "#000000";
   static const String bottommenuTextColor = "#000000";
@@ -67,10 +67,10 @@ class EnvConfig {
   static const String firebaseConfigIos = "";
 
   // Android Signing
-  static const String keyStoreUrl = "";
-  static const String cmKeystorePassword = "";
-  static const String cmKeyAlias = "";
-  static const String cmKeyPassword = "";
+  static const String keyStoreUrl = "https://raw.githubusercontent.com/prasanna91/QuikApp/main/keystore.jks";
+  static const String cmKeystorePassword = "opeN@1234";
+  static const String cmKeyAlias = "my_key_alias";
+  static const String cmKeyPassword = "opeN@1234";
 
   // iOS Signing
   static const String appleTeamId = "";

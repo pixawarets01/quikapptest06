@@ -4,6 +4,7 @@ import java.io.FileInputStream
 plugins {
     id("com.android.application")
     id("kotlin-android")
+    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -20,18 +21,40 @@ android {
 
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_11.toString()
+        // Enhanced Kotlin compilation optimizations
+        freeCompilerArgs += listOf(
+            "-Xno-param-assertions",
+            "-Xno-call-assertions",
+            "-Xno-receiver-assertions",
+            "-Xno-optimized-callable-references",
+            "-Xuse-ir",
+            "-Xskip-prerelease-check"
+        )
     }
 
     defaultConfig {
+        // Application ID will be updated by customization script
         applicationId = "com.garbcode.garbcodeapp"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = 43
-        versionName = "1.0.7"
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
         
+        // Optimized architecture targeting
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")
         }
+    }
+
+    // Enhanced AGP 8.7.3 optimizations
+    buildFeatures {
+        buildConfig = true
+        aidl = false
+        renderScript = false
+        resValues = false
+        shaders = false
+        viewBinding = false
+        dataBinding = false
     }
 
     signingConfigs {
@@ -56,12 +79,23 @@ android {
                 signingConfig = signingConfigs.getByName("release")
                 println("🔐 Using RELEASE signing with keystore")
             } else {
+                // Fallback to debug signing if keystore not available
                 signingConfig = signingConfigs.getByName("debug")
                 println("⚠️ Using DEBUG signing (keystore not found)")
             }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+    
+    // Build optimization settings
+    packaging {
+        jniLibs {
+            useLegacyPackaging = false
+        }
+        resources {
+            excludes += listOf("META-INF/DEPENDENCIES", "META-INF/LICENSE", "META-INF/LICENSE.txt", "META-INF/license.txt", "META-INF/NOTICE", "META-INF/NOTICE.txt", "META-INF/notice.txt", "META-INF/ASL2.0", "META-INF/*.kotlin_module")
         }
     }
 }
