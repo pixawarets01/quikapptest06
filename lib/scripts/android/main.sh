@@ -264,6 +264,124 @@ fi
 # Create necessary directories
 mkdir -p output/android
 
+# ============================================================================
+# 🔍 COMPREHENSIVE VARIABLE VALIDATION AND DEBUG INFORMATION
+# ============================================================================
+
+log "🔍 ===== COMPREHENSIVE VARIABLE VALIDATION AND DEBUG ====="
+
+# Function to validate and display variable
+validate_var() {
+    local var_name=$1
+    local var_value=$2
+    local is_required=$3
+    local description=$4
+    
+    if [ -n "$var_value" ]; then
+        log "✅ $var_name: '$var_value' - $description"
+    else
+        if [ "$is_required" = "true" ]; then
+            log "❌ $var_name: [MISSING - REQUIRED] - $description"
+        else
+            log "⚠️  $var_name: [EMPTY - OPTIONAL] - $description"
+        fi
+    fi
+}
+
+log "📱 ===== APP METADATA VARIABLES ====="
+validate_var "APP_ID" "${APP_ID:-}" "true" "Unique app identifier"
+validate_var "APP_NAME" "${APP_NAME:-}" "true" "Application display name"
+validate_var "ORG_NAME" "${ORG_NAME:-}" "true" "Organization name"
+validate_var "WEB_URL" "${WEB_URL:-}" "true" "Website URL"
+validate_var "USER_NAME" "${USER_NAME:-}" "true" "Developer username"
+validate_var "EMAIL_ID" "${EMAIL_ID:-}" "true" "Developer email"
+
+log "📦 ===== PACKAGE AND VERSION VARIABLES ====="
+validate_var "PKG_NAME" "${PKG_NAME:-}" "true" "Android package name"
+validate_var "VERSION_NAME" "${VERSION_NAME:-}" "true" "App version name"
+validate_var "VERSION_CODE" "${VERSION_CODE:-}" "true" "App version code"
+validate_var "WORKFLOW_ID" "${WORKFLOW_ID:-}" "true" "Build workflow identifier"
+
+log "🎨 ===== BRANDING VARIABLES ====="
+validate_var "LOGO_URL" "${LOGO_URL:-}" "true" "App logo image URL"
+validate_var "SPLASH_URL" "${SPLASH_URL:-}" "false" "Splash screen image URL"
+validate_var "SPLASH_BG_URL" "${SPLASH_BG_URL:-}" "false" "Splash background image URL"
+validate_var "SPLASH_BG_COLOR" "${SPLASH_BG_COLOR:-}" "false" "Splash background color"
+
+log "🔧 ===== FEATURE FLAGS ====="
+validate_var "PUSH_NOTIFY" "${PUSH_NOTIFY:-}" "false" "Push notifications enabled"
+validate_var "IS_CHATBOT" "${IS_CHATBOT:-}" "false" "Chatbot feature enabled"
+validate_var "IS_DOMAIN_URL" "${IS_DOMAIN_URL:-}" "false" "Deep linking enabled"
+validate_var "IS_SPLASH" "${IS_SPLASH:-}" "false" "Splash screen enabled"
+validate_var "IS_PULLDOWN" "${IS_PULLDOWN:-}" "false" "Pull to refresh enabled"
+validate_var "IS_BOTTOMMENU" "${IS_BOTTOMMENU:-}" "false" "Bottom menu enabled"
+validate_var "IS_LOAD_IND" "${IS_LOAD_IND:-}" "false" "Loading indicator enabled"
+
+log "🔐 ===== PERMISSION FLAGS ====="
+validate_var "IS_CAMERA" "${IS_CAMERA:-}" "false" "Camera permission"
+validate_var "IS_LOCATION" "${IS_LOCATION:-}" "false" "Location permission"
+validate_var "IS_MIC" "${IS_MIC:-}" "false" "Microphone permission"
+validate_var "IS_NOTIFICATION" "${IS_NOTIFICATION:-}" "false" "Notification permission"
+validate_var "IS_CONTACT" "${IS_CONTACT:-}" "false" "Contacts permission"
+validate_var "IS_BIOMETRIC" "${IS_BIOMETRIC:-}" "false" "Biometric permission"
+validate_var "IS_CALENDAR" "${IS_CALENDAR:-}" "false" "Calendar permission"
+validate_var "IS_STORAGE" "${IS_STORAGE:-}" "false" "Storage permission"
+
+log "🔥 ===== FIREBASE CONFIGURATION ====="
+validate_var "FIREBASE_CONFIG_ANDROID" "${FIREBASE_CONFIG_ANDROID:-}" "false" "Firebase Android config URL"
+
+log "🔐 ===== ANDROID KEYSTORE VARIABLES ====="
+validate_var "KEY_STORE_URL" "${KEY_STORE_URL:-}" "false" "Keystore file URL"
+validate_var "CM_KEYSTORE_PASSWORD" "${CM_KEYSTORE_PASSWORD:-}" "false" "Keystore password"
+validate_var "CM_KEY_ALIAS" "${CM_KEY_ALIAS:-}" "false" "Key alias"
+validate_var "CM_KEY_PASSWORD" "${CM_KEY_PASSWORD:-}" "false" "Key password"
+
+log "📧 ===== EMAIL NOTIFICATION VARIABLES ====="
+validate_var "ENABLE_EMAIL_NOTIFICATIONS" "${ENABLE_EMAIL_NOTIFICATIONS:-}" "false" "Email notifications enabled"
+validate_var "EMAIL_SMTP_SERVER" "${EMAIL_SMTP_SERVER:-}" "false" "SMTP server"
+validate_var "EMAIL_SMTP_PORT" "${EMAIL_SMTP_PORT:-}" "false" "SMTP port"
+validate_var "EMAIL_SMTP_USER" "${EMAIL_SMTP_USER:-}" "false" "SMTP username"
+validate_var "EMAIL_SMTP_PASS" "${EMAIL_SMTP_PASS:+[SET]}" "false" "SMTP password"
+
+log "🏗️ ===== BUILD ENVIRONMENT VARIABLES ====="
+validate_var "CM_BUILD_ID" "${CM_BUILD_ID:-}" "false" "Codemagic build ID"
+validate_var "CM_PROJECT_ID" "${CM_PROJECT_ID:-}" "false" "Codemagic project ID"
+validate_var "BUILD_MODE" "${BUILD_MODE:-}" "false" "Build mode (debug/release)"
+
+log "🔍 ===== CRITICAL VARIABLE VALIDATION ====="
+
+# Check for critical missing variables
+MISSING_CRITICAL=()
+
+[ -z "${APP_NAME:-}" ] && MISSING_CRITICAL+=("APP_NAME")
+[ -z "${PKG_NAME:-}" ] && MISSING_CRITICAL+=("PKG_NAME")
+[ -z "${VERSION_NAME:-}" ] && MISSING_CRITICAL+=("VERSION_NAME")
+[ -z "${VERSION_CODE:-}" ] && MISSING_CRITICAL+=("VERSION_CODE")
+[ -z "${LOGO_URL:-}" ] && MISSING_CRITICAL+=("LOGO_URL")
+
+if [ ${#MISSING_CRITICAL[@]} -gt 0 ]; then
+    log "❌ CRITICAL ERROR: Missing required variables:"
+    for var in "${MISSING_CRITICAL[@]}"; do
+        log "   - $var"
+    done
+    log "🛑 Build cannot continue without these variables"
+    exit 1
+else
+    log "✅ All critical variables are present"
+fi
+
+log "🎯 ===== BUILD CONFIGURATION SUMMARY ====="
+log "   App: ${APP_NAME:-Unknown} v${VERSION_NAME:-0.0.0} (${VERSION_CODE:-0})"
+log "   Package: ${PKG_NAME:-Unknown}"
+log "   Workflow: ${WORKFLOW_ID:-Unknown}"
+log "   Firebase: ${PUSH_NOTIFY:-false}"
+log "   Keystore: ${KEY_STORE_URL:+Available}"
+log "   Email: ${ENABLE_EMAIL_NOTIFICATIONS:-false}"
+
+log "🔍 ===== END VARIABLE VALIDATION ====="
+
+# ============================================================================
+
 # Run version management first (resolves package conflicts)
 log "🔄 Running version management and conflict resolution..."
 if [ -f "lib/scripts/android/version_management.sh" ]; then
@@ -277,8 +395,6 @@ if [ -f "lib/scripts/android/version_management.sh" ]; then
 else
     log "⚠️ Version management script not found, skipping..."
 fi
-
-
 
 # Enhanced asset download with parallel processing
 log "📥 Starting enhanced asset download..."
@@ -465,8 +581,239 @@ else
     exit 1
 fi
 
+# ============================================================================
+# 🔍 FINAL STATE DEBUG INFORMATION (AFTER ALL CHANGES)
+# ============================================================================
+
+log "🔍 ===== FINAL STATE DEBUG INFORMATION ====="
+
+log "📱 ===== PUBSPEC.YAML VERSION CHECK ====="
+if [ -f "pubspec.yaml" ]; then
+    VERSION_LINE=$(grep "^version:" pubspec.yaml || echo "version: NOT_FOUND")
+    log "✅ pubspec.yaml version: $VERSION_LINE"
+else
+    log "❌ pubspec.yaml not found"
+fi
+
+log "🏗️ ===== BUILD.GRADLE.KTS CONFIGURATION CHECK ====="
+if [ -f "android/app/build.gradle.kts" ]; then
+    log "✅ build.gradle.kts exists"
+    
+    # Check namespace
+    NAMESPACE_LINE=$(grep "namespace = " android/app/build.gradle.kts || echo "namespace = NOT_FOUND")
+    log "📦 Namespace: $NAMESPACE_LINE"
+    
+    # Check applicationId
+    APP_ID_LINE=$(grep "applicationId = " android/app/build.gradle.kts || echo "applicationId = NOT_FOUND")
+    log "📦 Application ID: $APP_ID_LINE"
+    
+    # Check versionCode
+    VERSION_CODE_LINE=$(grep "versionCode = " android/app/build.gradle.kts || echo "versionCode = NOT_FOUND")
+    log "📊 Version Code: $VERSION_CODE_LINE"
+    
+    # Check versionName
+    VERSION_NAME_LINE=$(grep "versionName = " android/app/build.gradle.kts || echo "versionName = NOT_FOUND")
+    log "📊 Version Name: $VERSION_NAME_LINE"
+    
+    # Check for any bash syntax (should be none)
+    if grep -q '\${' android/app/build.gradle.kts; then
+        log "❌ CRITICAL: Found bash syntax in build.gradle.kts:"
+        grep '\${' android/app/build.gradle.kts | while read -r line; do
+            log "   🚨 $line"
+        done
+        log "🛑 This will cause Gradle compilation errors!"
+        exit 1
+    else
+        log "✅ No bash syntax found in build.gradle.kts"
+    fi
+    
+    # Check signing configuration
+    if grep -q "signingConfigs" android/app/build.gradle.kts; then
+        log "🔐 Signing configuration: Present"
+        if grep -q "keystorePropertiesFile.exists()" android/app/build.gradle.kts; then
+            log "🔐 Keystore configuration: Dynamic (checks for keystore.properties)"
+        fi
+    else
+        log "🔐 Signing configuration: Missing"
+    fi
+else
+    log "❌ build.gradle.kts not found"
+    exit 1
+fi
+
+log "📋 ===== ANDROIDMANIFEST.XML CHECK ====="
+if [ -f "android/app/src/main/AndroidManifest.xml" ]; then
+    log "✅ AndroidManifest.xml exists"
+    
+    # Check package attribute
+    PACKAGE_LINE=$(grep "package=" android/app/src/main/AndroidManifest.xml || echo "package=NOT_FOUND")
+    log "📦 Package attribute: $PACKAGE_LINE"
+    
+    # Check permissions
+    PERMISSION_COUNT=$(grep -c "uses-permission" android/app/src/main/AndroidManifest.xml || echo "0")
+    log "🔐 Permissions count: $PERMISSION_COUNT"
+else
+    log "❌ AndroidManifest.xml not found"
+fi
+
+log "🔥 ===== FIREBASE CONFIGURATION CHECK ====="
+if [ -f "android/app/google-services.json" ]; then
+    FIREBASE_SIZE=$(stat -f%z android/app/google-services.json 2>/dev/null || stat -c%s android/app/google-services.json 2>/dev/null || echo "0")
+    log "✅ Firebase config: Present (${FIREBASE_SIZE} bytes)"
+    
+    # Check package name in Firebase config
+    if command -v jq >/dev/null 2>&1; then
+        FIREBASE_PKG=$(jq -r '.client[0].client_info.android_client_info.package_name' android/app/google-services.json 2>/dev/null || echo "UNKNOWN")
+        log "📦 Firebase package: $FIREBASE_PKG"
+    fi
+else
+    log "⚠️  Firebase config: Not found (Push notifications disabled)"
+fi
+
+log "🔐 ===== KEYSTORE CONFIGURATION CHECK ====="
+if [ -f "android/app/src/keystore.jks" ]; then
+    KEYSTORE_SIZE=$(stat -f%z android/app/src/keystore.jks 2>/dev/null || stat -c%s android/app/src/keystore.jks 2>/dev/null || echo "0")
+    log "✅ Keystore file: Present (${KEYSTORE_SIZE} bytes)"
+else
+    log "⚠️  Keystore file: Not found (Debug signing will be used)"
+fi
+
+if [ -f "android/app/src/keystore.properties" ]; then
+    log "✅ Keystore properties: Present"
+    log "📋 Keystore properties content:"
+    while IFS= read -r line; do
+        if [[ "$line" == *"Password"* ]]; then
+            log "   $(echo "$line" | sed 's/=.*/=[PROTECTED]/')"
+        else
+            log "   $line"
+        fi
+    done < android/app/src/keystore.properties
+else
+    log "⚠️  Keystore properties: Not found"
+fi
+
+log "🎨 ===== ASSETS CHECK ====="
+if [ -f "assets/images/logo.png" ]; then
+    LOGO_SIZE=$(stat -f%z assets/images/logo.png 2>/dev/null || stat -c%s assets/images/logo.png 2>/dev/null || echo "0")
+    log "✅ Logo: Present (${LOGO_SIZE} bytes)"
+else
+    log "❌ Logo: Missing"
+fi
+
+if [ -f "assets/images/splash.png" ]; then
+    SPLASH_SIZE=$(stat -f%z assets/images/splash.png 2>/dev/null || stat -c%s assets/images/splash.png 2>/dev/null || echo "0")
+    log "✅ Splash: Present (${SPLASH_SIZE} bytes)"
+else
+    log "⚠️  Splash: Missing"
+fi
+
+log "📋 ===== ENV_CONFIG.DART CHECK ====="
+if [ -f "lib/config/env_config.dart" ]; then
+    log "✅ env_config.dart exists"
+    
+    # Show first few lines
+    log "📋 First 10 lines of env_config.dart:"
+    head -10 lib/config/env_config.dart | while IFS= read -r line; do
+        log "   $line"
+    done
+    
+    # Check for problematic patterns
+    if grep -q '\$' lib/config/env_config.dart; then
+        log "⚠️  Found $ symbols in env_config.dart (check for unresolved variables)"
+        grep '\$' lib/config/env_config.dart | head -5 | while IFS= read -r line; do
+            log "   🔍 $line"
+        done
+    else
+        log "✅ No unresolved variables in env_config.dart"
+    fi
+else
+    log "❌ env_config.dart not found"
+fi
+
+log "🎯 ===== FINAL BUILD READINESS CHECK ====="
+
+# Critical files check
+CRITICAL_FILES=(
+    "pubspec.yaml"
+    "android/app/build.gradle.kts"
+    "android/app/src/main/AndroidManifest.xml"
+    "lib/config/env_config.dart"
+    "assets/images/logo.png"
+)
+
+MISSING_FILES=()
+for file in "${CRITICAL_FILES[@]}"; do
+    if [ ! -f "$file" ]; then
+        MISSING_FILES+=("$file")
+    fi
+done
+
+if [ ${#MISSING_FILES[@]} -gt 0 ]; then
+    log "❌ CRITICAL: Missing required files:"
+    for file in "${MISSING_FILES[@]}"; do
+        log "   - $file"
+    done
+    log "🛑 Build cannot continue without these files"
+    exit 1
+else
+    log "✅ All critical files are present"
+fi
+
+log "🚀 ===== BUILD CONFIGURATION FINAL SUMMARY ====="
+log "   📱 App: ${APP_NAME:-Unknown} v${VERSION_NAME:-0.0.0} (${VERSION_CODE:-0})"
+log "   📦 Package: ${PKG_NAME:-Unknown}"
+log "   🏗️  Workflow: ${WORKFLOW_ID:-Unknown}"
+log "   🔥 Firebase: $([ -f "android/app/google-services.json" ] && echo "✅ Configured" || echo "❌ Not configured")"
+log "   🔐 Keystore: $([ -f "android/app/src/keystore.jks" ] && echo "✅ Available" || echo "❌ Not available")"
+log "   📧 Email: ${ENABLE_EMAIL_NOTIFICATIONS:-false}"
+log "   🎨 Assets: $([ -f "assets/images/logo.png" ] && echo "✅ Ready" || echo "❌ Missing")"
+
+log "🔍 ===== END FINAL STATE DEBUG ====="
+
+# ============================================================================
+
 # Determine build command based on workflow
 log "🏗️ Determining build command for workflow: ${WORKFLOW_ID:-unknown}"
+
+# ============================================================================
+# 🔍 PRE-BUILD CONFIGURATION DISPLAY
+# ============================================================================
+
+log "🔍 ===== PRE-BUILD CONFIGURATION DISPLAY ====="
+
+# Function to safely display file content with line numbers
+display_config_section() {
+    local file=$1
+    local description=$2
+    local start_pattern=$3
+    local end_pattern=$4
+    
+    if [ -f "$file" ]; then
+        log "📋 $description ($file):"
+        if [ -n "$start_pattern" ] && [ -n "$end_pattern" ]; then
+            # Show specific section
+            sed -n "/$start_pattern/,/$end_pattern/p" "$file" | head -20 | nl -v1 | while IFS= read -r line; do
+                log "   $line"
+            done
+        else
+            # Show first 15 lines
+            head -15 "$file" | nl -v1 | while IFS= read -r line; do
+                log "   $line"
+            done
+        fi
+    else
+        log "❌ $description: File not found ($file)"
+    fi
+}
+
+# Display critical configuration sections
+display_config_section "android/app/build.gradle.kts" "Build Gradle Configuration" "defaultConfig {" "}"
+display_config_section "android/app/src/main/AndroidManifest.xml" "Android Manifest" "<manifest" "</manifest>"
+display_config_section "pubspec.yaml" "Pubspec Configuration" "" ""
+
+log "🔍 ===== END PRE-BUILD CONFIGURATION DISPLAY ====="
+
+# ============================================================================
 
 if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "combined" ]]; then
     log "🚀 Building AAB for production..."
@@ -480,6 +827,106 @@ else
 fi
 
 log "✅ Flutter build completed successfully"
+
+# ============================================================================
+# 🔍 POST-BUILD VERIFICATION
+# ============================================================================
+
+log "🔍 ===== POST-BUILD VERIFICATION ====="
+
+# Verify build outputs
+log "📦 ===== BUILD OUTPUTS VERIFICATION ====="
+
+if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "combined" ]]; then
+    # Check for AAB
+    AAB_PATHS=(
+        "build/app/outputs/bundle/release/app-release.aab"
+        "android/app/build/outputs/bundle/release/app-release.aab"
+    )
+    
+    AAB_FOUND=false
+    for aab_path in "${AAB_PATHS[@]}"; do
+        if [ -f "$aab_path" ]; then
+            AAB_SIZE=$(stat -f%z "$aab_path" 2>/dev/null || stat -c%s "$aab_path" 2>/dev/null || echo "0")
+            log "✅ AAB found: $aab_path (${AAB_SIZE} bytes)"
+            AAB_FOUND=true
+            break
+        fi
+    done
+    
+    if [ "$AAB_FOUND" = false ]; then
+        log "❌ AAB not found in expected locations"
+        log "🔍 Searching for any AAB files:"
+        find build -name "*.aab" 2>/dev/null | while read -r file; do
+            log "   Found AAB: $file"
+        done
+    fi
+fi
+
+# Check for APK
+APK_PATHS=(
+    "build/app/outputs/flutter-apk/app-release.apk"
+    "build/app/outputs/apk/release/app-release.apk"
+    "android/app/build/outputs/apk/release/app-release.apk"
+)
+
+APK_FOUND=false
+for apk_path in "${APK_PATHS[@]}"; do
+    if [ -f "$apk_path" ]; then
+        APK_SIZE=$(stat -f%z "$apk_path" 2>/dev/null || stat -c%s "$apk_path" 2>/dev/null || echo "0")
+        log "✅ APK found: $apk_path (${APK_SIZE} bytes)"
+        APK_FOUND=true
+        break
+    fi
+done
+
+if [ "$APK_FOUND" = false ]; then
+    log "❌ APK not found in expected locations"
+    log "🔍 Searching for any APK files:"
+    find build -name "*.apk" 2>/dev/null | while read -r file; do
+        log "   Found APK: $file"
+    done
+fi
+
+# Verify APK package name if found
+if [ "$APK_FOUND" = true ] && command -v aapt >/dev/null 2>&1; then
+    log "📦 ===== APK PACKAGE VERIFICATION ====="
+    for apk_path in "${APK_PATHS[@]}"; do
+        if [ -f "$apk_path" ]; then
+            APK_PACKAGE=$(aapt dump badging "$apk_path" 2>/dev/null | grep "package:" | sed "s/.*name='\([^']*\)'.*/\1/" || echo "UNKNOWN")
+            APK_VERSION_NAME=$(aapt dump badging "$apk_path" 2>/dev/null | grep "versionName" | sed "s/.*versionName='\([^']*\)'.*/\1/" || echo "UNKNOWN")
+            APK_VERSION_CODE=$(aapt dump badging "$apk_path" 2>/dev/null | grep "versionCode" | sed "s/.*versionCode='\([^']*\)'.*/\1/" || echo "UNKNOWN")
+            
+            log "📦 APK Package Name: $APK_PACKAGE"
+            log "📊 APK Version Name: $APK_VERSION_NAME"
+            log "📊 APK Version Code: $APK_VERSION_CODE"
+            
+            # Compare with expected values
+            if [ "$APK_PACKAGE" = "${PKG_NAME:-}" ]; then
+                log "✅ Package name matches expected: $APK_PACKAGE"
+            else
+                log "❌ Package name mismatch! Expected: ${PKG_NAME:-}, Got: $APK_PACKAGE"
+            fi
+            
+            if [ "$APK_VERSION_NAME" = "${VERSION_NAME:-}" ]; then
+                log "✅ Version name matches expected: $APK_VERSION_NAME"
+            else
+                log "❌ Version name mismatch! Expected: ${VERSION_NAME:-}, Got: $APK_VERSION_NAME"
+            fi
+            
+            if [ "$APK_VERSION_CODE" = "${VERSION_CODE:-}" ]; then
+                log "✅ Version code matches expected: $APK_VERSION_CODE"
+            else
+                log "❌ Version code mismatch! Expected: ${VERSION_CODE:-}, Got: $APK_VERSION_CODE"
+            fi
+            break
+        fi
+    done
+fi
+
+log "🔍 ===== END POST-BUILD VERIFICATION ====="
+
+# ============================================================================
 
 # Stop Gradle daemon after build
 log "🛑 Stopping Gradle daemon..."

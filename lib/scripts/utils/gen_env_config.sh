@@ -81,7 +81,7 @@ generate_env_config() {
 
     # Generate environment config with enhanced error handling
     log "📝 Generating Dart environment configuration (lib/config/env_config.dart)..."
-    
+
     # Debug: Show current environment variables
     log "🔍 Current environment variables:"
     log "   BRANCH: ${BRANCH:-not_set} (using static 'main' instead)"
