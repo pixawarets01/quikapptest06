@@ -1,54 +1,53 @@
 #!/usr/bin/env python3
 """
-Enhanced QuikApp Email Notification System
-Provides professional email notifications with individual download URLs
+QuikApp Enhanced Email Notification System v2.0
+Professional email notifications for build status with modern UI design
 """
 
 import os
 import sys
 import smtplib
-import glob
+import urllib.parse
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.header import Header
 import logging
-import urllib.parse
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(levelname)s: %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 class QuikAppEmailNotifier:
     def __init__(self):
         """Initialize the email notifier with environment variables"""
+        # SMTP Configuration
         self.smtp_server = os.environ.get("EMAIL_SMTP_SERVER", "smtp.gmail.com")
         self.smtp_port = int(os.environ.get("EMAIL_SMTP_PORT", "587"))
-        self.smtp_user = os.environ.get("EMAIL_SMTP_USER")
-        self.smtp_pass = os.environ.get("EMAIL_SMTP_PASS")
-        self.recipient = os.environ.get("EMAIL_ID", self.smtp_user)
+        self.smtp_user = os.environ.get("EMAIL_SMTP_USER", "")
+        self.smtp_pass = os.environ.get("EMAIL_SMTP_PASS", "")
+        self.recipient = os.environ.get("EMAIL_ID", "")
         
-        # App information
+        # App Configuration
         self.app_name = os.environ.get("APP_NAME", "QuikApp")
-        self.org_name = os.environ.get("ORG_NAME", "Organization")
-        self.user_name = os.environ.get("USER_NAME", "Developer")
         self.version_name = os.environ.get("VERSION_NAME", "1.0.0")
         self.version_code = os.environ.get("VERSION_CODE", "1")
-        self.web_url = os.environ.get("WEB_URL", "https://quikapp.co")
+        self.org_name = os.environ.get("ORG_NAME", "QuikApp Technologies")
+        self.user_name = os.environ.get("USER_NAME", "Developer")
         self.workflow_id = os.environ.get("WORKFLOW_ID", "unknown")
+        self.project_id = os.environ.get("CM_PROJECT_ID", "unknown")
         
-        # Feature flags for enhanced email content
+        # Feature flags
         self.features = {
             'push_notify': os.environ.get("PUSH_NOTIFY", "false").lower() == "true",
             'is_chatbot': os.environ.get("IS_CHATBOT", "false").lower() == "true",
             'is_domain_url': os.environ.get("IS_DOMAIN_URL", "false").lower() == "true",
             'is_splash': os.environ.get("IS_SPLASH", "false").lower() == "true",
             'is_pulldown': os.environ.get("IS_PULLDOWN", "false").lower() == "true",
-            'is_bottommenu': os.environ.get("IS_BOTTOMMENU", "false").lower() == "true",
-            'is_load_ind': os.environ.get("IS_LOAD_IND", "false").lower() == "true",
+            'is_bottommenu': os.environ.get("IS_BOTTOMMENU", "false").lower() == "true"
         }
         
-        # Permissions for enhanced email content
+        # Permissions
         self.permissions = {
             'camera': os.environ.get("IS_CAMERA", "false").lower() == "true",
             'location': os.environ.get("IS_LOCATION", "false").lower() == "true",
@@ -57,16 +56,15 @@ class QuikAppEmailNotifier:
             'contact': os.environ.get("IS_CONTACT", "false").lower() == "true",
             'biometric': os.environ.get("IS_BIOMETRIC", "false").lower() == "true",
             'calendar': os.environ.get("IS_CALENDAR", "false").lower() == "true",
-            'storage': os.environ.get("IS_STORAGE", "false").lower() == "true",
+            'storage': os.environ.get("IS_STORAGE", "false").lower() == "true"
         }
         
-        # Build environment
-        self.project_id = os.environ.get("CM_PROJECT_ID", "unknown")
-        self.pkg_name = os.environ.get("PKG_NAME", "")
-        self.bundle_id = os.environ.get("BUNDLE_ID", "")
-        
+        logger.info(f"Email notifier initialized for {self.app_name} v{self.version_name}")
+        logger.info(f"SMTP: {self.smtp_server}:{self.smtp_port}, User: {self.smtp_user}")
+        logger.info(f"Recipient: {self.recipient}")
+
     def get_file_size(self, file_path):
-        """Get human-readable file size"""
+        """Get human readable file size"""
         try:
             size = os.path.getsize(file_path)
             for unit in ['B', 'KB', 'MB', 'GB']:
@@ -76,15 +74,15 @@ class QuikAppEmailNotifier:
             return f"{size:.1f} TB"
         except:
             return "Unknown"
-    
+
     def scan_artifacts(self):
-        """Scan output directories for build artifacts"""
+        """Scan for build artifacts in output directories"""
         artifacts = []
         
         # Android artifacts
         android_files = [
-            ("output/android/app-release.apk", "📱 Android APK", "Install directly on Android devices", "#27ae60"),
-            ("output/android/app-release.aab", "📦 Android AAB", "Upload to Google Play Store", "#4caf50"),
+            ("output/android/app-release.apk", "Android APK", "Install directly on Android devices", "#4CAF50"),
+            ("output/android/app-release.aab", "Android Bundle", "Upload to Google Play Console", "#2196F3")
         ]
         
         for file_path, name, description, color in android_files:
@@ -92,15 +90,14 @@ class QuikAppEmailNotifier:
                 artifacts.append({
                     'name': name,
                     'description': description,
-                    'file_path': file_path,
-                    'filename': os.path.basename(file_path),
                     'size': self.get_file_size(file_path),
+                    'filename': os.path.basename(file_path),
                     'color': color
                 })
         
         # iOS artifacts
         ios_files = [
-            ("output/ios/Runner.ipa", "🍎 iOS IPA", "Upload to App Store Connect or TestFlight", "#2196f3"),
+            ("output/ios/app-release.ipa", "iOS IPA", "Install on iOS devices or upload to App Store", "#FF9800")
         ]
         
         for file_path, name, description, color in ios_files:
@@ -108,41 +105,22 @@ class QuikAppEmailNotifier:
                 artifacts.append({
                     'name': name,
                     'description': description,
-                    'file_path': file_path,
-                    'filename': os.path.basename(file_path),
                     'size': self.get_file_size(file_path),
+                    'filename': os.path.basename(file_path),
                     'color': color
                 })
         
-        # Additional artifacts
-        additional_dirs = ["output/android", "output/ios"]
-        known_files = {"app-release.apk", "app-release.aab", "Runner.ipa"}
-        
-        for directory in additional_dirs:
-            if os.path.exists(directory):
-                for file_path in glob.glob(f"{directory}/*"):
-                    if os.path.isfile(file_path):
-                        filename = os.path.basename(file_path)
-                        if filename not in known_files:
-                            artifacts.append({
-                                'name': f"📄 {filename}",
-                                'description': f"Additional {'iOS' if 'ios' in directory else 'Android'} artifact",
-                                'file_path': file_path,
-                                'filename': filename,
-                                'size': self.get_file_size(file_path),
-                                'color': "#ff9800" if "android" in directory else "#9c27b0"
-                            })
-        
+        logger.info(f"Found {len(artifacts)} artifacts: {[a['filename'] for a in artifacts]}")
         return artifacts
-    
+
     def generate_artifact_cards(self, build_id):
-        """Generate HTML for individual artifact download cards"""
+        """Generate HTML cards for downloadable artifacts"""
         artifacts = self.scan_artifacts()
         
         if not artifacts:
             return """
-            <div style="background: #fff3cd; padding: 20px; border-radius: 12px; margin: 20px 0; border-left: 4px solid #ffc107;">
-                <h4 style="color: #856404; margin: 0 0 10px 0;">⚠️ No Artifacts Found</h4>
+            <div style="background: #fff3cd; padding: 25px; border-radius: 12px; margin: 30px 0; text-align: center;">
+                <h3 style="color: #856404; margin: 0 0 15px 0;">⚠️ No Artifacts Found</h3>
                 <p style="color: #856404; margin: 0;">Build completed but no output files were detected. Please check the build logs.</p>
             </div>
             """
@@ -155,7 +133,6 @@ class QuikAppEmailNotifier:
         """
         
         # Get the correct build ID and project ID from environment variables
-        # Try multiple possible environment variable names
         cm_build_id = (os.environ.get("CM_BUILD_ID") or 
                       os.environ.get("FCI_BUILD_ID") or 
                       os.environ.get("BUILD_NUMBER") or 
@@ -191,32 +168,29 @@ class QuikAppEmailNotifier:
                 """
         else:
             # Use the correct Codemagic artifact URL format
-            # Format: https://api.codemagic.io/artifacts/{project_id}/{build_id}/{filename}
             base_url = f"https://api.codemagic.io/artifacts/{cm_project_id}/{cm_build_id}"
-            
             logger.info(f"Generated base URL: {base_url}")
-        
-        for artifact in artifacts:
+            
+            for artifact in artifacts:
                 # URL encode the filename to handle special characters
                 encoded_filename = urllib.parse.quote(artifact['filename'])
                 download_url = f"{base_url}/{encoded_filename}"
-                
                 logger.info(f"Generated download URL for {artifact['filename']}: {download_url}")
                 
-            cards_html += f"""
-            <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 2px solid {artifact['color']}20; display: flex; justify-content: space-between; align-items: center; min-height: 100px;">
-                <div style="flex: 1;">
-                    <h4 style="margin: 0 0 8px 0; color: {artifact['color']}; font-size: 18px;">{artifact['name']}</h4>
-                    <p style="margin: 0 0 5px 0; color: #666; font-size: 14px; line-height: 1.4;">{artifact['description']}</p>
-                    <p style="margin: 0; color: #999; font-size: 12px;">Size: {artifact['size']}</p>
+                cards_html += f"""
+                <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 2px solid {artifact['color']}20; display: flex; justify-content: space-between; align-items: center; min-height: 100px;">
+                    <div style="flex: 1;">
+                        <h4 style="margin: 0 0 8px 0; color: {artifact['color']}; font-size: 18px;">{artifact['name']}</h4>
+                        <p style="margin: 0 0 5px 0; color: #666; font-size: 14px; line-height: 1.4;">{artifact['description']}</p>
+                        <p style="margin: 0; color: #999; font-size: 12px;">Size: {artifact['size']}</p>
+                    </div>
+                    <div style="margin-left: 20px;">
+                        <a href="{download_url}" style="background: {artifact['color']}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; display: inline-block; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                            📥 Download
+                        </a>
+                    </div>
                 </div>
-                <div style="margin-left: 20px;">
-                    <a href="{download_url}" style="background: {artifact['color']}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; display: inline-block; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-                        📥 Download
-                    </a>
-                </div>
-            </div>
-            """
+                """
         
         # Add alternative download method
         codemagic_build_url = f"https://codemagic.io/builds/{cm_build_id if cm_build_id != 'unknown' else build_id}"
@@ -300,17 +274,17 @@ class QuikAppEmailNotifier:
                 .app-info {{ background: #f8f9fa; padding: 25px; border-radius: 12px; margin: 20px 0; }}
                 .grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }}
                 @media (max-width: 600px) {{ .grid {{ grid-template-columns: 1fr; }} }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
                     <div style="font-size: 48px; margin-bottom: 15px;">🚀</div>
                     <h1 style="margin: 0; font-size: 28px;">Build Started</h1>
                     <p style="margin: 10px 0 0 0; opacity: 0.9;">Your QuikApp build process has begun</p>
-        </div>
-        
-        <div class="content">
+                </div>
+                
+                <div class="content">
                     <div class="app-info">
                         <h2 style="margin: 0 0 15px 0; color: #2c3e50;">📱 {self.app_name}</h2>
                         <div class="grid">
@@ -321,8 +295,8 @@ class QuikAppEmailNotifier:
                             <div><strong>Organization:</strong> {self.org_name}</div>
                             <div><strong>Developer:</strong> {self.user_name}</div>
                         </div>
-            </div>
-            
+                    </div>
+                    
                     {self.generate_feature_badges()}
                     
                     <div style="background: #e3f2fd; padding: 25px; border-radius: 12px; text-align: center;">
@@ -385,34 +359,34 @@ class QuikAppEmailNotifier:
                             <div><strong>Workflow:</strong> {self.workflow_id}</div>
                             <div><strong>Organization:</strong> {self.org_name}</div>
                             <div><strong>Completed:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}</div>
-                </div>
-            </div>
-            
+                        </div>
+                    </div>
+                    
                     {self.generate_artifact_cards(build_id)}
                     
                     {self.generate_feature_badges()}
                     
-                                         <div style="background: #fff3cd; padding: 25px; border-radius: 12px; margin: 20px 0;">
-                         <h3 style="color: #856404; margin: 0 0 15px 0;">📋 Next Steps</h3>
-                         <ul style="color: #856404; line-height: 1.8; margin: 0; padding-left: 20px;">
-                             <li><strong>Android APK:</strong> Download and install directly on device for testing</li>
-                             <li><strong>Android AAB:</strong> Upload to Google Play Console for store distribution</li>
-                             <li><strong>iOS IPA:</strong> Upload to App Store Connect or distribute via TestFlight</li>
-                             <li><strong>Testing:</strong> Test the app thoroughly on different devices before publishing</li>
-                         </ul>
-                     </div>
-                     
-                     <div style="background: #e3f2fd; padding: 25px; border-radius: 12px; margin: 20px 0;">
-                         <h3 style="color: #1976d2; margin: 0 0 15px 0;">🔧 Installation Conflict Resolution</h3>
-                         <p style="color: #424242; margin: 0 0 15px 0;">If you get "package conflicts with existing package" error:</p>
-                         <ul style="color: #424242; line-height: 1.8; margin: 0; padding-left: 20px;">
-                             <li><strong>Method 1:</strong> Uninstall existing app first → Install new APK</li>
-                             <li><strong>Method 2:</strong> Use ADB: <code>adb install -r app-release.apk</code></li>
-                             <li><strong>Method 3:</strong> Force uninstall: <code>adb uninstall package.name</code></li>
-                             <li><strong>Different Versions:</strong> Debug and Release APKs have different signatures</li>
-                         </ul>
-                         <p style="color: #666; margin: 15px 0 0 0; font-size: 14px;">💡 Check your download for detailed installation guides with your specific package information.</p>
-                     </div>
+                    <div style="background: #fff3cd; padding: 25px; border-radius: 12px; margin: 20px 0;">
+                        <h3 style="color: #856404; margin: 0 0 15px 0;">📋 Next Steps</h3>
+                        <ul style="color: #856404; line-height: 1.8; margin: 0; padding-left: 20px;">
+                            <li><strong>Android APK:</strong> Download and install directly on device for testing</li>
+                            <li><strong>Android AAB:</strong> Upload to Google Play Console for store distribution</li>
+                            <li><strong>iOS IPA:</strong> Upload to App Store Connect or distribute via TestFlight</li>
+                            <li><strong>Testing:</strong> Test the app thoroughly on different devices before publishing</li>
+                        </ul>
+                    </div>
+                    
+                    <div style="background: #e3f2fd; padding: 25px; border-radius: 12px; margin: 20px 0;">
+                        <h3 style="color: #1976d2; margin: 0 0 15px 0;">🔧 Installation Conflict Resolution</h3>
+                        <p style="color: #424242; margin: 0 0 15px 0;">If you get "package conflicts with existing package" error:</p>
+                        <ul style="color: #424242; line-height: 1.8; margin: 0; padding-left: 20px;">
+                            <li><strong>Method 1:</strong> Uninstall existing app first → Install new APK</li>
+                            <li><strong>Method 2:</strong> Use ADB: <code>adb install -r app-release.apk</code></li>
+                            <li><strong>Method 3:</strong> Force uninstall: <code>adb uninstall package.name</code></li>
+                            <li><strong>Different Versions:</strong> Debug and Release APKs have different signatures</li>
+                        </ul>
+                        <p style="color: #666; margin: 15px 0 0 0; font-size: 14px;">💡 Check your download for detailed installation guides with your specific package information.</p>
+                    </div>
                     
                     <div class="actions">
                         <h3 style="color: #27ae60; margin: 0 0 20px 0;">🔗 Quick Actions</h3>
@@ -508,8 +482,8 @@ class QuikAppEmailNotifier:
                         <a href="https://codemagic.io/builds/{build_id}" class="btn" style="background: #757575;">📋 View Logs</a>
                     </div>
                 </div>
-        
-        <div class="footer">
+                
+                <div class="footer">
                     <div style="font-size: 20px; font-weight: 700; color: #667eea; margin-bottom: 15px;">🚀 QuikApp</div>
                     <div style="margin: 15px 0;">
                         <a href="https://quikapp.co" style="color: #667eea; text-decoration: none; margin: 0 15px;">Website</a>
@@ -517,11 +491,11 @@ class QuikAppEmailNotifier:
                         <a href="mailto:support@quikapp.co" style="color: #667eea; text-decoration: none; margin: 0 15px;">Support</a>
                     </div>
                     <p style="margin: 0; opacity: 0.8;">© 2025 QuikApp Technologies. All rights reserved.</p>
-        </div>
-    </div>
-</body>
-</html>
-"""
+                </div>
+            </div>
+        </body>
+        </html>
+        """
 
         return self._send_email(subject, html)
     
@@ -549,7 +523,7 @@ class QuikAppEmailNotifier:
             
             with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
                 server.set_debuglevel(0)  # Set to 1 for debugging
-        server.starttls()
+                server.starttls()
                 server.login(self.smtp_user, self.smtp_pass)
                 
                 # Send email
@@ -567,7 +541,7 @@ class QuikAppEmailNotifier:
             logger.error(f"❌ Recipient refused: {e}")
         except smtplib.SMTPServerDisconnected as e:
             logger.error(f"❌ SMTP server disconnected: {e}")
-except Exception as e:
+        except Exception as e:
             logger.error(f"❌ Failed to send email: {e}")
             
         return False
@@ -612,7 +586,7 @@ def main():
     
     # Initialize email notifier
     try:
-    notifier = QuikAppEmailNotifier()
+        notifier = QuikAppEmailNotifier()
         logger.info("Email notifier initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize email notifier: {e}")
@@ -621,14 +595,14 @@ def main():
     # Send appropriate email
     success = False
     try:
-    if email_type == "build_started":
-        success = notifier.send_build_started_email(platform, build_id)
-    elif email_type == "build_success":
-        success = notifier.send_build_success_email(platform, build_id)
-    elif email_type == "build_failed":
-        success = notifier.send_build_failed_email(platform, build_id, error_message)
-    else:
-        logger.error(f"Unknown email type: {email_type}")
+        if email_type == "build_started":
+            success = notifier.send_build_started_email(platform, build_id)
+        elif email_type == "build_success":
+            success = notifier.send_build_success_email(platform, build_id)
+        elif email_type == "build_failed":
+            success = notifier.send_build_failed_email(platform, build_id, error_message)
+        else:
+            logger.error(f"Unknown email type: {email_type}")
             sys.exit(1)
     except Exception as e:
         logger.error(f"Failed to send email: {e}")

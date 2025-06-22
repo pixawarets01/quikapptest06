@@ -143,8 +143,8 @@ android {
         applicationId = "${PKG_NAME:-com.example.quikapptest06}"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = ${VERSION_CODE:-1}
-        versionName = "${VERSION_NAME:-1.0.0}"
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
         
         // Optimized architecture targeting
         ndk {

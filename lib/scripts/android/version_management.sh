@@ -129,8 +129,11 @@ create_version_config() {
         sed -i.bak "s/applicationId = \".*\"/applicationId = \"${pkg_name}\"/" android/app/build.gradle.kts
         
         # Update versionCode and versionName in defaultConfig
+        # Handle both flutter.versionCode and direct values
         sed -i.bak "s/versionCode = flutter\.versionCode/versionCode = ${version_code}/" android/app/build.gradle.kts
         sed -i.bak "s/versionName = flutter\.versionName/versionName = \"${version_name}\"/" android/app/build.gradle.kts
+        sed -i.bak "s/versionCode = [0-9]*/versionCode = ${version_code}/" android/app/build.gradle.kts
+        sed -i.bak "s/versionName = \"[^\"]*\"/versionName = \"${version_name}\"/" android/app/build.gradle.kts
         
         log "✅ Updated build.gradle.kts with new configuration"
     fi

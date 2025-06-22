@@ -35,8 +35,8 @@ android {
         applicationId = "com.garbcode.garbcodeapp"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        versionCode = 43
+        versionName = "1.0.7"
         
         // Reduce memory usage by limiting architectures for debug builds
         ndk {
