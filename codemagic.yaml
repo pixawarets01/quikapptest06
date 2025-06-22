@@ -107,6 +107,7 @@ ios_signing_config: &ios_signing_config
   CERT_KEY_URL: $CERT_KEY_URL
   PROFILE_TYPE: $PROFILE_TYPE
   APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
+  IS_TESTFLIGHT: $IS_TESTFLIGHT
 
 # 📱 iOS Distribution Options Block
 ios_distribution_options: &ios_distribution_options
@@ -132,13 +133,15 @@ workflows:
         WORKFLOW_ID: "android-free"
         PKG_NAME: $PKG_NAME
 
-        # 🔧 Feature Flags (Optimized for Free)
+          # 🔧 Feature Flags (Optimized for Free)
         PUSH_NOTIFY: "false"
         IS_DOMAIN_URL: "false"
-        FIREBASE_CONFIG_ANDROID: ""
         <<: *feature_flags
         <<: *permissions
         <<: *ui_config
+
+          # 🔥 Firebase Configuration (Disabled for Free)
+        FIREBASE_CONFIG_ANDROID: ""
 
     scripts:
       - name: Pre-build Setup
