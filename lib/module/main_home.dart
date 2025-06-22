@@ -116,6 +116,40 @@ class _MainHomeState extends State<MainHome> {
   final bool pushNotify =
       bool.fromEnvironment('PUSH_NOTIFY', defaultValue: false);
 
+  // Chat icon boundary constraints
+  late Size _screenSize;
+  late double _chatIconSize;
+  late double _bottomMenuHeight;
+
+  // Method to ensure chat icon is within bounds
+  void _ensureChatIconInBounds() {
+    if (_screenSize.width > 0) {
+      double maxX = _screenSize.width - _chatIconSize - 16;
+      double minX = 16;
+      double maxY = _screenSize.height - _chatIconSize - _bottomMenuHeight - 16;
+      double minY = 16;
+
+      _dragPosition = Offset(
+        _dragPosition.dx.clamp(minX, maxX),
+        _dragPosition.dy.clamp(minY, maxY),
+      );
+    }
+  }
+
+  // Method to set initial position based on screen size
+  void _setInitialChatPosition() {
+    if (_screenSize.width > 0) {
+      // Position in bottom-right corner with proper spacing
+      _dragPosition = Offset(
+        _screenSize.width - _chatIconSize - 16, // Right edge with padding
+        _screenSize.height -
+            _chatIconSize -
+            _bottomMenuHeight -
+            80, // Above bottom menu
+      );
+    }
+  }
+
   void requestPermissions() async {
     if (EnvConfig.isCamera) await Permission.camera.request();
     if (EnvConfig.isLocation) await Permission.location.request();
@@ -134,6 +168,11 @@ class _MainHomeState extends State<MainHome> {
   @override
   void initState() {
     super.initState();
+
+    // Initialize chat icon constraints
+    _chatIconSize = 56.0; // Standard FAB size
+    _bottomMenuHeight =
+        widget.isBottomMenu ? 80.0 : 0.0; // Bottom menu height if enabled
 
     if (EnvConfig.pushNotify) {
       try {
@@ -417,6 +456,17 @@ class _MainHomeState extends State<MainHome> {
 
   @override
   Widget build(BuildContext context) {
+    // Get screen size for boundary constraints
+    _screenSize = MediaQuery.of(context).size;
+
+    // Set initial position if not already set
+    if (_dragPosition.dx == 16 && _dragPosition.dy == 300) {
+      _setInitialChatPosition();
+    }
+
+    // Ensure chat icon is within bounds
+    _ensureChatIconInBounds();
+
     return WillPopScope(
       onWillPop: () async {
         if (webViewController != null) {
@@ -578,7 +628,34 @@ class _MainHomeState extends State<MainHome> {
                           child: GestureDetector(
                             onPanUpdate: (details) {
                               setState(() {
-                                _dragPosition += details.delta;
+                                // Calculate new position
+                                Offset newPosition =
+                                    _dragPosition + details.delta;
+
+                                // Apply boundary constraints
+                                double maxX = _screenSize.width -
+                                    _chatIconSize -
+                                    16; // Right edge
+                                double minX = 16; // Left edge
+                                double maxY = _screenSize.height -
+                                    _chatIconSize -
+                                    _bottomMenuHeight -
+                                    16; // Bottom edge (accounting for bottom menu)
+                                double minY = 16; // Top edge
+
+                                // Constrain position within bounds
+                                newPosition = Offset(
+                                  newPosition.dx.clamp(minX, maxX),
+                                  newPosition.dy.clamp(minY, maxY),
+                                );
+
+                                _dragPosition = newPosition;
+                              });
+                            },
+                            onPanEnd: (details) {
+                              // Ensure final position is within bounds
+                              setState(() {
+                                _ensureChatIconInBounds();
                               });
                             },
                             child: FloatingActionButton(
@@ -710,36 +787,8 @@ class _MainHomeState extends State<MainHome> {
       final fileName = '$labelSanitized.svg';
       final assetPath = 'assets/icons/$fileName';
 
-      // Get the assets directory path
-      final assetsDir = Directory('assets/icons');
-      if (!await assetsDir.exists()) {
-        await assetsDir.create(recursive: true);
-      }
-
-      final filePath = '${assetsDir.path}/$fileName';
-      final file = File(filePath);
-
-      // Download only if file doesn't exist
-      if (!await file.exists()) {
-        try {
-          final response = await http.get(Uri.parse(iconData['icon_url']));
-          if (response.statusCode == 200) {
-            await file.writeAsBytes(response.bodyBytes);
-            debugPrint('Downloaded custom icon: $fileName to $filePath');
-          } else {
-            debugPrint(
-                'Failed to download SVG for ${item['label']}: ${response.statusCode}');
-            return Icon(Icons.broken_image,
-                color: isActive ? activeColor : defaultColor);
-          }
-        } catch (e) {
-          debugPrint('Error downloading SVG: $e');
-          return Icon(Icons.broken_image,
-              color: isActive ? activeColor : defaultColor);
-        }
-      }
-
-      // Use SvgPicture.asset to load from assets folder
+      // Use SvgPicture.asset to load from pre-downloaded assets folder
+      // Icons are downloaded during build process by download_custom_icons.sh
       return SvgPicture.asset(
         assetPath,
         width: double.tryParse(iconData['icon_size']?.toString() ?? '24') ?? 24,
@@ -747,8 +796,8 @@ class _MainHomeState extends State<MainHome> {
             double.tryParse(iconData['icon_size']?.toString() ?? '24') ?? 24,
         colorFilter: ColorFilter.mode(
             isActive ? activeColor : defaultColor, BlendMode.srcIn),
-        placeholderBuilder: (_) =>
-            const Icon(Icons.image_not_supported), // Placeholder
+        placeholderBuilder: (_) => Icon(Icons.image_not_supported,
+            color: isActive ? activeColor : defaultColor), // Fallback icon
       );
     }
 
