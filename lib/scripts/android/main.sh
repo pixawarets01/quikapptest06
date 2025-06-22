@@ -781,35 +781,35 @@ log "🏗️ Determining build command for workflow: ${WORKFLOW_ID:-unknown}"
 
 log "🔍 ===== PRE-BUILD CONFIGURATION DISPLAY ====="
 
-# Function to safely display file content with line numbers
-display_config_section() {
-    local file=$1
-    local description=$2
-    local start_pattern=$3
-    local end_pattern=$4
-    
-    if [ -f "$file" ]; then
-        log "📋 $description ($file):"
-        if [ -n "$start_pattern" ] && [ -n "$end_pattern" ]; then
-            # Show specific section
-            sed -n "/$start_pattern/,/$end_pattern/p" "$file" | head -20 | nl -v1 | while IFS= read -r line; do
-                log "   $line"
-            done
-        else
-            # Show first 15 lines
-            head -15 "$file" | nl -v1 | while IFS= read -r line; do
-                log "   $line"
-            done
-        fi
-    else
-        log "❌ $description: File not found ($file)"
-    fi
-}
+# Display build.gradle.kts configuration
+if [ -f "android/app/build.gradle.kts" ]; then
+    log "📋 Build Gradle Configuration (android/app/build.gradle.kts):"
+    grep -A 12 "defaultConfig {" android/app/build.gradle.kts | head -12 | nl -v1 | while IFS= read -r line; do
+        log "        $line"
+    done
+else
+    log "❌ Build Gradle Configuration: File not found"
+fi
 
-# Display critical configuration sections
-display_config_section "android/app/build.gradle.kts" "Build Gradle Configuration" "defaultConfig {" "}"
-display_config_section "android/app/src/main/AndroidManifest.xml" "Android Manifest" "<manifest" "</manifest>"
-display_config_section "pubspec.yaml" "Pubspec Configuration" "" ""
+# Display AndroidManifest.xml configuration
+if [ -f "android/app/src/main/AndroidManifest.xml" ]; then
+    log "📋 Android Manifest (android/app/src/main/AndroidManifest.xml):"
+    head -10 android/app/src/main/AndroidManifest.xml | nl -v1 | while IFS= read -r line; do
+        log "        $line"
+    done
+else
+    log "❌ Android Manifest: File not found"
+fi
+
+# Display pubspec.yaml configuration
+if [ -f "pubspec.yaml" ]; then
+    log "📋 Pubspec Configuration (pubspec.yaml):"
+    head -15 pubspec.yaml | nl -v1 | while IFS= read -r line; do
+        log "        $line"
+    done
+else
+    log "❌ Pubspec Configuration: File not found"
+fi
 
 log "🔍 ===== END PRE-BUILD CONFIGURATION DISPLAY ====="
 

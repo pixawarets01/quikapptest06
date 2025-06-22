@@ -9,7 +9,7 @@ plugins {
 }
 
 android {
-    namespace = "com.garbcode.garbcodeapp"
+    namespace = "com.example.quikapptest06"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.0.12077973"
 
@@ -21,65 +21,63 @@ android {
 
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_11.toString()
-        // Reduce memory usage during Kotlin compilation
+        // Enhanced Kotlin compilation optimizations
         freeCompilerArgs += listOf(
             "-Xno-param-assertions",
             "-Xno-call-assertions",
             "-Xno-receiver-assertions",
-            "-Xno-optimized-callable-references"
+            "-Xno-optimized-callable-references",
+            "-Xuse-ir",
+            "-Xskip-prerelease-check"
         )
     }
 
     defaultConfig {
         // Application ID will be updated by customization script
-        applicationId = "com.garbcode.garbcodeapp"
+        applicationId = "com.example.quikapptest06"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = 43
-        versionName = "1.0.7"
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
         
-        // Reduce memory usage by limiting architectures for debug builds
+        // Optimized architecture targeting
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")
         }
     }
 
-    // AGP 8.7.3 optimizations
+    // Enhanced AGP 8.7.3 optimizations
     buildFeatures {
         buildConfig = true
         aidl = false
         renderScript = false
         resValues = false
         shaders = false
+        viewBinding = false
+        dataBinding = false
     }
 
     signingConfigs {
-        create("release") {
-            val keystorePropertiesFile = file("src/keystore.properties")
-            if (keystorePropertiesFile.exists()) {
-                val keystoreProperties = Properties()
-                keystoreProperties.load(FileInputStream(keystorePropertiesFile))
-                
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
-            }
-        }
+        // No keystore configuration for this workflow
     }
 
     buildTypes {
         release {
-            val keystorePropertiesFile = file("src/keystore.properties")
-            if (keystorePropertiesFile.exists()) {
-                signingConfig = signingConfigs.getByName("release")
-            } else {
-                // Fallback to debug signing if keystore not available
-                signingConfig = signingConfigs.getByName("debug")
-            }
-            isMinifyEnabled = true
-            isShrinkResources = true
+            // Debug signing for free/paid workflows
+            signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+    
+    // Build optimization settings
+    packaging {
+        jniLibs {
+            useLegacyPackaging = false
+        }
+        resources {
+            excludes += listOf("META-INF/DEPENDENCIES", "META-INF/LICENSE", "META-INF/LICENSE.txt", "META-INF/license.txt", "META-INF/NOTICE", "META-INF/NOTICE.txt", "META-INF/notice.txt", "META-INF/ASL2.0", "META-INF/*.kotlin_module")
         }
     }
 }

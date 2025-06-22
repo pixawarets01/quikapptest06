@@ -1,5 +1,188 @@
 ---
-description:
-globs:
+description: 
+globs: 
 alwaysApply: false
 ---
+QuikApp Project Setup & Development Directives: Full Rule List (Variables & Customization Blocks Updated)
+Here's the comprehensive guide for QuikApp's mobile app build process, updated to reflect your new customization block requirements for package names, bundle IDs, app names, and app icons.
+
+🎯 Objective
+Rule: Establish a standardized, automation-ready development ecosystem for the QuikApp project, supporting both Android and iOS mobile builds using Codemagic CI/CD.
+
+Condition: This ecosystem must include dynamic variable injection, strict script organization, and consistent output packaging.
+Action: All workflows must be executed via Codemagic using the appropriate entrypoint script, with no hardcoded values permitted.
+🧱 Core Development Rules
+1. Workflow Entrypoint Scripts
+Each major workflow must be initiated through its dedicated shell script.
+
+Condition: A workflow is triggered in Codemagic.
+Action: codemagic.yaml must call the correct entrypoint script based on the selected workflowId (from the API response, which maps to CM_WORKFLOW in Codemagic):
+Android-only: lib/scripts/android/main.sh
+iOS-only (IPA): lib/scripts/ios/main.sh
+Combined (AAB+IPA): lib/scripts/combined/main.sh
+2. Script Design Requirements
+All entrypoint scripts (main.sh files) must adhere to the following:
+
+Action:
+Call all submodules responsibly (e.g., scripts under lib/scripts/utils/, lib/scripts/android/, lib/scripts/ios/).
+Contain full logging for execution tracing.
+Utilize set -e to exit immediately on errors, and implement trap for error tracing and cleanup.
+Use exit 0 for successful CI decisions and exit 1 for failures.
+3. Email Notification System
+
+Condition: A build workflow completes (whether successful or failed).
+Action: Trigger an email notification system with the following characteristics:
+Content: Email UI must match QuikApp Portal UI, showing build status, artifact download links, and action buttons (Resume Build, View Logs).
+Styling: Utilize HTML-styled badge colors and links that dynamically adjust based on the workflow's outcome (e.g., green for success, red for failure).
+Variables: Use USER_NAME, EMAIL_ID, ENABLE_EMAIL_NOTIFICATIONS, EMAIL_SMTP_SERVER, EMAIL_SMTP_PORT, EMAIL_SMTP_USER, EMAIL_SMTP_PASS.
+🌐 Variable Injection Policy
+1. No Hardcoding Policy
+
+Condition: Any configuration value is required within a script or build process.
+Action: All configuration must be sourced dynamically from an API (like the provided Codemagic API response) or an admin configuration file. Hardcoded values are strictly prohibited. Admin variables are placeholders for future database-sourced values.
+2. Dynamic Variable Categories
+The following categories of variables must be dynamically injected into the build process, reflecting the latest API structure:
+
+Application Metadata: APP_ID, workflowId (from API, maps to CM_WORKFLOW), branch (from API, maps to CM_BRANCH), USER_NAME, VERSION_NAME, VERSION_CODE, APP_NAME, ORG_NAME, WEB_URL, EMAIL_ID.
+Customization Block (Package Identifiers & App Icon):
+PKG_NAME (Android package name/ID)
+BUNDLE_ID (iOS Bundle Identifier)
+APP_ICON_PATH (path to logo.png for App Icon, e.g., "assets/images/logo.png")
+Feature Flags: PUSH_NOTIFY, IS_CHATBOT, IS_DOMAIN_URL (formerly IS_DEEPLINK), IS_SPLASH, IS_PULLDOWN, IS_BOTTOMMENU, IS_LOAD_IND.
+Permissions: IS_CAMERA, IS_LOCATION, IS_MIC, IS_NOTIFICATION, IS_CONTACT, IS_BIOMETRIC, IS_CALENDAR, IS_STORAGE.
+UI/Branding (Dynamic): LOGO_URL, SPLASH_URL (formerly SPLASH), SPLASH_BG_URL (formerly SPLASH_BG), SPLASH_BG_COLOR, SPLASH_TAGLINE, SPLASH_TAGLINE_COLOR, SPLASH_ANIMATION, SPLASH_DURATION, BOTTOMMENU_ITEMS, BOTTOMMENU_BG_COLOR, BOTTOMMENU_ICON_COLOR, BOTTOMMENU_TEXT_COLOR, BOTTOMMENU_FONT, BOTTOMMENU_FONT_SIZE, BOTTOMMENU_FONT_BOLD, BOTTOMMENU_FONT_ITALIC, BOTTOMMENU_ACTIVE_TAB_COLOR, BOTTOMMENU_ICON_POSITION, BOTTOMMENU_VISIBLE_ON.
+Firebase: FIREBASE_CONFIG_ANDROID, FIREBASE_CONFIG_IOS.
+iOS Signing: APPLE_TEAM_ID, APNS_KEY_ID, APNS_AUTH_KEY_URL, PROFILE_TYPE (new), PROFILE_URL, CERT_CER_URL, CERT_KEY_URL, CERT_PASSWORD, IS_TESTFLIGHT (new), APP_STORE_CONNECT_KEY_IDENTIFIER.
+Android Keystore: KEY_STORE_URL (formerly KEY_STORE), CM_KEYSTORE_PASSWORD, CM_KEY_ALIAS, CM_KEY_PASSWORD.
+3. Admin / Build Environment Variables
+These variables must be available to the build environment, originating from the Codemagic API response or other defaults:
+
+CM_BUILD_DIR (Codemagic internal), BUILD_MODE, FLUTTER_VERSION, GRADLE_VERSION, JAVA_VERSION.
+ANDROID_COMPILE_SDK, ANDROID_MIN_SDK, ANDROID_TARGET_SDK, ANDROID_BUILD_TOOLS, ANDROID_NDK_VERSION, ANDROID_CMDLINE_TOOLS.
+PROJECT_ROOT, ANDROID_ROOT, ASSETS_DIR, OUTPUT_DIR, TEMP_DIR.
+ANDROID_MANIFEST_PATH, ANDROID_BUILD_GRADLE_PATH, ANDROID_KEY_PROPERTIES_PATH, ANDROID_FIREBASE_CONFIG_PATH, ANDROID_MIPMAP_DIR, ANDROID_DRAWABLE_DIR.
+SPLASH_IMAGE_PATH, SPLASH_BG_PATH, PUBSPEC_BACKUP_PATH.
+APK_OUTPUT_PATH, AAB_OUTPUT_PATH.
+GRADLE_WRAPPER_DIR, GRADLE_WRAPPER_JAR_PATH, GRADLE_WRAPPER_PROPERTIES_PATH, GRADLE_WRAPPER_URL, GRADLE_DISTRIBUTION_URL, DOWNLOAD_MAX_RETRIES, DOWNLOAD_RETRY_DELAY.
+Email Notification System Variables: ENABLE_EMAIL_NOTIFICATIONS, EMAIL_SMTP_SERVER, EMAIL_SMTP_PORT, EMAIL_SMTP_USER, EMAIL_SMTP_PASS.
+ANDROID_KEYSTORE_BASE64 (if used for direct injection), FIREBASE_ENABLED.
+🏗️ Supported CI Workflows (Codemagic)
+1. Workflow: Android-Free
+
+Entrypoint: lib/scripts/android/main.sh
+Conditions: Firebase integration disabled (e.g., PUSH_NOTIFY is false); Keystore not used (KEY_STORE_URL is null/empty).
+Output: output/android/*.apk
+2. Workflow: Android-Paid
+
+Entrypoint: lib/scripts/android/main.sh
+Conditions: Firebase integration enabled (PUSH_NOTIFY is true and FIREBASE_CONFIG_ANDROID is valid); Keystore not used (KEY_STORE_URL is null/empty).
+Output: output/android/*.apk
+3. Workflow: Android-Publish
+
+Entrypoint: lib/scripts/android/main.sh
+Conditions: Firebase integration enabled; Keystore enabled and passes the Keystore Validation Flow using KEY_STORE_URL.
+Output: output/android/*.apk and output/android/*.aab
+4. Workflow: iOS-Only (Code Signed IPA)
+
+Entrypoint: lib/scripts/ios/main.sh
+Conditions: Requires CERT_CER_URL, CERT_KEY_URL, PROFILE_URL, CERT_PASSWORD. Firebase integration enabled (FIREBASE_CONFIG_IOS valid) if PUSH_NOTIFY is true.
+Action: Dynamically generate .p12 from .cer and .key using openssl and CERT_PASSWORD. PROFILE_TYPE used for export options.
+Output: output/ios/*.ipa.
+5. Workflow: Combined Android & iOS
+
+Entrypoint: lib/scripts/combined/main.sh
+Conditions: Meets all necessary conditions for both Android and iOS builds (Firebase, Keystore, iOS Signing inputs).
+Action:
+Executes Android logic first, then iOS logic, leveraging shared and dynamically injected variables.
+Build Order: 1. Fetch All Variables from API; 2. Validate & Decode Files (.cer/.key/.mobileprovision); 3. Build Android → Store Artifacts; 4. Generate .p12 → Build iOS IPA → Store Artifacts.
+Output: Both output/android/*.apk/.aab and output/ios/*.ipa.
+QUICKAPP BUILD RULESET - Detailed Variable Conditions
+This section outlines the requirements for each variable category.
+
+Rule: ✅ Required fields must be validated during pipeline start; throw an error if missing.
+Rule: ⚠️ Optional fields should fall back to safe defaults or be skipped if missing.
+Rule: If IS_BOTTOMMENU=false, ignore all bottom menu configuration fields.
+Rule: Workflow detection must be based on a Codemagic environment variable or passed tag (e.g., workflowId from API, mapped to CM_WORKFLOW).
+1. App Metadata & Versioning
+
+APP_ID, USER_NAME, VERSION_NAME, VERSION_CODE, APP_NAME, ORG_NAME, WEB_URL, EMAIL_ID: All are ✅ Required for all workflows (1-5). workflowId and branch are provided by Codemagic directly.
+2. Customization Block (Package Identifiers & App Icon)
+
+PKG_NAME: ✅ Required for Android workflows (1-3, 5). This value will be used as the package name/ID for Android.
+BUNDLE_ID: ✅ Required for iOS workflows (4, 5). This value will be used as the Bundle ID for iOS.
+APP_ICON_PATH: ✅ Required for all workflows (1-5). This variable specifies the local path to the app icon image (e.g., "assets/images/logo.png") within the project, which will be used to replace the default app icon.
+Note: The APP_NAME variable is part of App Metadata and will dynamically change the display name of the application.
+3. Feature Toggles (App Config)
+
+PUSH_NOTIFY, IS_CHATBOT, IS_DOMAIN_URL, IS_SPLASH, IS_PULLDOWN, IS_BOTTOMMENU, IS_LOAD_IND: All are ⚠️ Optional for all workflows (1-5).
+Note: IS_DEEPLINK has been renamed to IS_DOMAIN_URL for clarity on domain checking.
+4. Runtime Permissions
+
+IS_CAMERA, IS_LOCATION, IS_MIC, IS_NOTIFICATION, IS_CONTACT, IS_BIOMETRIC, IS_CALENDAR, IS_STORAGE: All are ⚠️ Optional for all workflows (1-5).
+Action: If true, inject necessary permission entries into AndroidManifest.xml (Android) and Info.plist (iOS).
+5. Splash Screen Settings
+
+SPLASH_URL: ✅ Required for all workflows (1-5). This is the URL to the splash logo image. (Formerly SPLASH)
+SPLASH_BG_URL, SPLASH_BG_COLOR, SPLASH_TAGLINE, SPLASH_TAGLINE_COLOR, SPLASH_ANIMATION, SPLASH_DURATION: All are ⚠️ Optional for all workflows (1-5). (Formerly SPLASH_BG)
+6. Bottom Menu Configuration
+
+All BOTTOMMENU_ variables: ✅ Required if IS_BOTTOMMENU=true. Used in all workflows (1-5).
+Note: The font name BOTTOMMENU_FONT (⁠DM Sans) should be handled carefully in scripts to ensure proper rendering.
+7. Firebase Configuration
+
+FIREBASE_CONFIG_ANDROID: ✅ Required for Android-Paid, Android-Publish, Combined (Android part).
+FIREBASE_CONFIG_IOS: ✅ Required for iOS-only, Combined (iOS part).
+Rule for Push Notification (Firebase):
+Condition: PUSH_NOTIFY flag.
+Action: If PUSH_NOTIFY is true, Firebase integration must be enabled and configured. If false, Firebase integration is not required and should be skipped.
+8. Android Keystore (for signing)
+
+KEY_STORE_URL, CM_KEYSTORE_PASSWORD, CM_KEY_ALIAS, CM_KEY_PASSWORD: All are ✅ Required for Android-Publish and Combined workflows. (Note: KEY_STORE renamed to KEY_STORE_URL).
+Rule (Keystore Setup & Validation Flow): The KEY_STORE_URL variable controls the Keystore setup. If issues arise, the build should not stop but instead skip Keystore setup and continue. Error notifications will be sent.
+a. Keystore Presence Check:
+Condition: KEY_STORE_URL variable is null or empty.
+Action: Log "Keystore variable is empty. Skipping Keystore setup and continuing build." Proceed to next build steps.
+b. Keystore Credential Validation (Pre-Check):
+Condition: KEY_STORE_URL contains data (implies an attempt at setup) AND any of CM_KEYSTORE_PASSWORD, CM_KEY_ALIAS, CM_KEY_PASSWORD is missing/empty.
+Action: Send email notification "Alert: Android App Codesigning Skipped - Missing Keystore Credentials." Log the issue. Skip Keystore setup and continue.
+c. Keystore Download (if URL & credentials valid):
+Condition: KEY_STORE_URL contains a valid URL AND all three credential variables are present.
+Action: Attempt to download the Keystore file.
+Error Handling (Download Failure): If download fails, send email "Alert: Android App Codesigning Skipped - Keystore Download Failed." Log the issue. Skip Keystore setup and continue.
+d. Keystore Installation (if all conditions met):
+Condition: KEY_STORE_URL contains data (or file downloaded) AND all three credential variables are present/valid, AND no download errors occurred.
+Action: Proceed with Keystore installation/setup for codesigning. Log "Keystore setup successful. Proceeding with Android App Codesigning."
+e. Generic Keystore Setup Error (Catch-all):
+Condition: Any other unexpected error during Keystore setup.
+Action: Send email "Alert: Android App Codesigning Skipped - Keystore Setup Error." Log the issue. Skip Keystore setup and continue.
+9. iOS Signing
+
+PROFILE_TYPE: ✅ Required. Defines the type of provisioning profile (e.g., app-store, ad-hoc).
+CERT_CER_URL, CERT_KEY_URL, CERT_PASSWORD, PROFILE_URL: All are ✅ Required for iOS-only and Combined workflows.
+10. Apple Push & StoreConnect Keys
+
+APPLE_TEAM_ID, APNS_KEY_ID, APNS_AUTH_KEY_URL, APP_STORE_CONNECT_KEY_IDENTIFIER: All are ✅ Required for iOS-only and Combined workflows.
+IS_TESTFLIGHT: ⚠️ Optional. If true, implies integration with TestFlight upload.
+11. Email Notification System Variables (New)
+
+ENABLE_EMAIL_NOTIFICATIONS: ⚠️ Optional. If true, enables the email notification system.
+EMAIL_SMTP_SERVER, EMAIL_SMTP_PORT, EMAIL_SMTP_USER, EMAIL_SMTP_PASS: ✅ Required if ENABLE_EMAIL_NOTIFICATIONS is true.
+⚙️ Workflow Routing Logic (Inside Scripts)
+Rule: Each entrypoint script (main.sh) must use conditional logic to:
+Detect the workflow type via workflowId (from API response) or other flags (e.g., PUSH_NOTIFY, presence of signing variables).
+Download assets using curl or wget from specified URLs.
+Inject customization variables: Dynamically replace the Android package name/ID (using PKG_NAME), iOS Bundle ID (using BUNDLE_ID), and App Name (using APP_NAME) in relevant project files (e.g., AndroidManifest.xml, Info.plist, pubspec.yaml).
+Replace App Icon: Use the image specified by APP_ICON_PATH (assets/images/logo.png) to replace the default app icon for both Android and iOS platforms.
+Inject other variables into AndroidManifest.xml, Info.plist, pubspec.yaml, or other configuration files.
+Trigger platform-specific builds (e.g., Gradle for Android, Xcode for iOS).
+Sign apps (Keystore for Android, .p12 for iOS).
+🧪 Validation Checklist
+Rule: All workflows must be tested in Codemagic.
+Rule: External Asset Hosting: All assets (JSON, .cer, .key, .plist, .mobileprovision) must be hosted on GitHub (or similar direct-linkable repository) using raw URLs.
+Condition: Any workflow requires an external asset.
+Action: Use the raw URL for each asset (e.g., https://raw.githubusercontent.com/...). Ensure public accessibility for testing or configure appropriate credentials for private repos.
+Rule: The .p12 file must be generated on the fly from provided .cer and .key using CERT_PASSWORD.
+Rule: Custom permissions and UI settings must be injected using variables.
+Rule: The system must be compatible with both APK-only and AAB builds.
+Rule: The system must support Firebase on both Android and iOS platforms when PUSH_NOTIFY is true.
+Rule: Dynamic variable routing must function correctly via environment variables from the Codemagic API response.

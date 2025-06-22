@@ -409,3 +409,39 @@ Option 2: Both CERT_CER_URL and CERT_KEY_URL
 This gives users the flexibility to provide either:
 A pre-made P12 file with password
 Separate certificate and key files that will be converted to P12
+
+
+updated the build system to support both App Store and Ad-Hoc distribution methods. Here are the key changes:
+Added support for Ad-Hoc distribution:
+Added PROFILE_TYPE validation ("app-store" or "ad-hoc")
+Added Ad-Hoc specific export options
+Added manifest file generation for OTA installation
+Added device-specific build support
+New variables for Ad-Hoc distribution:
+Required:
+PROFILE_TYPE: Must be either "app-store" or "ad-hoc"
+Optional (for Ad-Hoc):
+ENABLE_DEVICE_SPECIFIC_BUILDS: Enable device-specific builds
+INSTALL_URL: URL where the IPA will be hosted for OTA installation
+DISPLAY_IMAGE_URL: Icon URL for OTA installation page
+FULL_SIZE_IMAGE_URL: Full-size image URL for OTA installation page
+THINNING: Control app thinning (defaults to "none")
+Features for Ad-Hoc distribution:
+OTA installation manifest generation
+Device-specific build support
+Optimized export options for Ad-Hoc
+Proper bitcode and symbol handling
+To use Ad-Hoc distribution:
+Set required variables:
+Apply to quikapp01.md...
+"
+Optional: Enable OTA installation:
+Apply to quikapp01.md...
+"
+Optional: Enable device-specific builds:
+Apply to quikapp01.md...
+"
+The script will:
+Generate a properly signed IPA
+Create a manifest file for OTA installation (if INSTALL_URL is provided)
+Output both files to the artifacts directory
