@@ -561,7 +561,7 @@ if [ -f "output/ios/$IPA_NAME" ]; then
     # Additional verification - check if it's a valid ZIP/IPA
     if file "output/ios/$IPA_NAME" | grep -q "Zip archive"; then
         log "✅ IPA file format verified (ZIP archive)"
-    else
+else
         log "⚠️ IPA file format verification failed - may not be a valid ZIP archive"
     fi
 else

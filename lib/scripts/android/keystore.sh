@@ -76,8 +76,8 @@ android {
         applicationId = "com.example.quikapptest06"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        versionCode = ${VERSION_CODE:-1}
+        versionName = "${VERSION_NAME:-1.0.0}"
     }
 
     signingConfigs {

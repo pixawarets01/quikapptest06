@@ -342,7 +342,7 @@ if [[ "${ANDROID_KEYSTORE_ENABLED}" == "true" ]]; then
             log "✅ Android keystore configuration completed"
     else
             log "❌ Android keystore configuration failed"
-            exit 1
+        exit 1
         fi
     else
         log "⚠️ Android keystore script not found, skipping..."

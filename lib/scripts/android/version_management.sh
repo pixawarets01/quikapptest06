@@ -261,55 +261,20 @@ EOF
 main() {
     log "🎯 Analyzing current configuration..."
     
-    # Determine version increment strategy
-    local version_increment_type="auto"
-    local package_suffix=""
-    
-    # Set version strategy based on workflow - ALL workflows use same package name
-    case $WORKFLOW_ID in
-        "android-free")
-            version_increment_type="patch"
-            package_suffix=""  # Use original package name for Firebase connectivity
-            ;;
-        "android-paid")
-            version_increment_type="patch"
-            package_suffix=""  # Use original package name for Firebase connectivity
-            ;;
-        "android-publish")
-            version_increment_type="minor"
-            package_suffix=""  # Use original package name for production
-            ;;
-        "combined")
-            version_increment_type="minor"
-            package_suffix=""  # Use original package name for production
-            ;;
-        *)
-            version_increment_type="auto"
-            package_suffix=""  # Use original package name
-            ;;
-    esac
-    
-    # Calculate new versions
-    local new_version_code
-    local new_version_name
-    local final_package_name
-    
-    new_version_code=$(increment_version_code "$VERSION_CODE" "$version_increment_type")
-    new_version_name=$(increment_version_name "$VERSION_NAME" "$version_increment_type")
-    
-    # ALL workflows use the same package name for Firebase connectivity
-    final_package_name="$PKG_NAME"
-    log "🔧 All workflows use same package name for Firebase connectivity"
+    # Use exact version values from environment variables
+    local final_version_name="$VERSION_NAME"
+    local final_version_code="$VERSION_CODE"
+    local final_package_name="$PKG_NAME"
     
     log "📊 Version Management Summary:"
     log "   Package Name: $final_package_name (same for all workflows)"
-    log "   Original Version: $VERSION_NAME ($VERSION_CODE)"
-    log "   New Version: $new_version_name ($new_version_code)"
-    log "   Increment Type: $version_increment_type"
+    log "   Version Name: $final_version_name (using exact value from VERSION_NAME)"
+    log "   Version Code: $final_version_code (using exact value from VERSION_CODE)"
     log "   Workflow: $WORKFLOW_ID"
+    log "   🔧 Using exact version values from environment variables (no auto-increment)"
     
-    # Apply configuration
-    create_version_config "$final_package_name" "$new_version_name" "$new_version_code"
+    # Apply configuration with exact values
+    create_version_config "$final_package_name" "$final_version_name" "$final_version_code"
     
     # Handle signing conflicts
     local signing_type="Debug"
@@ -325,12 +290,12 @@ main() {
     mkdir -p output/android
     
     # Generate installation guide
-    generate_installation_guide "$final_package_name" "$new_version_name" "$new_version_code" "$signing_type"
+    generate_installation_guide "$final_package_name" "$final_version_name" "$final_version_code" "$signing_type"
     
     # Export variables for use by other scripts
     export PKG_NAME="$final_package_name"
-    export VERSION_NAME="$new_version_name"
-    export VERSION_CODE="$new_version_code"
+    export VERSION_NAME="$final_version_name"
+    export VERSION_CODE="$final_version_code"
     
     log "✅ Version management completed successfully"
     log "📦 All workflows now use same package name: $final_package_name"

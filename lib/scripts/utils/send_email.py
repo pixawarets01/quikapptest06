@@ -195,28 +195,28 @@ class QuikAppEmailNotifier:
             base_url = f"https://api.codemagic.io/artifacts/{cm_project_id}/{cm_build_id}"
             
             logger.info(f"Generated base URL: {base_url}")
-            
-            for artifact in artifacts:
+        
+        for artifact in artifacts:
                 # URL encode the filename to handle special characters
                 encoded_filename = urllib.parse.quote(artifact['filename'])
                 download_url = f"{base_url}/{encoded_filename}"
                 
                 logger.info(f"Generated download URL for {artifact['filename']}: {download_url}")
                 
-                cards_html += f"""
-                <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 2px solid {artifact['color']}20; display: flex; justify-content: space-between; align-items: center; min-height: 100px;">
-                    <div style="flex: 1;">
-                        <h4 style="margin: 0 0 8px 0; color: {artifact['color']}; font-size: 18px;">{artifact['name']}</h4>
-                        <p style="margin: 0 0 5px 0; color: #666; font-size: 14px; line-height: 1.4;">{artifact['description']}</p>
-                        <p style="margin: 0; color: #999; font-size: 12px;">Size: {artifact['size']}</p>
-                    </div>
-                    <div style="margin-left: 20px;">
-                        <a href="{download_url}" style="background: {artifact['color']}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; display: inline-block; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-                            📥 Download
-                        </a>
-                    </div>
+            cards_html += f"""
+            <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 2px solid {artifact['color']}20; display: flex; justify-content: space-between; align-items: center; min-height: 100px;">
+                <div style="flex: 1;">
+                    <h4 style="margin: 0 0 8px 0; color: {artifact['color']}; font-size: 18px;">{artifact['name']}</h4>
+                    <p style="margin: 0 0 5px 0; color: #666; font-size: 14px; line-height: 1.4;">{artifact['description']}</p>
+                    <p style="margin: 0; color: #999; font-size: 12px;">Size: {artifact['size']}</p>
                 </div>
-                """
+                <div style="margin-left: 20px;">
+                    <a href="{download_url}" style="background: {artifact['color']}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; display: inline-block; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                        📥 Download
+                    </a>
+                </div>
+            </div>
+            """
         
         # Add alternative download method
         codemagic_build_url = f"https://codemagic.io/builds/{cm_build_id if cm_build_id != 'unknown' else build_id}"
@@ -549,7 +549,7 @@ class QuikAppEmailNotifier:
             
             with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
                 server.set_debuglevel(0)  # Set to 1 for debugging
-                server.starttls()
+        server.starttls()
                 server.login(self.smtp_user, self.smtp_pass)
                 
                 # Send email
@@ -567,7 +567,7 @@ class QuikAppEmailNotifier:
             logger.error(f"❌ Recipient refused: {e}")
         except smtplib.SMTPServerDisconnected as e:
             logger.error(f"❌ SMTP server disconnected: {e}")
-        except Exception as e:
+except Exception as e:
             logger.error(f"❌ Failed to send email: {e}")
             
         return False
@@ -612,7 +612,7 @@ def main():
     
     # Initialize email notifier
     try:
-        notifier = QuikAppEmailNotifier()
+    notifier = QuikAppEmailNotifier()
         logger.info("Email notifier initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize email notifier: {e}")
@@ -621,14 +621,14 @@ def main():
     # Send appropriate email
     success = False
     try:
-        if email_type == "build_started":
-            success = notifier.send_build_started_email(platform, build_id)
-        elif email_type == "build_success":
-            success = notifier.send_build_success_email(platform, build_id)
-        elif email_type == "build_failed":
-            success = notifier.send_build_failed_email(platform, build_id, error_message)
-        else:
-            logger.error(f"Unknown email type: {email_type}")
+    if email_type == "build_started":
+        success = notifier.send_build_started_email(platform, build_id)
+    elif email_type == "build_success":
+        success = notifier.send_build_success_email(platform, build_id)
+    elif email_type == "build_failed":
+        success = notifier.send_build_failed_email(platform, build_id, error_message)
+    else:
+        logger.error(f"Unknown email type: {email_type}")
             sys.exit(1)
     except Exception as e:
         logger.error(f"Failed to send email: {e}")

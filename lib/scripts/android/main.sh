@@ -143,8 +143,8 @@ android {
         applicationId = "${PKG_NAME:-com.example.quikapptest06}"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        versionCode = ${VERSION_CODE:-1}
+        versionName = "${VERSION_NAME:-1.0.0}"
         
         // Optimized architecture targeting
         ndk {
@@ -484,11 +484,11 @@ log "✅ Flutter build completed successfully"
 # Stop Gradle daemon after build
 log "🛑 Stopping Gradle daemon..."
 if [ -d "android" ]; then
-    cd android
-    if [ -f gradlew ]; then
-        ./gradlew --stop || true
-    fi
-    cd ..
+cd android
+if [ -f gradlew ]; then
+    ./gradlew --stop || true
+fi
+cd ..
 else
     log "⚠️ android directory not found, skipping Gradle daemon stop"
 fi
@@ -548,9 +548,9 @@ if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "co
     fi
 else
     # For testing workflows, APK is required
-    if [ "$APK_FOUND" = false ]; then
-        log "❌ APK file not found in any expected location"
-        exit 1
+if [ "$APK_FOUND" = false ]; then
+    log "❌ APK file not found in any expected location"
+    exit 1
     fi
 fi
 
@@ -577,11 +577,11 @@ if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "co
     fi
 else
     # Verify APK for testing workflows
-    if [ "$APK_FOUND" = true ] && [ -f "output/android/app-release.apk" ]; then
-        log "✅ APK verified in output directory"
-    else
-        log "❌ APK verification failed"
-        exit 1
+if [ "$APK_FOUND" = true ] && [ -f "output/android/app-release.apk" ]; then
+    log "✅ APK verified in output directory"
+else
+    log "❌ APK verification failed"
+    exit 1
     fi
 fi
 
@@ -636,4 +636,4 @@ if [ -f "lib/scripts/utils/send_email.sh" ]; then
 fi
 
 log "✅ Android build process completed successfully!"
-exit 0
+exit 0 
