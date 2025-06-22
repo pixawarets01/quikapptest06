@@ -7,7 +7,9 @@ import 'package:flutter/services.dart';
 import '../services/firebase_service.dart';
 import '../config/env_config.dart';
 import '../module/myapp.dart';
+import '../module/offline_screen.dart';
 import '../services/notification_service.dart';
+import '../services/connectivity_service.dart';
 import '../utils/menu_parser.dart';
 
 @pragma('vm:entry-point')
@@ -224,7 +226,7 @@ Please check:
                     const SizedBox(height: 16),
                     TextButton(
                       onPressed: () {
-                        runApp(MyApp(
+                        runApp(const MyApp(
                           webUrl: EnvConfig.webUrl,
                           isSplash: EnvConfig.isSplash,
                           splashLogo: EnvConfig.splashUrl,
@@ -272,6 +274,9 @@ Future<void> initializeApp() async {
     await SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
     ]);
+
+    // Initialize connectivity service
+    await ConnectivityService().initialize();
 
     // Initialize local notifications first
     await initLocalNotifications();
@@ -336,7 +341,7 @@ Future<void> initializeApp() async {
         - Contact: ${EnvConfig.isContact}
       """);
 
-    runApp(MyApp(
+    runApp(const MyApp(
       webUrl: EnvConfig.webUrl,
       isSplash: EnvConfig.isSplash,
       splashLogo: EnvConfig.splashUrl,
