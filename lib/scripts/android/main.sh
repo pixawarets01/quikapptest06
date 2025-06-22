@@ -425,6 +425,20 @@ else
     log "⚠️ Android branding script not found, skipping..."
 fi
 
+# 🔧 CRITICAL FIX: Validate and repair corrupted image files
+log "🔧 Running image validation and repair..."
+if [ -f "lib/scripts/utils/image_validation.sh" ]; then
+    chmod +x lib/scripts/utils/image_validation.sh
+    if lib/scripts/utils/image_validation.sh; then
+        log "✅ Image validation and repair completed"
+    else
+        log "❌ Image validation and repair failed"
+        exit 1
+    fi
+else
+    log "⚠️ Image validation script not found, skipping..."
+fi
+
 # Download custom icons for bottom menu
 log "🎨 Downloading custom icons for bottom menu..."
 if [ "${IS_BOTTOMMENU:-false}" = "true" ]; then
