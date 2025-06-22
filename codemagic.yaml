@@ -135,6 +135,7 @@ workflows:
         # 🔧 Feature Flags (Optimized for Free)
         PUSH_NOTIFY: "false"
         IS_DOMAIN_URL: "false"
+        FIREBASE_CONFIG_ANDROID: ""
         <<: *feature_flags
         <<: *permissions
         <<: *ui_config
@@ -219,6 +220,7 @@ workflows:
 
         # 🔧 Feature Flags (Paid Features)
         PUSH_NOTIFY: $PUSH_NOTIFY
+        KEY_STORE_URL: ""
         IS_DOMAIN_URL: $IS_DOMAIN_URL
         <<: *feature_flags
         <<: *permissions
