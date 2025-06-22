@@ -140,8 +140,10 @@ workflows:
         <<: *permissions
         <<: *ui_config
 
-          # 🔥 Firebase Configuration (Disabled for Free)
+        # 🔥 Firebase Configuration (Disabled for Free)
         FIREBASE_CONFIG_ANDROID: ""
+        KEY_STORE_URL: ""
+
 
     scripts:
       - name: Pre-build Setup
