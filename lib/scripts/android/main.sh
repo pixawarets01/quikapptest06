@@ -59,7 +59,7 @@ KEYSTORE_CONFIG=""
 if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "combined" ]]; then
     KEYSTORE_CONFIG='
         create("release") {
-            val keystorePropertiesFile = rootProject.file("app/keystore.properties")
+            val keystorePropertiesFile = rootProject.file("app/src/keystore.properties")
             if (keystorePropertiesFile.exists()) {
                 val keystoreProperties = Properties()
                 keystoreProperties.load(FileInputStream(keystorePropertiesFile))
@@ -80,7 +80,7 @@ BUILD_TYPE_CONFIG=""
 if [[ "${WORKFLOW_ID:-}" == "android-publish" ]] || [[ "${WORKFLOW_ID:-}" == "combined" ]]; then
     BUILD_TYPE_CONFIG='
         release {
-            val keystorePropertiesFile = rootProject.file("app/keystore.properties")
+            val keystorePropertiesFile = rootProject.file("app/src/keystore.properties")
             if (keystorePropertiesFile.exists()) {
                 signingConfig = signingConfigs.getByName("release")
             } else {
