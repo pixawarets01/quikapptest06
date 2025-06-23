@@ -459,26 +459,25 @@ else
     exit 1
 fi
 
-# 📦 STAGE 1: First Podfile Injection (for Flutter build - no code signing)
+# 📦 STAGE 1: First Podfile Injection for Flutter Build (No Code Signing)
 log "📦 STAGE 1: First Podfile Injection for Flutter Build (No Code Signing)..."
 
-# Set environment for first stage Podfile generation
-export PODFILE_STAGE="flutter-build"
-export CODE_SIGN_STYLE="Automatic"
-export CODE_SIGNING_ALLOWED="NO"
-export CODE_SIGNING_REQUIRED="NO"
+# 🧹 Clean up existing Pods to avoid version conflicts
+log "🧹 Cleaning up existing Pods for fresh start..."
+rm -rf ios/Pods ios/Podfile.lock ios/Pods.xcodeproj 2>/dev/null || true
+log "✅ Pods cleanup completed"
 
-# Generate first Podfile for Flutter build
+# Generate first Podfile for Flutter build (no code signing)
 if [ -f "lib/scripts/ios/generate_podfile.sh" ]; then
     chmod +x lib/scripts/ios/generate_podfile.sh
-    if ./lib/scripts/ios/generate_podfile.sh; then
+    if ./lib/scripts/ios/generate_podfile.sh "flutter-build" "$PROFILE_TYPE"; then
         log "✅ First Podfile generated for Flutter build"
     else
         log "❌ First Podfile generation failed"
         exit 1
     fi
 else
-    log "❌ Podfile generator not found"
+    log "❌ Podfile generator script not found"
     exit 1
 fi
 
@@ -550,26 +549,25 @@ else
     exit 1
 fi
 
-# 📦 STAGE 2: Second Podfile Injection (for xcodebuild with code signing)
+# 📦 STAGE 2: Second Podfile Injection for xcodebuild (With Code Signing)
 log "📦 STAGE 2: Second Podfile Injection for xcodebuild (With Code Signing)..."
 
-# Set environment for second stage Podfile generation
-export PODFILE_STAGE="xcodebuild"
-export CODE_SIGN_STYLE="Manual"
-export CODE_SIGNING_ALLOWED="NO"
-export CODE_SIGNING_REQUIRED="NO"
+# 🧹 Clean up existing Pods for second stage
+log "🧹 Cleaning up existing Pods for second stage..."
+rm -rf ios/Pods ios/Podfile.lock ios/Pods.xcodeproj 2>/dev/null || true
+log "✅ Second stage Pods cleanup completed"
 
-# Generate second Podfile for xcodebuild
+# Generate second Podfile for xcodebuild (with code signing)
 if [ -f "lib/scripts/ios/generate_podfile.sh" ]; then
     chmod +x lib/scripts/ios/generate_podfile.sh
-    if ./lib/scripts/ios/generate_podfile.sh; then
+    if ./lib/scripts/ios/generate_podfile.sh "xcodebuild" "$PROFILE_TYPE"; then
         log "✅ Second Podfile generated for xcodebuild"
     else
         log "❌ Second Podfile generation failed"
         exit 1
     fi
 else
-    log "❌ Podfile generator not found"
+    log "❌ Podfile generator script not found"
     exit 1
 fi
 
