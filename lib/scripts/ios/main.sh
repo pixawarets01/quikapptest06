@@ -32,7 +32,35 @@ log "🚀 Starting iOS Universal IPA Build Process..."
 
 # 🔧 Initial Setup
 log "🔧 Initial Setup - Installing CocoaPods..."
-gem install cocoapods
+
+# Check if CocoaPods is already installed
+if command -v pod >/dev/null 2>&1; then
+    log "✅ CocoaPods is already installed"
+else
+    log "📦 Installing CocoaPods..."
+    
+    # Try different installation methods
+    if command -v brew >/dev/null 2>&1; then
+        log "🍺 Installing CocoaPods via Homebrew..."
+        brew install cocoapods
+    elif command -v gem >/dev/null 2>&1; then
+        log "💎 Installing CocoaPods via gem (user installation)..."
+        gem install --user-install cocoapods
+        # Add user gem bin to PATH
+        export PATH="$HOME/.gem/ruby/$(ruby -e 'puts RUBY_VERSION')/bin:$PATH"
+    else
+        log "❌ No suitable package manager found for CocoaPods installation"
+        exit 1
+    fi
+    
+    # Verify installation
+    if command -v pod >/dev/null 2>&1; then
+        log "✅ CocoaPods installed successfully"
+    else
+        log "❌ CocoaPods installation failed"
+        exit 1
+    fi
+fi
 
 log "📦 Installing Flutter Dependencies..."
 flutter pub get
@@ -191,9 +219,8 @@ else
             exit 1
         fi
         
-        # Generate P12 from PEM and KEY
-        log "🔄 Generating P12 certificate with password..."
-        log "🔍 Using password: ${CERT_PASSWORD:0:3}*** (length: ${#CERT_PASSWORD})"
+        # Generate P12 with compatible password handling
+        # Try with CERT_PASSWORD first, then without password as fallback
         
         # Verify PEM and KEY files before P12 generation
         log "🔍 Verifying PEM and KEY files before P12 generation..."
@@ -220,20 +247,19 @@ else
             exit 1
         fi
         
-        # Generate P12 with compatible password handling
-        # Try with CERT_PASSWORD first, then without password as fallback
         log "🔍 Attempting P12 generation with CERT_PASSWORD..."
         if openssl pkcs12 -export \
             -inkey ios/certificates/cert.key \
             -in ios/certificates/cert.pem \
             -out ios/certificates/cert.p12 \
             -password "pass:$CERT_PASSWORD" \
-            -name "iOS Distribution Certificate"; then
+            -name "iOS Distribution Certificate" \
+            -legacy; then
             log "✅ P12 certificate generated successfully (with password)"
             
             # Verify the generated P12 with password
             log "🔍 Verifying generated P12 file with password..."
-            if openssl pkcs12 -in ios/certificates/cert.p12 -noout -passin "pass:$CERT_PASSWORD" 2>/dev/null; then
+            if openssl pkcs12 -in ios/certificates/cert.p12 -noout -passin "pass:$CERT_PASSWORD" -legacy 2>/dev/null; then
                 log "✅ Generated P12 verification successful (with password)"
                 log "🔍 P12 file size: $(ls -lh ios/certificates/cert.p12 | awk '{print $5}')"
             else
@@ -245,12 +271,13 @@ else
                     -in ios/certificates/cert.pem \
                     -out ios/certificates/cert.p12 \
                     -password "pass:" \
-                    -name "iOS Distribution Certificate"; then
+                    -name "iOS Distribution Certificate" \
+                    -legacy; then
                     log "✅ P12 certificate generated successfully (no password)"
                     
                     # Verify the generated P12 without password
                     log "🔍 Verifying generated P12 file without password..."
-                    if openssl pkcs12 -in ios/certificates/cert.p12 -noout 2>/dev/null; then
+                    if openssl pkcs12 -in ios/certificates/cert.p12 -noout -legacy 2>/dev/null; then
                         log "✅ Generated P12 verification successful (no password)"
                         log "🔍 P12 file size: $(ls -lh ios/certificates/cert.p12 | awk '{print $5}')"
                     else

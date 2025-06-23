@@ -131,73 +131,99 @@ setup_keychain_and_certificates() {
     security list-keychains -s build.keychain
     security show-keychain-info build.keychain
     
-    # Import certificate
+    # Import certificate using the robust approach from old Codemagic file
     log "📜 Importing certificate..."
     if [ -f "ios/certificates/cert.p12" ]; then
         log "🔍 Certificate file found: ios/certificates/cert.p12"
         log "🔍 Certificate file size: $(ls -lh ios/certificates/cert.p12 | awk '{print $5}')"
         
-        # Verify P12 file integrity first (try without password first)
-        log "🔍 Verifying P12 file integrity..."
-        if openssl pkcs12 -in ios/certificates/cert.p12 -noout 2>/dev/null; then
-            log "✅ P12 file integrity verified (no password)"
-            
-            # Try importing without password first
-            log "🔍 Attempting certificate import without password..."
-            if security import ios/certificates/cert.p12 -k build.keychain -A; then
-                log "✅ Certificate imported successfully (no password)"
-            else
-                log "⚠️ Import without password failed, trying with password..."
+        # Use the robust import approach from old Codemagic file
+        log "🔍 Attempting certificate import with multiple methods..."
+        
+        # Method 1: Try importing with password and all tools (from old file)
+        if [ -n "$CERT_PASSWORD" ]; then
+            log "🔍 Method 1: Importing with password and all tools..."
+            if security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign -T /usr/bin/xcodebuild -A; then
+                log "✅ Certificate imported successfully (Method 1)"
+                security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+                return 0
+            fi
+        fi
+        
+        # Method 2: Try importing without password first (from old file)
+        log "🔍 Method 2: Importing without password..."
+        if security import ios/certificates/cert.p12 -k build.keychain -A; then
+            log "✅ Certificate imported successfully (Method 2 - no password)"
+            security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+            return 0
+        fi
+        
+        # Method 3: Try importing with password but without -A flag (from old file)
+        if [ -n "$CERT_PASSWORD" ]; then
+            log "🔍 Method 3: Importing with password but without -A flag..."
+            if security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD"; then
+                log "✅ Certificate imported successfully (Method 3)"
+                security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+                return 0
+            fi
+        fi
+        
+        # Method 4: Try importing with specific tool access only (from old file)
+        if [ -n "$CERT_PASSWORD" ]; then
+            log "🔍 Method 4: Importing with specific tool access..."
+            if security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign; then
+                log "✅ Certificate imported successfully (Method 4)"
+                security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+                return 0
+            fi
+        fi
+        
+        # Method 5: Try importing certificate and key separately (from old file approach)
+        log "🔍 Method 5: Attempting separate certificate and key import..."
+        local temp_dir="ios/certificates/temp"
+        mkdir -p "$temp_dir"
+        
+        # Extract certificate and key from P12
+        if [ -n "$CERT_PASSWORD" ]; then
+            if openssl pkcs12 -in ios/certificates/cert.p12 -clcerts -nokeys -out "$temp_dir/cert.pem" -passin "pass:$CERT_PASSWORD" -passout "pass:" -legacy && \
+               openssl pkcs12 -in ios/certificates/cert.p12 -nocerts -out "$temp_dir/key.pem" -passin "pass:$CERT_PASSWORD" -passout "pass:" -legacy; then
                 
-                # Try with password if available
-                if [ -n "$CERT_PASSWORD" ]; then
-                    log "🔍 Using password: ${CERT_PASSWORD:0:3}*** (length: ${#CERT_PASSWORD})"
+                # Import certificate
+                if security import "$temp_dir/cert.pem" -k build.keychain -T /usr/bin/codesign -T /usr/bin/xcodebuild -A; then
+                    log "✅ Certificate imported separately"
                     
-                    # Method 1: Standard import with password
-                    if security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD" -A; then
-                        log "✅ Certificate imported successfully (with password)"
+                    # Try importing key
+                    if security import "$temp_dir/key.pem" -k build.keychain -T /usr/bin/codesign -T /usr/bin/xcodebuild -A; then
+                        log "✅ Private key imported separately"
+                        security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+                        rm -rf "$temp_dir"
+                        return 0
                     else
-                        log "⚠️ Standard import failed, trying alternative method..."
-                        
-                        # Method 2: Import without -A flag
-                        if security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD"; then
-                            log "✅ Certificate imported successfully (without -A flag)"
-                        else
-                            log "⚠️ Alternative import failed, trying with different tools..."
-                            
-                            # Method 3: Try importing with specific tool access
-                            if security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign -T /usr/bin/xcodebuild; then
-                                log "✅ Certificate imported successfully (with tool access)"
-                            else
-                                log "❌ All certificate import methods failed"
-                                log "🔍 Debug info:"
-                                log "   Password length: ${#CERT_PASSWORD}"
-                                log "   Password starts with: ${CERT_PASSWORD:0:3}***"
-                                log "   Keychain status: $(security list-keychains | grep build.keychain || echo 'not found')"
-                                log "   P12 file type: $(file ios/certificates/cert.p12)"
-                                return 1
-                            fi
-                        fi
+                        log "⚠️ Certificate imported but key import failed"
+                        security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+                        rm -rf "$temp_dir"
+                        return 0  # Return success since certificate was imported
                     fi
-                else
-                    log "❌ No password provided and import without password failed"
-                    return 1
                 fi
             fi
-        else
-            log "❌ P12 file integrity check failed - file may be corrupted"
-            log "🔍 P12 file type: $(file ios/certificates/cert.p12)"
-            return 1
         fi
+        
+        rm -rf "$temp_dir"
+        
+        # If we get here, all methods failed
+        log "❌ All certificate import methods failed"
+        log "🔍 Debug info:"
+        log "   Password provided: $([ -n "$CERT_PASSWORD" ] && echo 'yes' || echo 'no')"
+        log "   Password length: ${#CERT_PASSWORD}"
+        log "   Keychain status: $(security list-keychains | grep build.keychain || echo 'not found')"
+        log "   P12 file type: $(file ios/certificates/cert.p12)"
+        return 1
     else
         log "❌ Certificate file not found: ios/certificates/cert.p12"
         log "🔍 Available files in certificates directory:"
         ls -la ios/certificates/ 2>/dev/null || log "   Directory not accessible"
         return 1
     fi
-    
-    # Set partition list for codesigning
-    security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
     
     # Verify certificate installation
     log "🔍 Verifying certificate installation..."

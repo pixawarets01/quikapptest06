@@ -74,7 +74,7 @@ handle_certificates() {
     
     # Step 4: Create P12 file (unencrypted key, but P12 still needs password)
     log "Creating P12 file with provided password..."
-    if openssl pkcs12 -export -out "$output_p12" -inkey "$key_pem" -in "$cert_pem" -password "pass:$password" -name "iOS Distribution Certificate"; then
+    if openssl pkcs12 -export -out "$output_p12" -inkey "$key_pem" -in "$cert_pem" -password "pass:$password" -name "iOS Distribution Certificate" -legacy; then
         log "✅ P12 file created successfully"
     else
         log "❌ Failed to create P12 file"
@@ -83,7 +83,7 @@ handle_certificates() {
     
     # Step 5: Verify P12 file
     log "Verifying P12 file..."
-    if openssl pkcs12 -in "$output_p12" -noout -passin "pass:$password" 2>/dev/null; then
+    if openssl pkcs12 -in "$output_p12" -noout -passin "pass:$password" -legacy 2>/dev/null; then
         log "✅ P12 file verification successful"
     else
         log "❌ P12 file verification failed"
@@ -134,8 +134,8 @@ import_p12_to_keychain() {
     mkdir -p "$temp_dir"
     
     # Extract certificate and key from P12
-    if openssl pkcs12 -in "$p12_file" -clcerts -nokeys -out "$temp_dir/cert.pem" -passin "pass:$password" -passout "pass:" && \
-       openssl pkcs12 -in "$p12_file" -nocerts -out "$temp_dir/key.pem" -passin "pass:$password" -passout "pass:"; then
+    if openssl pkcs12 -in "$p12_file" -clcerts -nokeys -out "$temp_dir/cert.pem" -passin "pass:$password" -passout "pass:" -legacy && \
+       openssl pkcs12 -in "$p12_file" -nocerts -out "$temp_dir/key.pem" -passin "pass:$password" -passout "pass:" -legacy; then
         
         # Import certificate (this worked in the logs)
         if security import "$temp_dir/cert.pem" -k "$keychain" -T /usr/bin/codesign -T /usr/bin/xcodebuild -A; then
