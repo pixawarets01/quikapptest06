@@ -545,24 +545,32 @@ workflows:
 
           # Enhanced build process validation
           echo "🔍 Validating build process components..."
-          if [ -f "lib/scripts/ios/build_ipa.sh" ]; then
-            echo "✅ Enhanced build script found"
+
+          # Get absolute path to project root
+          PROJECT_ROOT=$(pwd)
+          echo "📁 Project root: $PROJECT_ROOT"
+
+          # Check for required scripts with absolute paths
+          if [ -f "$PROJECT_ROOT/lib/scripts/ios/build_ipa.sh" ]; then
+            echo "✅ Enhanced build script found: $PROJECT_ROOT/lib/scripts/ios/build_ipa.sh"
           else
-            echo "❌ Enhanced build script not found"
+            echo "❌ Enhanced build script not found at: $PROJECT_ROOT/lib/scripts/ios/build_ipa.sh"
+            echo "📂 Checking directory contents:"
+            ls -la "$PROJECT_ROOT/lib/scripts/ios/" 2>/dev/null || echo "Directory not accessible"
             exit 1
           fi
 
-          if [ -f "lib/scripts/ios/code_signing.sh" ]; then
-            echo "✅ Enhanced code signing script found"
+          if [ -f "$PROJECT_ROOT/lib/scripts/ios/code_signing.sh" ]; then
+            echo "✅ Enhanced code signing script found: $PROJECT_ROOT/lib/scripts/ios/code_signing.sh"
           else
-            echo "❌ Enhanced code signing script not found"
+            echo "❌ Enhanced code signing script not found at: $PROJECT_ROOT/lib/scripts/ios/code_signing.sh"
             exit 1
           fi
 
-          if [ -f "lib/scripts/ios/firebase.sh" ]; then
-            echo "✅ Firebase script found"
+          if [ -f "$PROJECT_ROOT/lib/scripts/ios/firebase.sh" ]; then
+            echo "✅ Firebase script found: $PROJECT_ROOT/lib/scripts/ios/firebase.sh"
           else
-            echo "❌ Firebase script not found"
+            echo "❌ Firebase script not found at: $PROJECT_ROOT/lib/scripts/ios/firebase.sh"
             exit 1
           fi
 
@@ -570,8 +578,13 @@ workflows:
 
       - name: Build iOS Universal IPA
         script: |
-          chmod +x lib/scripts/ios/*.sh
-          chmod +x lib/scripts/utils/*.sh
+          # Get absolute path to project root
+          PROJECT_ROOT=$(pwd)
+          echo "📁 Building from project root: $PROJECT_ROOT"
+
+          # Make scripts executable with absolute paths
+          chmod +x "$PROJECT_ROOT/lib/scripts/ios/"*.sh
+          chmod +x "$PROJECT_ROOT/lib/scripts/utils/"*.sh
 
           # Enhanced build with retry logic
           MAX_RETRIES=${MAX_RETRIES:-2}
@@ -581,7 +594,7 @@ workflows:
             echo "🏗️ Build attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
             echo "🍎 Building for profile type: $PROFILE_TYPE"
 
-            if ./lib/scripts/ios/main.sh; then
+            if "$PROJECT_ROOT/lib/scripts/ios/main.sh"; then
               echo "✅ Build completed successfully!"
               break
             else
