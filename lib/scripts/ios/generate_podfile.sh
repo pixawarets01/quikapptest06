@@ -79,6 +79,19 @@ pre_install do |installer|
       pod.build_settings['SWIFT_VERSION'] = '5.0'
       pod.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
     end
+    
+    # Fix for GoogleDataTransport protobuf issue
+    if pod.name == 'GoogleDataTransport'
+      pod.build_settings['GCC_C_LANGUAGE_STANDARD'] = 'gnu99'
+      pod.build_settings['CLANG_WARN_IMPLICIT_FUNCTION_DECLARATION'] = 'NO'
+      pod.build_settings['OTHER_CFLAGS'] = '\\$(inherited) -Wno-implicit-function-declaration'
+    end
+    
+    # Fix for nanopb
+    if pod.name == 'nanopb'
+      pod.build_settings['GCC_C_LANGUAGE_STANDARD'] = 'gnu99'
+      pod.build_settings['CLANG_WARN_IMPLICIT_FUNCTION_DECLARATION'] = 'NO'
+    end
   end
 end
 
@@ -137,12 +150,21 @@ EOF
         config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
         
         # 🔧 Swift Compiler Fixes for Firebase (Global)
-        config.build_settings['SWIFT_ACTIVE_COMPILATION_CONDITIONS'] = '$(inherited)'
-        config.build_settings['OTHER_SWIFT_FLAGS'] = '$(inherited) -enable-experimental-feature AccessLevelOnImport'
+        config.build_settings['SWIFT_ACTIVE_COMPILATION_CONDITIONS'] = '\\$(inherited)'
+        config.build_settings['OTHER_SWIFT_FLAGS'] = '\\$(inherited) -enable-experimental-feature AccessLevelOnImport'
         
         # 🔧 Additional Firebase Compatibility
         config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
-        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = '$(inherited) COCOAPODS=1'
+        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = '\\$(inherited) COCOAPODS=1'
+        
+        # 🔧 GoogleDataTransport/Protobuf Fixes
+        config.build_settings['GCC_C_LANGUAGE_STANDARD'] = 'gnu99'
+        config.build_settings['CLANG_WARN_IMPLICIT_FUNCTION_DECLARATION'] = 'NO'
+        config.build_settings['OTHER_CFLAGS'] = '\\$(inherited) -Wno-implicit-function-declaration'
+        
+        # 🔧 Nanopb Integration
+        config.build_settings['HEADER_SEARCH_PATHS'] = '\\$(inherited) \\$(PODS_ROOT)/nanopb'
+        config.build_settings['LIBRARY_SEARCH_PATHS'] = '\\$(inherited) \\$(PODS_ROOT)/nanopb'
       end
     end
   end
@@ -168,12 +190,21 @@ EOF
         config.build_settings['ENABLE_TESTABILITY'] = 'YES'
         
         # 🔧 Swift Compiler Fixes for Firebase
-        config.build_settings['SWIFT_ACTIVE_COMPILATION_CONDITIONS'] = '\$(inherited)'
-        config.build_settings['OTHER_SWIFT_FLAGS'] = '\$(inherited) -enable-experimental-feature AccessLevelOnImport'
+        config.build_settings['SWIFT_ACTIVE_COMPILATION_CONDITIONS'] = '\\$(inherited)'
+        config.build_settings['OTHER_SWIFT_FLAGS'] = '\\$(inherited) -enable-experimental-feature AccessLevelOnImport'
         
         # 🔧 Additional Firebase Compatibility
         config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
-        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = '\$(inherited) COCOAPODS=1'
+        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = '\\$(inherited) COCOAPODS=1'
+        
+        # 🔧 GoogleDataTransport/Protobuf Fixes
+        config.build_settings['GCC_C_LANGUAGE_STANDARD'] = 'gnu99'
+        config.build_settings['CLANG_WARN_IMPLICIT_FUNCTION_DECLARATION'] = 'NO'
+        config.build_settings['OTHER_CFLAGS'] = '\\$(inherited) -Wno-implicit-function-declaration'
+        
+        # 🔧 Nanopb Integration
+        config.build_settings['HEADER_SEARCH_PATHS'] = '\\$(inherited) \\$(PODS_ROOT)/nanopb'
+        config.build_settings['LIBRARY_SEARCH_PATHS'] = '\\$(inherited) \\$(PODS_ROOT)/nanopb'
       end
     end
   end
@@ -199,12 +230,21 @@ EOF
         config.build_settings['ENABLE_TESTABILITY'] = 'YES'
         
         # 🔧 Swift Compiler Fixes for Firebase
-        config.build_settings['SWIFT_ACTIVE_COMPILATION_CONDITIONS'] = '\$(inherited)'
-        config.build_settings['OTHER_SWIFT_FLAGS'] = '\$(inherited) -enable-experimental-feature AccessLevelOnImport'
+        config.build_settings['SWIFT_ACTIVE_COMPILATION_CONDITIONS'] = '\\$(inherited)'
+        config.build_settings['OTHER_SWIFT_FLAGS'] = '\\$(inherited) -enable-experimental-feature AccessLevelOnImport'
         
         # 🔧 Additional Firebase Compatibility
         config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
-        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = '\$(inherited) COCOAPODS=1'
+        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = '\\$(inherited) COCOAPODS=1'
+        
+        # 🔧 GoogleDataTransport/Protobuf Fixes
+        config.build_settings['GCC_C_LANGUAGE_STANDARD'] = 'gnu99'
+        config.build_settings['CLANG_WARN_IMPLICIT_FUNCTION_DECLARATION'] = 'NO'
+        config.build_settings['OTHER_CFLAGS'] = '\\$(inherited) -Wno-implicit-function-declaration'
+        
+        # 🔧 Nanopb Integration
+        config.build_settings['HEADER_SEARCH_PATHS'] = '\\$(inherited) \\$(PODS_ROOT)/nanopb'
+        config.build_settings['LIBRARY_SEARCH_PATHS'] = '\\$(inherited) \\$(PODS_ROOT)/nanopb'
       end
     end
   end
