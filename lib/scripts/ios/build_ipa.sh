@@ -99,15 +99,33 @@ clean_build_environment() {
 install_ios_dependencies() {
     log "📦 Installing iOS dependencies..."
     
+    # Ensure Flutter dependencies are up to date
+    log "📦 Updating Flutter dependencies..."
+    if flutter pub get; then
+        log "✅ Flutter dependencies updated"
+    else
+        handle_error "Failed to update Flutter dependencies"
+    fi
+    
     # Navigate to iOS directory
     cd ios
+    
+    # Clean any existing pods
+    log "🧹 Cleaning existing pods..."
+    rm -rf Pods/ 2>/dev/null || true
+    rm -rf Podfile.lock 2>/dev/null || true
     
     # Install CocoaPods dependencies
     log "🍫 Installing CocoaPods dependencies..."
     if pod install --repo-update; then
         log "✅ CocoaPods dependencies installed successfully"
     else
-        handle_error "Failed to install CocoaPods dependencies"
+        log "❌ Pod install failed, trying with verbose output..."
+        if pod install --repo-update --verbose; then
+            log "✅ CocoaPods dependencies installed successfully (with verbose)"
+        else
+            handle_error "Failed to install CocoaPods dependencies"
+        fi
     fi
     
     # Return to project root
