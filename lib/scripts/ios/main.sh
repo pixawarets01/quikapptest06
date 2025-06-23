@@ -195,29 +195,79 @@ else
         log "🔄 Generating P12 certificate with password..."
         log "🔍 Using password: ${CERT_PASSWORD:0:3}*** (length: ${#CERT_PASSWORD})"
         
+        # Verify PEM and KEY files before P12 generation
+        log "🔍 Verifying PEM and KEY files before P12 generation..."
+        if [ ! -f "ios/certificates/cert.pem" ] || [ ! -f "ios/certificates/cert.key" ]; then
+            log "❌ PEM or KEY file missing"
+            log "   PEM exists: $([ -f ios/certificates/cert.pem ] && echo 'yes' || echo 'no')"
+            log "   KEY exists: $([ -f ios/certificates/cert.key ] && echo 'yes' || echo 'no')"
+            exit 1
+        fi
+        
+        # Check PEM file content
+        if openssl x509 -in ios/certificates/cert.pem -text -noout >/dev/null 2>&1; then
+            log "✅ PEM file is valid certificate"
+        else
+            log "❌ PEM file is not a valid certificate"
+            exit 1
+        fi
+        
+        # Check KEY file content
+        if openssl rsa -in ios/certificates/cert.key -check -noout >/dev/null 2>&1; then
+            log "✅ KEY file is valid private key"
+        else
+            log "❌ KEY file is not a valid private key"
+            exit 1
+        fi
+        
         # Generate P12 with compatible password handling
-        # Use empty password for P12 generation to avoid compatibility issues
+        # Try with CERT_PASSWORD first, then without password as fallback
+        log "🔍 Attempting P12 generation with CERT_PASSWORD..."
         if openssl pkcs12 -export \
             -inkey ios/certificates/cert.key \
             -in ios/certificates/cert.pem \
             -out ios/certificates/cert.p12 \
-            -password "pass:" \
+            -password "pass:$CERT_PASSWORD" \
             -name "iOS Distribution Certificate"; then
-            log "✅ P12 certificate generated successfully (no password)"
+            log "✅ P12 certificate generated successfully (with password)"
             
-            # Verify the generated P12 (should work without password)
-            log "🔍 Verifying generated P12 file..."
-            if openssl pkcs12 -in ios/certificates/cert.p12 -noout 2>/dev/null; then
-                log "✅ Generated P12 verification successful"
+            # Verify the generated P12 with password
+            log "🔍 Verifying generated P12 file with password..."
+            if openssl pkcs12 -in ios/certificates/cert.p12 -noout -passin "pass:$CERT_PASSWORD" 2>/dev/null; then
+                log "✅ Generated P12 verification successful (with password)"
                 log "🔍 P12 file size: $(ls -lh ios/certificates/cert.p12 | awk '{print $5}')"
             else
-                log "❌ Generated P12 verification failed"
-                log "🔍 Attempting to debug P12 file..."
-                file ios/certificates/cert.p12
-                exit 1
+                log "⚠️ P12 verification with password failed, trying without password..."
+                
+                # Try generating without password as fallback
+                if openssl pkcs12 -export \
+                    -inkey ios/certificates/cert.key \
+                    -in ios/certificates/cert.pem \
+                    -out ios/certificates/cert.p12 \
+                    -password "pass:" \
+                    -name "iOS Distribution Certificate"; then
+                    log "✅ P12 certificate generated successfully (no password)"
+                    
+                    # Verify the generated P12 without password
+                    log "🔍 Verifying generated P12 file without password..."
+                    if openssl pkcs12 -in ios/certificates/cert.p12 -noout 2>/dev/null; then
+                        log "✅ Generated P12 verification successful (no password)"
+                        log "🔍 P12 file size: $(ls -lh ios/certificates/cert.p12 | awk '{print $5}')"
+                    else
+                        log "❌ Generated P12 verification failed (no password)"
+                        log "🔍 Attempting to debug P12 file..."
+                        file ios/certificates/cert.p12
+                        log "🔍 P12 file content (first 100 chars):"
+                        head -c 100 ios/certificates/cert.p12 | xxd
+                        exit 1
+                    fi
+                else
+                    log "❌ Failed to generate P12 certificate (both with and without password)"
+                    exit 1
+                fi
             fi
         else
-            log "❌ Failed to generate P12 certificate"
+            log "❌ Failed to generate P12 certificate with password"
             log "🔍 Debug info:"
             log "   CERT_PASSWORD length: ${#CERT_PASSWORD}"
             log "   CERT_PASSWORD starts with: ${CERT_PASSWORD:0:3}***"
