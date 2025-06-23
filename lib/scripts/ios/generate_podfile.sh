@@ -72,12 +72,14 @@ ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
 # 🔧 Pre-install hook for Firebase compatibility
 pre_install do |installer|
-  # Clean up any conflicting Firebase versions
+  # Clean up any conflicting Firebase versions and set Swift compatibility
   installer.pod_targets.each do |pod|
     if pod.name.start_with?('Firebase')
       pod.build_configurations.each do |config|
         config.build_settings['SWIFT_VERSION'] = '5.0'
         config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
+        # Add Swift compiler flags for AccessLevelOnImport compatibility
+        config.build_settings['OTHER_SWIFT_FLAGS'] = '$(inherited) -enable-experimental-feature AccessLevelOnImport'
       end
     end
   end
@@ -112,14 +114,6 @@ target 'Runner' do
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 
-  # 🔥 Firebase Version Constraints for Xcode 15.4 Compatibility
-  pod 'Firebase/Core', '~> 10.18.0'
-  pod 'Firebase/Messaging', '~> 10.18.0'
-  pod 'FirebaseCore', '~> 10.18.0'
-  pod 'FirebaseCoreInternal', '~> 10.18.0'
-  pod 'FirebaseInstallations', '~> 10.18.0'
-  pod 'FirebaseMessaging', '~> 10.18.0'
-
   target 'RunnerTests' do
     inherit! :search_paths
   end
@@ -145,13 +139,13 @@ EOF
         config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
         config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
         
-        # 🔧 Swift Compiler Fixes for Firebase
-        config.build_settings['SWIFT_ACTIVE_COMPILATION_CONDITIONS'] = '\$(inherited)'
-        config.build_settings['OTHER_SWIFT_FLAGS'] = '\$(inherited) -enable-experimental-feature AccessLevelOnImport'
+        # 🔧 Swift Compiler Fixes for Firebase (Global)
+        config.build_settings['SWIFT_ACTIVE_COMPILATION_CONDITIONS'] = '$(inherited)'
+        config.build_settings['OTHER_SWIFT_FLAGS'] = '$(inherited) -enable-experimental-feature AccessLevelOnImport'
         
         # 🔧 Additional Firebase Compatibility
         config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
-        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = '\$(inherited) COCOAPODS=1'
+        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = '$(inherited) COCOAPODS=1'
       end
     end
   end
