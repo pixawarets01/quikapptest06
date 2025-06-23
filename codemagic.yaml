@@ -586,29 +586,63 @@ workflows:
           chmod +x "$PROJECT_ROOT/lib/scripts/ios/"*.sh
           chmod +x "$PROJECT_ROOT/lib/scripts/utils/"*.sh
 
-          # Enhanced build with retry logic
+          # Enhanced build with retry logic and xcodebuild approach
           MAX_RETRIES=${MAX_RETRIES:-2}
           RETRY_COUNT=0
 
           while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
             echo "🏗️ Build attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
             echo "🍎 Building for profile type: $PROFILE_TYPE"
+            echo "🚀 Using Enhanced xcodebuild Approach for Maximum Success Rate"
+
+            # Set enhanced build environment variables
+            export XCODE_FAST_BUILD=true
+            export COCOAPODS_FAST_INSTALL=true
+            export XCODE_OPTIMIZATION=true
+            export XCODE_CLEAN_BUILD=true
+            export XCODE_PARALLEL_BUILD=true
 
             if "$PROJECT_ROOT/lib/scripts/ios/main.sh"; then
-              echo "✅ Build completed successfully!"
-              break
+              echo "✅ Enhanced iOS build completed successfully!"
+              echo "📱 IPA file available at: build/ios/ipa/Runner.ipa"
+              
+              # Verify IPA was created
+              if [ -f "build/ios/ipa/Runner.ipa" ]; then
+                echo "✅ IPA verification successful"
+                echo "📊 IPA size: $(du -h build/ios/ipa/Runner.ipa | cut -f1)"
+                break
+              else
+                echo "❌ IPA file not found, retrying..."
+                RETRY_COUNT=$((RETRY_COUNT + 1))
+                if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                  echo "⚠️ IPA verification failed, retrying in 10 seconds..."
+                  sleep 10
+                  flutter clean
+                else
+                  echo "❌ IPA verification failed after $MAX_RETRIES attempts"
+                  exit 1
+                fi
+              fi
             else
               RETRY_COUNT=$((RETRY_COUNT + 1))
               if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-                echo "⚠️ Build failed, retrying in 5 seconds..."
-                sleep 5
+                echo "⚠️ Enhanced build failed, retrying in 15 seconds..."
+                sleep 15
                 flutter clean
+                rm -rf ios/Pods ios/Podfile.lock 2>/dev/null || true
               else
-                echo "❌ Build failed after $MAX_RETRIES attempts"
+                echo "❌ Enhanced build failed after $MAX_RETRIES attempts"
                 exit 1
               fi
             fi
           done
+
+          echo "🎉 Enhanced iOS build process completed!"
+          echo "📋 Build Summary:"
+          echo "   Profile Type: $PROFILE_TYPE"
+          echo "   Bundle ID: $BUNDLE_ID"
+          echo "   Team ID: $APPLE_TEAM_ID"
+          echo "   IPA Location: build/ios/ipa/Runner.ipa"
 
     artifacts:
       - build/ios/ipa/*.ipa

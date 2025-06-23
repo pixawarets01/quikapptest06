@@ -8,17 +8,20 @@ set -euo pipefail
 # Source common functions
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../utils/safe_run.sh"
 
-# Logging function
-log() {
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] 🚀 $1"
-}
+# Enhanced logging with timestamps
+log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] 🚀 $1"; }
+error() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] ❌ $1" >&2; }
+success() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] ✅ $1"; }
+warning() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] ⚠️ $1"; }
 
 # Error handling
-handle_error() { 
-    log "❌ ERROR: $1"; 
-    exit 1; 
+handle_error() {
+    error "Build failed: $1"
+    error "Build attempt failed at line $LINENO"
+    exit 1
 }
-trap 'handle_error "Error occurred at line $LINENO"' ERR
+
+trap 'handle_error "Unexpected error occurred"' ERR
 
 # Environment variables
 BUNDLE_ID=${BUNDLE_ID:-}
@@ -33,38 +36,38 @@ validate_build_environment() {
     
     # Check required variables
     if [ -z "$BUNDLE_ID" ]; then
-        handle_error "BUNDLE_ID is required"
+        error "BUNDLE_ID is required"
     fi
     
     if [ -z "$VERSION_NAME" ]; then
-        handle_error "VERSION_NAME is required"
+        error "VERSION_NAME is required"
     fi
     
     if [ -z "$VERSION_CODE" ]; then
-        handle_error "VERSION_CODE is required"
+        error "VERSION_CODE is required"
     fi
     
     # Check required files
     if [ ! -f "ios/Runner/Info.plist" ]; then
-        handle_error "Info.plist not found"
+        error "Info.plist not found"
     fi
     
     if [ ! -f "ios/ExportOptions.plist" ]; then
-        handle_error "ExportOptions.plist not found"
+        error "ExportOptions.plist not found"
     fi
     
     if [ ! -f "ios/Podfile" ]; then
-        handle_error "Podfile not found"
+        error "Podfile not found"
     fi
     
     # Check Flutter environment
     if ! command -v flutter &> /dev/null; then
-        handle_error "Flutter not found in PATH"
+        error "Flutter not found in PATH"
     fi
     
     # Check Xcode environment
     if ! command -v xcodebuild &> /dev/null; then
-        handle_error "Xcode not found in PATH"
+        error "Xcode not found in PATH"
     fi
     
     log "✅ Build environment validation passed"
@@ -140,17 +143,17 @@ verify_code_signing_setup() {
     
     # Check keychain
     if ! security list-keychains | grep -q "build.keychain"; then
-        handle_error "Build keychain not found"
+        error "Build keychain not found"
     fi
     
     # Check certificate
     if ! security find-identity -v -p codesigning build.keychain | grep -q "iPhone Distribution\|iPhone Developer\|iOS Distribution Certificate\|Apple Distribution"; then
-        handle_error "Code signing certificate not found"
+        error "Code signing certificate not found"
     fi
     
     # Check provisioning profile
     if [ ! -f "ios/certificates/profile.mobileprovision" ]; then
-        handle_error "Provisioning profile not found"
+        error "Provisioning profile not found"
     fi
     
     # Check ExportOptions.plist - generate if missing

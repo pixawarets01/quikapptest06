@@ -412,25 +412,80 @@ if [ -f "lib/scripts/ios/generate_podfile.sh" ]; then
         exit 1
     fi
 else
-    log "⚠️ Dynamic Podfile generator not found, using deployment target script..."
-    if [ -f "lib/scripts/ios/deployment_target.sh" ]; then
-        chmod +x lib/scripts/ios/deployment_target.sh
-        if ./lib/scripts/ios/deployment_target.sh; then
-            log "✅ Podfile updated via deployment target script"
+    log "❌ Dynamic Podfile generator not found"
+    exit 1
+fi
+
+# 🔥 Firebase Setup (Conditional)
+if [ "${PUSH_NOTIFY:-false}" = "true" ]; then
+    log "🔥 Setting up Firebase for iOS..."
+    if [ -f "lib/scripts/ios/firebase.sh" ]; then
+        chmod +x lib/scripts/ios/firebase.sh
+        if ./lib/scripts/ios/firebase.sh; then
+            log "✅ Firebase setup completed"
         else
-            log "❌ Podfile update failed"
+            log "❌ Firebase setup failed"
             exit 1
         fi
     else
-        log "❌ No Podfile generation script found"
+        log "❌ Firebase script not found"
         exit 1
     fi
+else
+    log "🔕 Push notifications disabled, skipping Firebase setup"
 fi
 
-# 🛠️ Build Process
-log "🛠️ Starting Build Process..."
+# 🎨 Branding and Customization
+log "🎨 Setting up Branding and Customization..."
 
-# Use enhanced build script
+# Download and setup branding assets
+if [ -f "lib/scripts/ios/branding.sh" ]; then
+    chmod +x lib/scripts/ios/branding.sh
+    if ./lib/scripts/ios/branding.sh; then
+        log "✅ Branding setup completed"
+    else
+        log "❌ Branding setup failed"
+        exit 1
+    fi
+else
+    log "❌ Branding script not found"
+    exit 1
+fi
+
+# Customize app configuration
+if [ -f "lib/scripts/ios/customization.sh" ]; then
+    chmod +x lib/scripts/ios/customization.sh
+    if ./lib/scripts/ios/customization.sh; then
+        log "✅ App customization completed"
+    else
+        log "❌ App customization failed"
+        exit 1
+    fi
+else
+    log "❌ Customization script not found"
+    exit 1
+fi
+
+# 🔐 Permissions Setup
+log "🔐 Setting up Permissions..."
+
+if [ -f "lib/scripts/ios/permissions.sh" ]; then
+    chmod +x lib/scripts/ios/permissions.sh
+    if ./lib/scripts/ios/permissions.sh; then
+        log "✅ Permissions setup completed"
+    else
+        log "❌ Permissions setup failed"
+        exit 1
+    fi
+else
+    log "❌ Permissions script not found"
+    exit 1
+fi
+
+# 📦 Enhanced IPA Build Process
+log "📦 Starting Enhanced IPA Build Process..."
+
+# Use the enhanced build script with xcodebuild approach
 if [ -f "lib/scripts/ios/build_ipa.sh" ]; then
     chmod +x lib/scripts/ios/build_ipa.sh
     if ./lib/scripts/ios/build_ipa.sh; then
@@ -444,32 +499,24 @@ else
     exit 1
 fi
 
-# 📤 Post-Build Actions
-log "📤 Processing Post-Build Actions..."
+# 📧 Send Success Email
+log "📧 Sending build success email..."
 
-# App Store Connect Publishing (if applicable)
-if [ "${IS_TESTFLIGHT:-false}" = "true" ] && [ "${PROFILE_TYPE:-app-store}" = "app-store" ]; then
-    log "📤 Preparing for App Store Connect upload..."
-    # Note: This would typically be done through fastlane or xcrun altool
-    log "ℹ️ App Store Connect upload would be configured here"
-fi
+# Get build ID from environment
+BUILD_ID="${CM_BUILD_ID:-${FCI_BUILD_ID:-unknown}}"
 
-# Process artifact URLs for email
-log "📦 Processing artifact URLs for email notification..."
-if [ -f "lib/scripts/utils/process_artifacts.sh" ]; then
-    source "lib/scripts/utils/process_artifacts.sh"
-    artifact_urls=$(process_artifacts)
-    log "Artifact URLs: $artifact_urls"
+# Send success email
+if [ -f "lib/scripts/utils/send_email.py" ]; then
+    if python3 lib/scripts/utils/send_email.py "build_success" "iOS" "$BUILD_ID" "Build completed successfully"; then
+        log "✅ Success email sent"
+    else
+        log "⚠️ Failed to send success email, but build succeeded"
+    fi
 else
-    artifact_urls=""
+    log "⚠️ Email script not found, skipping email notification"
 fi
 
-# Send build success email
-log "🎉 Build successful! Sending success email..."
-if [ -f "lib/scripts/utils/send_email.sh" ]; then
-    chmod +x lib/scripts/utils/send_email.sh
-    lib/scripts/utils/send_email.sh "build_success" "iOS" "${CM_BUILD_ID:-unknown}" "Build successful" "$artifact_urls"
-fi
+log "🎉 iOS build process completed successfully!"
+log "📱 IPA file available at: build/ios/ipa/Runner.ipa"
 
-log "✅ iOS Universal IPA Build Process completed successfully!"
 exit 0 
