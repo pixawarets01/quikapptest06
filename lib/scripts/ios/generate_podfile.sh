@@ -79,22 +79,6 @@ target 'Runner' do
   target 'RunnerTests' do
     inherit! :search_paths
   end
-
-  # 🔧 Dynamic pre_install hook for manual signing configuration
-  pre_install do |installer|
-    puts "🔧 Injecting dynamic signing configuration for #{ENV['BUNDLE_ID']}"
-    installer.pod_targets.each do |pod|
-      pod.build_configurations.each do |config|
-        config.build_settings['CODE_SIGN_STYLE'] = 'Manual'
-        config.build_settings['DEVELOPMENT_TEAM'] = ENV['APPLE_TEAM_ID']
-        config.build_settings['PROVISIONING_PROFILE_SPECIFIER'] = ENV['PROFILE_NAME']
-        config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
-        config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
-        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
-        config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = ENV['BUNDLE_ID']
-      end
-    end
-  end
 end
 
 post_install do |installer|
