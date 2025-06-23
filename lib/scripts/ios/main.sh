@@ -121,17 +121,43 @@ fi
 
 # Certificates
 if [ -n "${CERT_P12_URL:-}" ]; then
-    log "🔐 Downloading P12 Certificate..."
+    log "🔐 Downloading P12 Certificate from URL..."
+    log "🔍 P12 URL: $CERT_P12_URL"
+    log "🔍 Using CERT_PASSWORD for P12 access"
+    
     if curl -L --fail --silent --show-error --output "ios/certificates/cert.p12" "$CERT_P12_URL"; then
         log "✅ P12 certificate downloaded successfully"
+        
+        # Verify the downloaded P12 file
+        log "🔍 Verifying downloaded P12 file..."
+        if [ -s "ios/certificates/cert.p12" ]; then
+            log "✅ P12 file is not empty"
+            
+            # Test P12 password
+            if openssl pkcs12 -in ios/certificates/cert.p12 -noout -passin "pass:$CERT_PASSWORD" 2>/dev/null; then
+                log "✅ P12 password verification successful"
+            else
+                log "❌ P12 password verification failed - CERT_PASSWORD may be incorrect"
+                log "🔍 P12 file size: $(ls -lh ios/certificates/cert.p12 | awk '{print $5}')"
+                exit 1
+            fi
+        else
+            log "❌ Downloaded P12 file is empty"
+            exit 1
+        fi
     else
         log "❌ Failed to download P12 certificate"
         exit 1
     fi
 else
+    log "🔐 CERT_P12_URL not provided, generating P12 from CER/KEY files..."
+    
     # Download CER and KEY files
     if [ -n "${CERT_CER_URL:-}" ] && [ -n "${CERT_KEY_URL:-}" ]; then
         log "🔐 Downloading Certificate and Key..."
+        log "🔍 CER URL: $CERT_CER_URL"
+        log "🔍 KEY URL: $CERT_KEY_URL"
+        log "🔍 Using CERT_PASSWORD for P12 generation"
         
         if curl -L --fail --silent --show-error --output "ios/certificates/cert.cer" "$CERT_CER_URL"; then
             log "✅ Certificate downloaded successfully"
@@ -147,6 +173,15 @@ else
             exit 1
         fi
         
+        # Verify downloaded files
+        log "🔍 Verifying downloaded certificate files..."
+        if [ -s "ios/certificates/cert.cer" ] && [ -s "ios/certificates/cert.key" ]; then
+            log "✅ Certificate files are not empty"
+        else
+            log "❌ Certificate files are empty"
+            exit 1
+        fi
+        
         # Convert CER to PEM
         log "🔄 Converting certificate to PEM format..."
         if openssl x509 -in ios/certificates/cert.cer -inform DER -out ios/certificates/cert.pem -outform PEM; then
@@ -157,15 +192,24 @@ else
         fi
         
         # Generate P12 from PEM and KEY
-        log "🔄 Generating P12 certificate..."
+        log "🔄 Generating P12 certificate with password..."
         if openssl pkcs12 -export -inkey ios/certificates/cert.key -in ios/certificates/cert.pem -out ios/certificates/cert.p12 -password pass:"$CERT_PASSWORD"; then
             log "✅ P12 certificate generated successfully"
+            
+            # Verify the generated P12
+            log "🔍 Verifying generated P12 file..."
+            if openssl pkcs12 -in ios/certificates/cert.p12 -noout -passin "pass:$CERT_PASSWORD" 2>/dev/null; then
+                log "✅ Generated P12 verification successful"
+            else
+                log "❌ Generated P12 verification failed"
+                exit 1
+            fi
         else
             log "❌ Failed to generate P12 certificate"
             exit 1
         fi
     else
-        log "❌ No certificate URLs provided"
+        log "❌ No certificate URLs provided (CERT_CER_URL and CERT_KEY_URL required when CERT_P12_URL is not provided)"
         exit 1
     fi
 fi
