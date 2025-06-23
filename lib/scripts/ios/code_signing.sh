@@ -100,7 +100,29 @@ setup_keychain_and_certificates() {
     
     # Create and configure keychain
     log "🔐 Creating build keychain..."
-    security create-keychain -p "" build.keychain
+    
+    # Remove existing keychain if it exists (more robust approach)
+    log "🗑️ Checking for existing build keychain..."
+    if security list-keychains | grep -q "build.keychain"; then
+        log "🗑️ Removing existing build keychain..."
+        security delete-keychain build.keychain 2>/dev/null || true
+        # Wait a moment for the deletion to complete
+        sleep 1
+    fi
+    
+    # Also try to remove from keychain search list
+    security list-keychains | grep -v "build.keychain" | tr '\n' ' ' | xargs security list-keychains -s 2>/dev/null || true
+    
+    # Create new keychain with error handling
+    log "🔐 Creating new build keychain..."
+    if security create-keychain -p "" build.keychain; then
+        log "✅ Build keychain created successfully"
+    else
+        log "❌ Failed to create build keychain"
+        return 1
+    fi
+    
+    # Configure the keychain
     security default-keychain -s build.keychain
     security unlock-keychain -p "" build.keychain
     security set-keychain-settings -t 3600 -u build.keychain
