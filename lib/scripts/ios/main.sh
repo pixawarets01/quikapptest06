@@ -393,6 +393,40 @@ else
     exit 1
 fi
 
+# 📝 Dynamic Podfile Generation
+log "📝 Generating Dynamic Podfile with Environment Variables..."
+
+# Set required environment variables for Podfile generation
+export CODE_SIGN_STYLE="Manual"
+export PROFILE_NAME="${PROFILE_NAME:-Twinklub App Store}"
+export CODE_SIGN_IDENTITY="${CODE_SIGN_IDENTITY:-Apple Distribution}"
+export KEYCHAIN_NAME="${KEYCHAIN_NAME:-build.keychain}"
+
+# Generate dynamic Podfile
+if [ -f "lib/scripts/ios/generate_podfile.sh" ]; then
+    chmod +x lib/scripts/ios/generate_podfile.sh
+    if ./lib/scripts/ios/generate_podfile.sh; then
+        log "✅ Dynamic Podfile generated successfully"
+    else
+        log "❌ Dynamic Podfile generation failed"
+        exit 1
+    fi
+else
+    log "⚠️ Dynamic Podfile generator not found, using deployment target script..."
+    if [ -f "lib/scripts/ios/deployment_target.sh" ]; then
+        chmod +x lib/scripts/ios/deployment_target.sh
+        if ./lib/scripts/ios/deployment_target.sh; then
+            log "✅ Podfile updated via deployment target script"
+        else
+            log "❌ Podfile update failed"
+            exit 1
+        fi
+    else
+        log "❌ No Podfile generation script found"
+        exit 1
+    fi
+fi
+
 # 🛠️ Build Process
 log "🛠️ Starting Build Process..."
 
