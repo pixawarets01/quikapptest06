@@ -90,9 +90,20 @@ else
     exit 1
 fi
 
+# 🔧 Set Build Environment Variables
+log "🔧 Setting Build Environment Variables..."
+export OUTPUT_DIR="${OUTPUT_DIR:-output/ios}"
+export PROJECT_ROOT="${PROJECT_ROOT:-$(pwd)}"
+export CM_BUILD_DIR="${CM_BUILD_DIR:-$(pwd)}"
+
+log "📋 Build Environment Variables:"
+log "   OUTPUT_DIR: $OUTPUT_DIR"
+log "   PROJECT_ROOT: $PROJECT_ROOT"
+log "   CM_BUILD_DIR: $CM_BUILD_DIR"
+
 # Create necessary directories
 mkdir -p ios/certificates
-mkdir -p output/ios
+mkdir -p "$OUTPUT_DIR"
 mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
 
 # 📥 Download Required Configuration Files
