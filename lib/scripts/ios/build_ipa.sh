@@ -153,9 +153,99 @@ verify_code_signing_setup() {
         handle_error "Provisioning profile not found"
     fi
     
-    # Check ExportOptions.plist
+    # Check ExportOptions.plist - generate if missing
     if [ ! -f "ios/ExportOptions.plist" ]; then
-        handle_error "ExportOptions.plist not found"
+        log "⚠️ ExportOptions.plist not found, generating it..."
+        
+        # Check if we have the required environment variables
+        if [ -z "${APPLE_TEAM_ID:-}" ] || [ -z "${BUNDLE_ID:-}" ] || [ -z "${PROFILE_TYPE:-}" ]; then
+            log "❌ Missing required environment variables for ExportOptions.plist generation"
+            log "   APPLE_TEAM_ID: ${APPLE_TEAM_ID:-not_set}"
+            log "   BUNDLE_ID: ${BUNDLE_ID:-not_set}"
+            log "   PROFILE_TYPE: ${PROFILE_TYPE:-not_set}"
+            handle_error "Cannot generate ExportOptions.plist without required environment variables"
+        fi
+        
+        # Generate ExportOptions.plist
+        log "📦 Generating ExportOptions.plist..."
+        local profile_type="${PROFILE_TYPE:-app-store}"
+        local method="$profile_type"
+        
+        # Determine export options based on profile type
+        local upload_symbols="true"
+        local upload_bitcode="false"
+        local compile_bitcode="false"
+        local thinning="<none>"
+        local destination="export"
+        
+        case "$profile_type" in
+            "app-store")
+                upload_symbols="true"
+                upload_bitcode="false"
+                compile_bitcode="false"
+                thinning="<none>"
+                destination="upload"
+                ;;
+            "ad-hoc")
+                upload_symbols="false"
+                upload_bitcode="false"
+                compile_bitcode="false"
+                thinning="<none>"
+                destination="export"
+                ;;
+            "enterprise")
+                upload_symbols="false"
+                upload_bitcode="false"
+                compile_bitcode="false"
+                thinning="<none>"
+                destination="export"
+                ;;
+            "development")
+                upload_symbols="false"
+                upload_bitcode="false"
+                compile_bitcode="false"
+                thinning="<none>"
+                destination="export"
+                ;;
+        esac
+        
+        # Create ExportOptions.plist
+        cat > ios/ExportOptions.plist << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>method</key>
+    <string>$method</string>
+    <key>teamID</key>
+    <string>$APPLE_TEAM_ID</string>
+    <key>signingStyle</key>
+    <string>manual</string>
+    <key>signingCertificate</key>
+    <string>iOS Distribution Certificate</string>
+    <key>provisioningProfiles</key>
+    <dict>
+        <key>$BUNDLE_ID</key>
+        <string>$(basename ios/certificates/profile.mobileprovision .mobileprovision)</string>
+    </dict>
+    <key>uploadSymbols</key>
+    <$upload_symbols/>
+    <key>uploadBitcode</key>
+    <$upload_bitcode/>
+    <key>compileBitcode</key>
+    <$compile_bitcode/>
+    <key>thinning</key>
+    <string>$thinning</string>
+    <key>destination</key>
+    <string>$destination</string>
+</dict>
+</plist>
+EOF
+        
+        log "✅ ExportOptions.plist generated for $profile_type"
+        log "📋 Export method: $method"
+        log "📦 Destination: $destination"
+        log "🔧 Thinning: $thinning"
     fi
     
     # Verify ExportOptions.plist content - check for method value
