@@ -146,6 +146,8 @@ setup_keychain_and_certificates() {
             if security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign -T /usr/bin/xcodebuild -A; then
                 log "✅ Certificate imported successfully (Method 1)"
                 security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
+                # Add a small delay to ensure keychain is properly set up
+                sleep 1
                 return 0
             fi
         fi
@@ -155,6 +157,8 @@ setup_keychain_and_certificates() {
         if security import ios/certificates/cert.p12 -k build.keychain -A; then
             log "✅ Certificate imported successfully (Method 2 - no password)"
             security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
+            # Add a small delay to ensure keychain is properly set up
+            sleep 1
             return 0
         fi
         
@@ -164,6 +168,8 @@ setup_keychain_and_certificates() {
             if security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD"; then
                 log "✅ Certificate imported successfully (Method 3)"
                 security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
+                # Add a small delay to ensure keychain is properly set up
+                sleep 1
                 return 0
             fi
         fi
@@ -174,6 +180,8 @@ setup_keychain_and_certificates() {
             if security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign; then
                 log "✅ Certificate imported successfully (Method 4)"
                 security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
+                # Add a small delay to ensure keychain is properly set up
+                sleep 1
                 return 0
             fi
         fi
@@ -222,28 +230,6 @@ setup_keychain_and_certificates() {
         log "❌ Certificate file not found: ios/certificates/cert.p12"
         log "🔍 Available files in certificates directory:"
         ls -la ios/certificates/ 2>/dev/null || log "   Directory not accessible"
-        return 1
-    fi
-    
-    # Verify certificate installation
-    log "🔍 Verifying certificate installation..."
-    
-    # First, let's see what identities are actually in the keychain
-    log "🔍 Available identities in keychain:"
-    security find-identity -v -p codesigning build.keychain
-    
-    # Check for any certificate that could be used for code signing
-    if security find-identity -v -p codesigning build.keychain | grep -q "iPhone Distribution\|iPhone Developer\|iOS Distribution Certificate\|Apple Distribution"; then
-        log "✅ Certificate verification successful"
-    else
-        log "❌ Certificate verification failed"
-        log "🔍 Debug: Checking keychain contents..."
-        log "🔍 Keychain list:"
-        security list-keychains
-        log "🔍 Keychain info:"
-        security show-keychain-info build.keychain
-        log "🔍 All identities (including non-codesigning):"
-        security find-identity -v build.keychain
         return 1
     fi
     
@@ -423,13 +409,23 @@ verify_code_signing_setup() {
     if ! security list-keychains | grep -q "build.keychain"; then
         log "❌ Build keychain not found"
         verification_passed=false
+    else
+        log "✅ Build keychain found"
     fi
     
-    # Check certificate
-    if ! security find-identity -v -p codesigning build.keychain | grep -q "iPhone Distribution\|iPhone Developer\|iOS Distribution Certificate\|Apple Distribution"; then
+    # Check certificate with better debugging
+    log "🔍 Checking for code signing certificates..."
+    local identities_output=$(security find-identity -v -p codesigning build.keychain 2>/dev/null)
+    log "🔍 Available code signing identities:"
+    echo "$identities_output"
+    
+    if echo "$identities_output" | grep -q "iPhone Distribution\|iPhone Developer\|iOS Distribution Certificate\|Apple Distribution"; then
+        log "✅ Code signing certificate found"
+    else
         log "❌ Code signing certificate not found"
-        log "🔍 Debug: Available identities in keychain:"
-        security find-identity -v -p codesigning build.keychain
+        log "🔍 Debug: Checking all identities in keychain..."
+        log "🔍 All identities (including non-codesigning):"
+        security find-identity -v build.keychain
         verification_passed=false
     fi
     
@@ -437,18 +433,24 @@ verify_code_signing_setup() {
     if [ ! -f "ios/certificates/profile.mobileprovision" ]; then
         log "❌ Provisioning profile not found"
         verification_passed=false
+    else
+        log "✅ Provisioning profile found"
     fi
     
     # Check ExportOptions.plist
     if [ ! -f "ios/ExportOptions.plist" ]; then
         log "❌ ExportOptions.plist not found"
         verification_passed=false
+    else
+        log "✅ ExportOptions.plist found"
     fi
     
     # Check Xcode project configuration
     if ! grep -q "CODE_SIGN_STYLE" ios/Runner.xcodeproj/project.pbxproj; then
         log "❌ Code signing not configured in Xcode project"
         verification_passed=false
+    else
+        log "✅ Code signing configured in Xcode project"
     fi
     
     if [ "$verification_passed" = true ]; then
@@ -495,6 +497,11 @@ main() {
     setup_keychain_and_certificates
     install_provisioning_profile
     generate_export_options
+    
+    # Add a small delay to ensure everything is properly set up
+    log "⏳ Waiting for keychain setup to complete..."
+    sleep 2
+    
     verify_code_signing_setup
     
     log "✅ Enhanced code signing configuration completed successfully!"
