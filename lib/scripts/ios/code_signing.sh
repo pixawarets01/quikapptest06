@@ -136,6 +136,7 @@ setup_keychain_and_certificates() {
     if [ -f "ios/certificates/cert.p12" ]; then
         log "🔍 Certificate file found: ios/certificates/cert.p12"
         log "🔍 Certificate file size: $(ls -lh ios/certificates/cert.p12 | awk '{print $5}')"
+        log "🔍 Using password: ${CERT_PASSWORD:0:3}*** (length: ${#CERT_PASSWORD})"
         
         # Verify P12 file integrity first
         log "🔍 Verifying P12 file integrity..."
@@ -146,6 +147,7 @@ setup_keychain_and_certificates() {
             log "🔍 Attempting to verify P12 without password..."
             if openssl pkcs12 -in ios/certificates/cert.p12 -noout 2>/dev/null; then
                 log "⚠️ P12 file is valid but password is incorrect"
+                log "🔍 Password debug: length=${#CERT_PASSWORD}, starts_with=${CERT_PASSWORD:0:3}***"
             else
                 log "❌ P12 file appears to be corrupted"
             fi
@@ -155,7 +157,7 @@ setup_keychain_and_certificates() {
         # Try importing with different methods
         log "🔍 Attempting certificate import..."
         
-        # Method 1: Standard import
+        # Method 1: Standard import with explicit password format
         if security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD" -A; then
             log "✅ Certificate imported successfully"
         else
@@ -174,8 +176,9 @@ setup_keychain_and_certificates() {
                     log "❌ All certificate import methods failed"
                     log "🔍 Debug info:"
                     log "   Password length: ${#CERT_PASSWORD}"
-                    log "   Password starts with: ${CERT_PASSWORD:0:3}..."
+                    log "   Password starts with: ${CERT_PASSWORD:0:3}***"
                     log "   Keychain status: $(security list-keychains | grep build.keychain || echo 'not found')"
+                    log "   P12 file type: $(file ios/certificates/cert.p12)"
                     return 1
                 fi
             fi

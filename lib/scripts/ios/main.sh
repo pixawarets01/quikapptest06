@@ -193,19 +193,35 @@ else
         
         # Generate P12 from PEM and KEY
         log "🔄 Generating P12 certificate with password..."
-        if openssl pkcs12 -export -inkey ios/certificates/cert.key -in ios/certificates/cert.pem -out ios/certificates/cert.p12 -password pass:"$CERT_PASSWORD"; then
+        log "🔍 Using password: ${CERT_PASSWORD:0:3}*** (length: ${#CERT_PASSWORD})"
+        
+        # Generate P12 with explicit password handling
+        if openssl pkcs12 -export \
+            -inkey ios/certificates/cert.key \
+            -in ios/certificates/cert.pem \
+            -out ios/certificates/cert.p12 \
+            -password "pass:$CERT_PASSWORD" \
+            -name "iOS Distribution Certificate"; then
             log "✅ P12 certificate generated successfully"
             
-            # Verify the generated P12
+            # Verify the generated P12 with the same password
             log "🔍 Verifying generated P12 file..."
             if openssl pkcs12 -in ios/certificates/cert.p12 -noout -passin "pass:$CERT_PASSWORD" 2>/dev/null; then
                 log "✅ Generated P12 verification successful"
+                log "🔍 P12 file size: $(ls -lh ios/certificates/cert.p12 | awk '{print $5}')"
             else
                 log "❌ Generated P12 verification failed"
+                log "🔍 Attempting to debug P12 file..."
+                file ios/certificates/cert.p12
                 exit 1
             fi
         else
             log "❌ Failed to generate P12 certificate"
+            log "🔍 Debug info:"
+            log "   CERT_PASSWORD length: ${#CERT_PASSWORD}"
+            log "   CERT_PASSWORD starts with: ${CERT_PASSWORD:0:3}***"
+            log "   PEM file exists: $([ -f ios/certificates/cert.pem ] && echo 'yes' || echo 'no')"
+            log "   KEY file exists: $([ -f ios/certificates/cert.key ] && echo 'yes' || echo 'no')"
             exit 1
         fi
     else
