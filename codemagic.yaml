@@ -422,7 +422,7 @@ workflows:
       - build/app/outputs/logs/
 
   ios-workflow:
-    name: iOS Universal Build (App Store + Ad Hoc + Enterprise + Development)
+    name: iOS Universal Build (App Store + Ad Hoc + Enterprise)
     max_build_duration: 90
     instance_type: mac_mini_m2
     environment:
@@ -469,7 +469,7 @@ workflows:
     scripts:
       - name: Pre-build Setup
         script: |
-          echo "🚀 Starting iOS Universal Build with enhanced success rate optimizations..."
+          echo "🚀 Starting iOS Universal Build with Two-Stage Podfile Injection..."
           echo "📊 Build Environment:"
           echo "  - Flutter: $(flutter --version | head -1)"
           echo "  - Java: $(java -version 2>&1 | head -1)"
@@ -530,12 +530,12 @@ workflows:
           # Enhanced profile type validation
           echo "🔍 Validating profile type: $PROFILE_TYPE"
           case "$PROFILE_TYPE" in
-            "app-store"|"ad-hoc"|"enterprise"|"development")
+            "app-store"|"ad-hoc"|"enterprise")
               echo "✅ Valid profile type: $PROFILE_TYPE"
               ;;
             *)
               echo "❌ Invalid profile type: $PROFILE_TYPE"
-              echo "   Supported types: app-store, ad-hoc, enterprise, development"
+              echo "   Supported types: app-store, ad-hoc, enterprise"
               exit 1
               ;;
           esac
@@ -574,9 +574,16 @@ workflows:
             exit 1
           fi
 
+          if [ -f "$PROJECT_ROOT/lib/scripts/ios/generate_podfile.sh" ]; then
+            echo "✅ Podfile generator found: $PROJECT_ROOT/lib/scripts/ios/generate_podfile.sh"
+          else
+            echo "❌ Podfile generator not found at: $PROJECT_ROOT/lib/scripts/ios/generate_podfile.sh"
+            exit 1
+          fi
+
           echo "✅ Build process components validated"
 
-      - name: Build iOS Universal IPA
+      - name: Build iOS Universal IPA with Two-Stage Podfile Injection
         script: |
           # Get absolute path to project root
           PROJECT_ROOT=$(pwd)
@@ -586,14 +593,14 @@ workflows:
           chmod +x "$PROJECT_ROOT/lib/scripts/ios/"*.sh
           chmod +x "$PROJECT_ROOT/lib/scripts/utils/"*.sh
 
-          # Enhanced build with retry logic and xcodebuild approach
+          # Enhanced build with retry logic and two-stage Podfile injection
           MAX_RETRIES=${MAX_RETRIES:-2}
           RETRY_COUNT=0
 
           while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
             echo "🏗️ Build attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
             echo "🍎 Building for profile type: $PROFILE_TYPE"
-            echo "🚀 Using Enhanced xcodebuild Approach for Maximum Success Rate"
+            echo "🚀 Using Two-Stage Podfile Injection Approach for Maximum Success Rate"
 
             # Set enhanced build environment variables
             export XCODE_FAST_BUILD=true
@@ -610,6 +617,10 @@ workflows:
               if [ -f "build/ios/ipa/Runner.ipa" ]; then
                 echo "✅ IPA verification successful"
                 echo "📊 IPA size: $(du -h build/ios/ipa/Runner.ipa | cut -f1)"
+                echo "🎯 Profile Type: $PROFILE_TYPE"
+                echo "📋 Two-Stage Podfile Injection: ✅ Completed"
+                echo "   Stage 1: Flutter Build (No Code Signing) ✅"
+                echo "   Stage 2: xcodebuild (With Code Signing) ✅"
                 break
               else
                 echo "❌ IPA file not found, retrying..."
@@ -643,6 +654,9 @@ workflows:
           echo "   Bundle ID: $BUNDLE_ID"
           echo "   Team ID: $APPLE_TEAM_ID"
           echo "   IPA Location: build/ios/ipa/Runner.ipa"
+          echo "   Two-Stage Podfile Injection: ✅ Success"
+          echo "   Flutter Build (No Code Signing): ✅ Success"
+          echo "   xcodebuild (With Code Signing): ✅ Success"
 
     artifacts:
       - build/ios/ipa/*.ipa

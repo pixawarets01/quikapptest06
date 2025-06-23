@@ -170,85 +170,7 @@ verify_code_signing_setup() {
         fi
         
         # Generate ExportOptions.plist
-        log "📦 Generating ExportOptions.plist..."
-        local profile_type="${PROFILE_TYPE:-app-store}"
-        local method="$profile_type"
-        
-        # Determine export options based on profile type
-        local upload_symbols="true"
-        local upload_bitcode="false"
-        local compile_bitcode="false"
-        local thinning="<none>"
-        local destination="export"
-        
-        case "$profile_type" in
-            "app-store")
-                upload_symbols="true"
-                upload_bitcode="false"
-                compile_bitcode="false"
-                thinning="<none>"
-                destination="upload"
-                ;;
-            "ad-hoc")
-                upload_symbols="false"
-                upload_bitcode="false"
-                compile_bitcode="false"
-                thinning="<none>"
-                destination="export"
-                ;;
-            "enterprise")
-                upload_symbols="false"
-                upload_bitcode="false"
-                compile_bitcode="false"
-                thinning="<none>"
-                destination="export"
-                ;;
-            "development")
-                upload_symbols="false"
-                upload_bitcode="false"
-                compile_bitcode="false"
-                thinning="<none>"
-                destination="export"
-                ;;
-        esac
-        
-        # Create ExportOptions.plist
-        cat > ios/ExportOptions.plist << EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>method</key>
-    <string>$method</string>
-    <key>teamID</key>
-    <string>$APPLE_TEAM_ID</string>
-    <key>signingStyle</key>
-    <string>manual</string>
-    <key>signingCertificate</key>
-    <string>iOS Distribution Certificate</string>
-    <key>provisioningProfiles</key>
-    <dict>
-        <key>$BUNDLE_ID</key>
-        <string>$(basename ios/certificates/profile.mobileprovision .mobileprovision)</string>
-    </dict>
-    <key>uploadSymbols</key>
-    <$upload_symbols/>
-    <key>uploadBitcode</key>
-    <$upload_bitcode/>
-    <key>compileBitcode</key>
-    <$compile_bitcode/>
-    <key>thinning</key>
-    <string>$thinning</string>
-    <key>destination</key>
-    <string>$destination</string>
-</dict>
-</plist>
-EOF
-        
-        log "✅ ExportOptions.plist generated for $profile_type"
-        log "📋 Export method: $method"
-        log "📦 Destination: $destination"
-        log "🔧 Thinning: $thinning"
+        generate_export_options
     fi
     
     # Verify ExportOptions.plist content - check for method value
@@ -284,33 +206,141 @@ EOF
     log "✅ Code signing setup verified"
 }
 
+# Function to generate dynamic ExportOptions.plist
+generate_export_options() {
+    log "Generating dynamic ExportOptions.plist..."
+    
+    # Extract profile UUID and name
+    PROFILE_UUID=$(security cms -D -i ios/certificates/profile.mobileprovision | plutil -extract UUID raw -o - -)
+    PROFILE_NAME=$(security cms -D -i ios/certificates/profile.mobileprovision | plutil -extract Name raw -o - -)
+    
+    if [ -z "$PROFILE_UUID" ] || [ -z "$PROFILE_NAME" ]; then
+        error "Failed to extract profile information"
+        exit 1
+    fi
+    
+    log "Profile UUID: $PROFILE_UUID"
+    log "Profile Name: $PROFILE_NAME"
+    
+    # Generate ExportOptions.plist based on profile type
+    cat > "$EXPORT_OPTIONS_PLIST" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>method</key>
+    <string>$PROFILE_TYPE</string>
+    <key>teamID</key>
+    <string>$APPLE_TEAM_ID</string>
+    <key>signingStyle</key>
+    <string>manual</string>
+    <key>provisioningProfiles</key>
+    <dict>
+        <key>$BUNDLE_ID</key>
+        <string>$PROFILE_NAME</string>
+    </dict>
+    <key>signingCertificate</key>
+    <string>Apple Distribution</string>
+    <key>compileBitcode</key>
+    <false/>
+    <key>stripSwiftSymbols</key>
+    <true/>
+    <key>uploadBitcode</key>
+    <false/>
+    <key>uploadSymbols</key>
+    <true/>
+EOF
+
+    # Add profile-specific options
+    case "$PROFILE_TYPE" in
+        "ad-hoc")
+            cat >> "$EXPORT_OPTIONS_PLIST" << EOF
+    <key>thinning</key>
+    <string>&lt;none&gt;</string>
+    <key>manifest</key>
+    <dict>
+        <key>appURL</key>
+        <string>https://example.com/app.ipa</string>
+        <key>displayImageURL</key>
+        <string>https://example.com/display.png</string>
+        <key>fullSizeImageURL</key>
+        <string>https://example.com/fullsize.png</string>
+    </dict>
+EOF
+            ;;
+        "app-store")
+            cat >> "$EXPORT_OPTIONS_PLIST" << EOF
+    <key>distributionBundleIdentifier</key>
+    <string>$BUNDLE_ID</string>
+    <key>iCloudContainerEnvironment</key>
+    <string>Production</string>
+EOF
+            ;;
+        "enterprise")
+            cat >> "$EXPORT_OPTIONS_PLIST" << EOF
+    <key>distributionBundleIdentifier</key>
+    <string>$BUNDLE_ID</string>
+    <key>thinning</key>
+    <string>&lt;none&gt;</string>
+EOF
+            ;;
+    esac
+    
+    cat >> "$EXPORT_OPTIONS_PLIST" << EOF
+</dict>
+</plist>
+EOF
+    
+    success "ExportOptions.plist generated successfully"
+    log "ExportOptions.plist contents:"
+    cat "$EXPORT_OPTIONS_PLIST"
+}
+
 # Function to build IPA with Flutter
-build_ipa_with_flutter() {
-    log "🚀 Building IPA with Flutter..."
+build_ipa() {
+    log "Building IPA with profile-specific configuration..."
     
-    # Set Flutter build arguments
-    local flutter_args=(
-        "build"
-        "ipa"
-        "--release"
-        "--bundle-id" "$BUNDLE_ID"
-        "--build-name" "$VERSION_NAME"
-        "--build-number" "$VERSION_CODE"
-        "--export-options-plist" "ios/ExportOptions.plist"
-    )
+    # Validate profile type
+    case "$PROFILE_TYPE" in
+        "app-store"|"ad-hoc"|"enterprise")
+            log "✅ Valid profile type: $PROFILE_TYPE"
+            ;;
+        *)
+            error "Invalid profile type: $PROFILE_TYPE"
+            error "Supported types: app-store, ad-hoc, enterprise"
+            exit 1
+            ;;
+    esac
     
-    # Add additional arguments for CI environment
-    if [ "${CI:-false}" = "true" ]; then
-        flutter_args+=("--verbose")
-    fi
+    # Archive the app with profile-specific settings
+    archive_app
     
-    # Build IPA
-    log "📱 Executing: flutter ${flutter_args[*]}"
-    if flutter "${flutter_args[@]}"; then
-        log "✅ Flutter IPA build completed successfully"
-    else
-        handle_error "Flutter IPA build failed"
-    fi
+    # Export IPA with profile-specific settings
+    export_ipa
+    
+    # Copy IPA to output directory
+    mkdir -p "$OUTPUT_DIR"
+    cp "$EXPORT_PATH/Runner.ipa" "$OUTPUT_DIR/"
+    
+    success "IPA build completed successfully for $PROFILE_TYPE"
+    log "📱 Final IPA location: $OUTPUT_DIR/Runner.ipa"
+    log "📊 IPA size: $(du -h "$OUTPUT_DIR/Runner.ipa" | cut -f1)"
+    
+    # Profile-specific success message
+    case "$PROFILE_TYPE" in
+        "app-store")
+            log "🎉 App Store IPA ready for App Store Connect upload"
+            log "📋 Next steps: Upload to App Store Connect via Xcode or Transporter"
+            ;;
+        "ad-hoc")
+            log "🎉 Ad-Hoc IPA ready for OTA distribution"
+            log "📋 Next steps: Host IPA file and create manifest for OTA installation"
+            ;;
+        "enterprise")
+            log "🎉 Enterprise IPA ready for internal distribution"
+            log "📋 Next steps: Distribute to enterprise users via MDM or direct installation"
+            ;;
+    esac
 }
 
 # Function to find and verify IPA
@@ -513,7 +543,7 @@ main() {
     clean_build_environment
     install_ios_dependencies
     verify_code_signing_setup
-    build_ipa_with_flutter
+    build_ipa
     
     # Find and verify IPA
     local IPA_INFO=$(find_and_verify_ipa)

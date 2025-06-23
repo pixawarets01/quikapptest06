@@ -393,29 +393,6 @@ else
     exit 1
 fi
 
-# 📝 Dynamic Podfile Generation
-log "📝 Generating Dynamic Podfile with Environment Variables..."
-
-# Set required environment variables for Podfile generation
-export CODE_SIGN_STYLE="Manual"
-export PROFILE_NAME="${PROFILE_NAME:-Twinklub App Store}"
-export CODE_SIGN_IDENTITY="${CODE_SIGN_IDENTITY:-Apple Distribution}"
-export KEYCHAIN_NAME="${KEYCHAIN_NAME:-build.keychain}"
-
-# Generate dynamic Podfile
-if [ -f "lib/scripts/ios/generate_podfile.sh" ]; then
-    chmod +x lib/scripts/ios/generate_podfile.sh
-    if ./lib/scripts/ios/generate_podfile.sh; then
-        log "✅ Dynamic Podfile generated successfully"
-    else
-        log "❌ Dynamic Podfile generation failed"
-        exit 1
-    fi
-else
-    log "❌ Dynamic Podfile generator not found"
-    exit 1
-fi
-
 # 🔥 Firebase Setup (Conditional)
 if [ "${PUSH_NOTIFY:-false}" = "true" ]; then
     log "🔥 Setting up Firebase for iOS..."
@@ -482,8 +459,129 @@ else
     exit 1
 fi
 
-# 📦 Enhanced IPA Build Process
-log "📦 Starting Enhanced IPA Build Process..."
+# 📦 STAGE 1: First Podfile Injection (for Flutter build - no code signing)
+log "📦 STAGE 1: First Podfile Injection for Flutter Build (No Code Signing)..."
+
+# Set environment for first stage Podfile generation
+export PODFILE_STAGE="flutter-build"
+export CODE_SIGN_STYLE="Automatic"
+export CODE_SIGNING_ALLOWED="NO"
+export CODE_SIGNING_REQUIRED="NO"
+
+# Generate first Podfile for Flutter build
+if [ -f "lib/scripts/ios/generate_podfile.sh" ]; then
+    chmod +x lib/scripts/ios/generate_podfile.sh
+    if ./lib/scripts/ios/generate_podfile.sh; then
+        log "✅ First Podfile generated for Flutter build"
+    else
+        log "❌ First Podfile generation failed"
+        exit 1
+    fi
+else
+    log "❌ Podfile generator not found"
+    exit 1
+fi
+
+# Install pods for Flutter build
+log "🍫 Installing CocoaPods for Flutter build..."
+cd ios
+pod install --repo-update
+cd ..
+log "✅ CocoaPods installed for Flutter build"
+
+# Build Flutter app (no code signing)
+log "📱 Building Flutter app (no code signing)..."
+flutter build ios --release --no-codesign \
+    --dart-define=WEB_URL="${WEB_URL:-}" \
+    --dart-define=PUSH_NOTIFY="${PUSH_NOTIFY:-false}" \
+    --dart-define=PKG_NAME="${PKG_NAME:-}" \
+    --dart-define=APP_NAME="${APP_NAME:-}" \
+    --dart-define=ORG_NAME="${ORG_NAME:-}" \
+    --dart-define=VERSION_NAME="${VERSION_NAME:-}" \
+    --dart-define=VERSION_CODE="${VERSION_CODE:-}" \
+    --dart-define=EMAIL_ID="${EMAIL_ID:-}" \
+    --dart-define=IS_SPLASH="${IS_SPLASH:-false}" \
+    --dart-define=SPLASH="${SPLASH:-}" \
+    --dart-define=SPLASH_BG="${SPLASH_BG:-}" \
+    --dart-define=SPLASH_ANIMATION="${SPLASH_ANIMATION:-}" \
+    --dart-define=SPLASH_BG_COLOR="${SPLASH_BG_COLOR:-}" \
+    --dart-define=SPLASH_TAGLINE="${SPLASH_TAGLINE:-}" \
+    --dart-define=SPLASH_TAGLINE_COLOR="${SPLASH_TAGLINE_COLOR:-}" \
+    --dart-define=SPLASH_DURATION="${SPLASH_DURATION:-}" \
+    --dart-define=IS_PULLDOWN="${IS_PULLDOWN:-false}" \
+    --dart-define=LOGO_URL="${LOGO_URL:-}" \
+    --dart-define=IS_BOTTOMMENU="${IS_BOTTOMMENU:-false}" \
+    --dart-define=BOTTOMMENU_ITEMS="${BOTTOMMENU_ITEMS:-}" \
+    --dart-define=BOTTOMMENU_BG_COLOR="${BOTTOMMENU_BG_COLOR:-}" \
+    --dart-define=BOTTOMMENU_ICON_COLOR="${BOTTOMMENU_ICON_COLOR:-}" \
+    --dart-define=BOTTOMMENU_TEXT_COLOR="${BOTTOMMENU_TEXT_COLOR:-}" \
+    --dart-define=BOTTOMMENU_FONT="${BOTTOMMENU_FONT:-}" \
+    --dart-define=BOTTOMMENU_FONT_SIZE="${BOTTOMMENU_FONT_SIZE:-}" \
+    --dart-define=BOTTOMMENU_FONT_BOLD="${BOTTOMMENU_FONT_BOLD:-}" \
+    --dart-define=BOTTOMMENU_FONT_ITALIC="${BOTTOMMENU_FONT_ITALIC:-}" \
+    --dart-define=BOTTOMMENU_ACTIVE_TAB_COLOR="${BOTTOMMENU_ACTIVE_TAB_COLOR:-}" \
+    --dart-define=BOTTOMMENU_ICON_POSITION="${BOTTOMMENU_ICON_POSITION:-}" \
+    --dart-define=BOTTOMMENU_VISIBLE_ON="${BOTTOMMENU_VISIBLE_ON:-}" \
+    --dart-define=IS_DOMAIN_URL="${IS_DOMAIN_URL:-false}" \
+    --dart-define=IS_LOAD_IND="${IS_LOAD_IND:-false}" \
+    --dart-define=IS_CHATBOT="${IS_CHATBOT:-false}" \
+    --dart-define=IS_CAMERA="${IS_CAMERA:-false}" \
+    --dart-define=IS_LOCATION="${IS_LOCATION:-false}" \
+    --dart-define=IS_BIOMETRIC="${IS_BIOMETRIC:-false}" \
+    --dart-define=IS_MIC="${IS_MIC:-false}" \
+    --dart-define=IS_CONTACT="${IS_CONTACT:-false}" \
+    --dart-define=IS_CALENDAR="${IS_CALENDAR:-false}" \
+    --dart-define=IS_NOTIFICATION="${IS_NOTIFICATION:-false}" \
+    --dart-define=IS_STORAGE="${IS_STORAGE:-false}" \
+    --dart-define=FIREBASE_CONFIG_ANDROID="${FIREBASE_CONFIG_ANDROID:-}" \
+    --dart-define=FIREBASE_CONFIG_IOS="${FIREBASE_CONFIG_IOS:-}" \
+    --dart-define=APNS_KEY_ID="${APNS_KEY_ID:-}" \
+    --dart-define=APPLE_TEAM_ID="${APPLE_TEAM_ID:-}" \
+    --dart-define=APNS_AUTH_KEY_URL="${APNS_AUTH_KEY_URL:-}" \
+    --dart-define=KEY_STORE_URL="${KEY_STORE_URL:-}" \
+    --dart-define=CM_KEYSTORE_PASSWORD="${CM_KEYSTORE_PASSWORD:-}" \
+    --dart-define=CM_KEY_ALIAS="${CM_KEY_ALIAS:-}" \
+    --dart-define=CM_KEY_PASSWORD="${CM_KEY_PASSWORD:-}"
+
+if [ $? -eq 0 ]; then
+    log "✅ Flutter app built successfully (no code signing)"
+else
+    log "❌ Flutter app build failed"
+    exit 1
+fi
+
+# 📦 STAGE 2: Second Podfile Injection (for xcodebuild with code signing)
+log "📦 STAGE 2: Second Podfile Injection for xcodebuild (With Code Signing)..."
+
+# Set environment for second stage Podfile generation
+export PODFILE_STAGE="xcodebuild"
+export CODE_SIGN_STYLE="Manual"
+export CODE_SIGNING_ALLOWED="NO"
+export CODE_SIGNING_REQUIRED="NO"
+
+# Generate second Podfile for xcodebuild
+if [ -f "lib/scripts/ios/generate_podfile.sh" ]; then
+    chmod +x lib/scripts/ios/generate_podfile.sh
+    if ./lib/scripts/ios/generate_podfile.sh; then
+        log "✅ Second Podfile generated for xcodebuild"
+    else
+        log "❌ Second Podfile generation failed"
+        exit 1
+    fi
+else
+    log "❌ Podfile generator not found"
+    exit 1
+fi
+
+# Install pods for xcodebuild
+log "🍫 Installing CocoaPods for xcodebuild..."
+cd ios
+pod install --repo-update
+cd ..
+log "✅ CocoaPods installed for xcodebuild"
+
+# 📦 Enhanced IPA Build Process with xcodebuild
+log "📦 Starting Enhanced IPA Build Process with xcodebuild..."
 
 # Use the enhanced build script with xcodebuild approach
 if [ -f "lib/scripts/ios/build_ipa.sh" ]; then
@@ -518,5 +616,12 @@ fi
 
 log "🎉 iOS build process completed successfully!"
 log "📱 IPA file available at: build/ios/ipa/Runner.ipa"
+log "📋 Build Summary:"
+log "   Profile Type: $PROFILE_TYPE"
+log "   Bundle ID: $BUNDLE_ID"
+log "   Team ID: $APPLE_TEAM_ID"
+log "   Two-Stage Podfile Injection: ✅ Completed"
+log "   Flutter Build (No Code Signing): ✅ Completed"
+log "   xcodebuild (With Code Signing): ✅ Completed"
 
 exit 0 
