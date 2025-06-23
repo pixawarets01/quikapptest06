@@ -328,40 +328,53 @@ fi
 
 # Add privacy descriptions based on permissions
 log "🔐 Adding privacy descriptions..."
-if [ "${IS_CAMERA:-false}" = "true" ]; then
-    plutil -replace NSCameraUsageDescription -string "This app needs camera access to take photos" ios/Runner/Info.plist
+if [ -f "lib/scripts/ios/permissions.sh" ]; then
+    chmod +x lib/scripts/ios/permissions.sh
+    if ./lib/scripts/ios/permissions.sh; then
+        log "✅ iOS permissions configuration completed"
+    else
+        log "❌ iOS permissions configuration failed"
+        exit 1
+    fi
+else
+    log "⚠️ iOS permissions script not found, using inline permission handling..."
+    
+    # Fallback inline permission handling
+    if [ "${IS_CAMERA:-false}" = "true" ]; then
+        plutil -replace NSCameraUsageDescription -string "This app needs camera access to take photos" ios/Runner/Info.plist
+    fi
+
+    if [ "${IS_LOCATION:-false}" = "true" ]; then
+        plutil -replace NSLocationWhenInUseUsageDescription -string "This app needs location access to provide location-based services" ios/Runner/Info.plist
+        plutil -replace NSLocationAlwaysAndWhenInUseUsageDescription -string "This app needs location access to provide location-based services" ios/Runner/Info.plist
+    fi
+
+    if [ "${IS_MIC:-false}" = "true" ]; then
+        plutil -replace NSMicrophoneUsageDescription -string "This app needs microphone access for voice features" ios/Runner/Info.plist
+    fi
+
+    if [ "${IS_CONTACT:-false}" = "true" ]; then
+        plutil -replace NSContactsUsageDescription -string "This app needs contacts access to manage contacts" ios/Runner/Info.plist
+    fi
+
+    if [ "${IS_BIOMETRIC:-false}" = "true" ]; then
+        plutil -replace NSFaceIDUsageDescription -string "This app uses Face ID for secure authentication" ios/Runner/Info.plist
+    fi
+
+    if [ "${IS_CALENDAR:-false}" = "true" ]; then
+        plutil -replace NSCalendarsUsageDescription -string "This app needs calendar access to manage events" ios/Runner/Info.plist
+    fi
+
+    if [ "${IS_STORAGE:-false}" = "true" ]; then
+        plutil -replace NSPhotoLibraryUsageDescription -string "This app needs photo library access to save and manage photos" ios/Runner/Info.plist
+        plutil -replace NSPhotoLibraryAddUsageDescription -string "This app needs photo library access to save photos" ios/Runner/Info.plist
+    fi
+
+    # Always add network security
+    plutil -replace NSAppTransportSecurity -json '{"NSAllowsArbitraryLoads": true}' ios/Runner/Info.plist
+
+    log "✅ Privacy descriptions added"
 fi
-
-if [ "${IS_LOCATION:-false}" = "true" ]; then
-    plutil -replace NSLocationWhenInUseUsageDescription -string "This app needs location access to provide location-based services" ios/Runner/Info.plist
-    plutil -replace NSLocationAlwaysAndWhenInUseUsageDescription -string "This app needs location access to provide location-based services" ios/Runner/Info.plist
-fi
-
-if [ "${IS_MIC:-false}" = "true" ]; then
-    plutil -replace NSMicrophoneUsageDescription -string "This app needs microphone access for voice features" ios/Runner/Info.plist
-fi
-
-if [ "${IS_CONTACT:-false}" = "true" ]; then
-    plutil -replace NSContactsUsageDescription -string "This app needs contacts access to manage contacts" ios/Runner/Info.plist
-fi
-
-if [ "${IS_BIOMETRIC:-false}" = "true" ]; then
-    plutil -replace NSFaceIDUsageDescription -string "This app uses Face ID for secure authentication" ios/Runner/Info.plist
-fi
-
-if [ "${IS_CALENDAR:-false}" = "true" ]; then
-    plutil -replace NSCalendarsUsageDescription -string "This app needs calendar access to manage events" ios/Runner/Info.plist
-fi
-
-if [ "${IS_STORAGE:-false}" = "true" ]; then
-    plutil -replace NSPhotoLibraryUsageDescription -string "This app needs photo library access to save and manage photos" ios/Runner/Info.plist
-    plutil -replace NSPhotoLibraryAddUsageDescription -string "This app needs photo library access to save photos" ios/Runner/Info.plist
-fi
-
-# Always add network security
-plutil -replace NSAppTransportSecurity -json '{"NSAllowsArbitraryLoads": true}' ios/Runner/Info.plist
-
-log "✅ Privacy descriptions added"
 
 # 🔐 Code Signing Preparation
 log "🔐 Setting up Code Signing..."

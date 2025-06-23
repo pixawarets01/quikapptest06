@@ -116,7 +116,7 @@ import_p12_to_keychain() {
     if security import "$p12_file" -k "$keychain" -P "$password" -T /usr/bin/codesign -T /usr/bin/xcodebuild -A; then
         log "✅ Standard P12 import successful"
         # Set partition list for modern macOS
-        security set-key-partition-list -S apple-tool:,apple: -s -k "" "$keychain" 2>/dev/null || log "Warning: Could not set partition list"
+        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" "$keychain" 2>/dev/null || log "Warning: Could not set partition list"
         return 0
     fi
     
@@ -124,7 +124,7 @@ import_p12_to_keychain() {
     log "Attempting simplified P12 import..."
     if security import "$p12_file" -k "$keychain" -P "$password" -A; then
         log "✅ Simplified P12 import successful"
-        security set-key-partition-list -S apple-tool:,apple: -s -k "" "$keychain" 2>/dev/null || log "Warning: Could not set partition list"
+        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" "$keychain" 2>/dev/null || log "Warning: Could not set partition list"
         return 0
     fi
     
@@ -147,7 +147,7 @@ import_p12_to_keychain() {
             # Method 3a: Try importing key as RSA (unencrypted)
             if security import "$temp_dir/key.pem" -k "$keychain" -T /usr/bin/codesign -T /usr/bin/xcodebuild -A; then
                 log "✅ Private key imported as RSA (unencrypted)"
-                security set-key-partition-list -S apple-tool:,apple: -s -k "" "$keychain" 2>/dev/null || log "Warning: Could not set partition list"
+                security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" "$keychain" 2>/dev/null || log "Warning: Could not set partition list"
                 rm -rf "$temp_dir"
                 return 0
             fi
@@ -156,7 +156,7 @@ import_p12_to_keychain() {
             log "Trying to import original key file directly..."
             if security import "ios/certificates/cert.key" -k "$keychain" -T /usr/bin/codesign -T /usr/bin/xcodebuild -A; then
                 log "✅ Original key file imported successfully (unencrypted)"
-                security set-key-partition-list -S apple-tool:,apple: -s -k "" "$keychain" 2>/dev/null || log "Warning: Could not set partition list"
+                security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" "$keychain" 2>/dev/null || log "Warning: Could not set partition list"
                 rm -rf "$temp_dir"
                 return 0
             fi
@@ -166,7 +166,7 @@ import_p12_to_keychain() {
             if openssl rsa -in "$temp_dir/key.pem" -out "$temp_dir/key_rsa.pem" 2>/dev/null; then
                 if security import "$temp_dir/key_rsa.pem" -k "$keychain" -T /usr/bin/codesign -T /usr/bin/xcodebuild -A; then
                     log "✅ Private key imported after format conversion (unencrypted)"
-                    security set-key-partition-list -S apple-tool:,apple: -s -k "" "$keychain" 2>/dev/null || log "Warning: Could not set partition list"
+                    security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" "$keychain" 2>/dev/null || log "Warning: Could not set partition list"
                     rm -rf "$temp_dir"
                     return 0
                 fi

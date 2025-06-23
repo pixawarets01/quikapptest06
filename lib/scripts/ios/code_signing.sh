@@ -145,7 +145,7 @@ setup_keychain_and_certificates() {
             log "🔍 Method 1: Importing with password and all tools..."
             if security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign -T /usr/bin/xcodebuild -A; then
                 log "✅ Certificate imported successfully (Method 1)"
-                security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+                security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
                 return 0
             fi
         fi
@@ -154,7 +154,7 @@ setup_keychain_and_certificates() {
         log "🔍 Method 2: Importing without password..."
         if security import ios/certificates/cert.p12 -k build.keychain -A; then
             log "✅ Certificate imported successfully (Method 2 - no password)"
-            security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+            security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
             return 0
         fi
         
@@ -163,7 +163,7 @@ setup_keychain_and_certificates() {
             log "🔍 Method 3: Importing with password but without -A flag..."
             if security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD"; then
                 log "✅ Certificate imported successfully (Method 3)"
-                security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+                security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
                 return 0
             fi
         fi
@@ -173,7 +173,7 @@ setup_keychain_and_certificates() {
             log "🔍 Method 4: Importing with specific tool access..."
             if security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign; then
                 log "✅ Certificate imported successfully (Method 4)"
-                security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+                security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
                 return 0
             fi
         fi
@@ -227,12 +227,23 @@ setup_keychain_and_certificates() {
     
     # Verify certificate installation
     log "🔍 Verifying certificate installation..."
-    if security find-identity -v -p codesigning build.keychain | grep -q "iPhone Distribution\|iPhone Developer\|iOS Distribution Certificate"; then
+    
+    # First, let's see what identities are actually in the keychain
+    log "🔍 Available identities in keychain:"
+    security find-identity -v -p codesigning build.keychain
+    
+    # Check for any certificate that could be used for code signing
+    if security find-identity -v -p codesigning build.keychain | grep -q "iPhone Distribution\|iPhone Developer\|iOS Distribution Certificate\|Apple Distribution"; then
         log "✅ Certificate verification successful"
     else
         log "❌ Certificate verification failed"
-        log "🔍 Available identities in keychain:"
-        security find-identity -v -p codesigning build.keychain
+        log "🔍 Debug: Checking keychain contents..."
+        log "🔍 Keychain list:"
+        security list-keychains
+        log "🔍 Keychain info:"
+        security show-keychain-info build.keychain
+        log "🔍 All identities (including non-codesigning):"
+        security find-identity -v build.keychain
         return 1
     fi
     
@@ -415,8 +426,10 @@ verify_code_signing_setup() {
     fi
     
     # Check certificate
-    if ! security find-identity -v -p codesigning build.keychain | grep -q "iPhone Distribution\|iPhone Developer\|iOS Distribution Certificate"; then
+    if ! security find-identity -v -p codesigning build.keychain | grep -q "iPhone Distribution\|iPhone Developer\|iOS Distribution Certificate\|Apple Distribution"; then
         log "❌ Code signing certificate not found"
+        log "🔍 Debug: Available identities in keychain:"
+        security find-identity -v -p codesigning build.keychain
         verification_passed=false
     fi
     
