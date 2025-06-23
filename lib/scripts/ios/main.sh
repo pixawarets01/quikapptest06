@@ -221,7 +221,7 @@ if [ "${IS_STORAGE:-false}" = "true" ]; then
 fi
 
 # Always add network security
-plutil -replace NSAppTransportSecurity -dict '{"NSAllowsArbitraryLoads": true}' ios/Runner/Info.plist
+plutil -replace NSAppTransportSecurity -json '{"NSAllowsArbitraryLoads": true}' ios/Runner/Info.plist
 
 log "✅ Privacy descriptions added"
 
