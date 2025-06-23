@@ -136,52 +136,58 @@ setup_keychain_and_certificates() {
     if [ -f "ios/certificates/cert.p12" ]; then
         log "🔍 Certificate file found: ios/certificates/cert.p12"
         log "🔍 Certificate file size: $(ls -lh ios/certificates/cert.p12 | awk '{print $5}')"
-        log "🔍 Using password: ${CERT_PASSWORD:0:3}*** (length: ${#CERT_PASSWORD})"
         
-        # Verify P12 file integrity first
+        # Verify P12 file integrity first (try without password first)
         log "🔍 Verifying P12 file integrity..."
-        if openssl pkcs12 -in ios/certificates/cert.p12 -noout -passin "pass:$CERT_PASSWORD" 2>/dev/null; then
-            log "✅ P12 file integrity verified"
-        else
-            log "❌ P12 file integrity check failed - password may be incorrect or file corrupted"
-            log "🔍 Attempting to verify P12 without password..."
-            if openssl pkcs12 -in ios/certificates/cert.p12 -noout 2>/dev/null; then
-                log "⚠️ P12 file is valid but password is incorrect"
-                log "🔍 Password debug: length=${#CERT_PASSWORD}, starts_with=${CERT_PASSWORD:0:3}***"
-            else
-                log "❌ P12 file appears to be corrupted"
-            fi
-            return 1
-        fi
-        
-        # Try importing with different methods
-        log "🔍 Attempting certificate import..."
-        
-        # Method 1: Standard import with explicit password format
-        if security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD" -A; then
-            log "✅ Certificate imported successfully"
-        else
-            log "⚠️ Standard import failed, trying alternative method..."
+        if openssl pkcs12 -in ios/certificates/cert.p12 -noout 2>/dev/null; then
+            log "✅ P12 file integrity verified (no password)"
             
-            # Method 2: Import without -A flag
-            if security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD"; then
-                log "✅ Certificate imported successfully (without -A flag)"
+            # Try importing without password first
+            log "🔍 Attempting certificate import without password..."
+            if security import ios/certificates/cert.p12 -k build.keychain -A; then
+                log "✅ Certificate imported successfully (no password)"
             else
-                log "⚠️ Alternative import failed, trying with different tools..."
+                log "⚠️ Import without password failed, trying with password..."
                 
-                # Method 3: Try importing with specific tool access
-                if security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign -T /usr/bin/xcodebuild; then
-                    log "✅ Certificate imported successfully (with tool access)"
+                # Try with password if available
+                if [ -n "$CERT_PASSWORD" ]; then
+                    log "🔍 Using password: ${CERT_PASSWORD:0:3}*** (length: ${#CERT_PASSWORD})"
+                    
+                    # Method 1: Standard import with password
+                    if security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD" -A; then
+                        log "✅ Certificate imported successfully (with password)"
+                    else
+                        log "⚠️ Standard import failed, trying alternative method..."
+                        
+                        # Method 2: Import without -A flag
+                        if security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD"; then
+                            log "✅ Certificate imported successfully (without -A flag)"
+                        else
+                            log "⚠️ Alternative import failed, trying with different tools..."
+                            
+                            # Method 3: Try importing with specific tool access
+                            if security import ios/certificates/cert.p12 -k build.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign -T /usr/bin/xcodebuild; then
+                                log "✅ Certificate imported successfully (with tool access)"
+                            else
+                                log "❌ All certificate import methods failed"
+                                log "🔍 Debug info:"
+                                log "   Password length: ${#CERT_PASSWORD}"
+                                log "   Password starts with: ${CERT_PASSWORD:0:3}***"
+                                log "   Keychain status: $(security list-keychains | grep build.keychain || echo 'not found')"
+                                log "   P12 file type: $(file ios/certificates/cert.p12)"
+                                return 1
+                            fi
+                        fi
+                    fi
                 else
-                    log "❌ All certificate import methods failed"
-                    log "🔍 Debug info:"
-                    log "   Password length: ${#CERT_PASSWORD}"
-                    log "   Password starts with: ${CERT_PASSWORD:0:3}***"
-                    log "   Keychain status: $(security list-keychains | grep build.keychain || echo 'not found')"
-                    log "   P12 file type: $(file ios/certificates/cert.p12)"
+                    log "❌ No password provided and import without password failed"
                     return 1
                 fi
             fi
+        else
+            log "❌ P12 file integrity check failed - file may be corrupted"
+            log "🔍 P12 file type: $(file ios/certificates/cert.p12)"
+            return 1
         fi
     else
         log "❌ Certificate file not found: ios/certificates/cert.p12"

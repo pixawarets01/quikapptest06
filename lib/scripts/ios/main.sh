@@ -195,18 +195,19 @@ else
         log "🔄 Generating P12 certificate with password..."
         log "🔍 Using password: ${CERT_PASSWORD:0:3}*** (length: ${#CERT_PASSWORD})"
         
-        # Generate P12 with explicit password handling
+        # Generate P12 with compatible password handling
+        # Use empty password for P12 generation to avoid compatibility issues
         if openssl pkcs12 -export \
             -inkey ios/certificates/cert.key \
             -in ios/certificates/cert.pem \
             -out ios/certificates/cert.p12 \
-            -password "pass:$CERT_PASSWORD" \
+            -password "pass:" \
             -name "iOS Distribution Certificate"; then
-            log "✅ P12 certificate generated successfully"
+            log "✅ P12 certificate generated successfully (no password)"
             
-            # Verify the generated P12 with the same password
+            # Verify the generated P12 (should work without password)
             log "🔍 Verifying generated P12 file..."
-            if openssl pkcs12 -in ios/certificates/cert.p12 -noout -passin "pass:$CERT_PASSWORD" 2>/dev/null; then
+            if openssl pkcs12 -in ios/certificates/cert.p12 -noout 2>/dev/null; then
                 log "✅ Generated P12 verification successful"
                 log "🔍 P12 file size: $(ls -lh ios/certificates/cert.p12 | awk '{print $5}')"
             else
