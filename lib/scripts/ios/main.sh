@@ -30,6 +30,42 @@ fi
 
 log "🚀 Starting iOS Universal IPA Build Process..."
 
+# 🔧 CRITICAL: Set Build Environment Variables FIRST
+log "🔧 Setting Build Environment Variables..."
+export OUTPUT_DIR="${OUTPUT_DIR:-output/ios}"
+export PROJECT_ROOT="${PROJECT_ROOT:-$(pwd)}"
+export CM_BUILD_DIR="${CM_BUILD_DIR:-$(pwd)}"
+
+log "📋 Build Environment Variables:"
+log "   OUTPUT_DIR: $OUTPUT_DIR"
+log "   PROJECT_ROOT: $PROJECT_ROOT"
+log "   CM_BUILD_DIR: $CM_BUILD_DIR"
+
+# 🎯 CRITICAL: Generate Environment Configuration FIRST
+log "🎯 Generating Environment Configuration from API Variables..."
+if [ -f "lib/scripts/utils/gen_env_config.sh" ]; then
+    chmod +x lib/scripts/utils/gen_env_config.sh
+    source lib/scripts/utils/gen_env_config.sh
+    if generate_env_config; then
+        log "✅ Environment configuration generated successfully"
+        
+        # Show generated config summary
+        log "📋 Generated Config Summary:"
+        log "   App: ${APP_NAME:-QuikApp} v${VERSION_NAME:-1.0.0}"
+        log "   Workflow: ${WORKFLOW_ID:-unknown}"
+        log "   Bundle ID: ${BUNDLE_ID:-not_set}"
+        log "   Firebase: ${PUSH_NOTIFY:-false}"
+        log "   iOS Signing: ${CERT_PASSWORD:+true}"
+        log "   Profile Type: ${PROFILE_TYPE:-app-store}"
+    else
+        log "❌ Failed to generate environment configuration"
+        exit 1
+    fi
+else
+    log "❌ Environment configuration generator not found"
+    exit 1
+fi
+
 # 🔧 Initial Setup
 log "🔧 Initial Setup - Installing CocoaPods..."
 
@@ -64,42 +100,6 @@ fi
 
 log "📦 Installing Flutter Dependencies..."
 flutter pub get
-
-# 🎯 CRITICAL: Generate Environment Configuration FIRST
-log "🎯 Generating Environment Configuration from API Variables..."
-if [ -f "lib/scripts/utils/gen_env_config.sh" ]; then
-    chmod +x lib/scripts/utils/gen_env_config.sh
-    source lib/scripts/utils/gen_env_config.sh
-    if generate_env_config; then
-        log "✅ Environment configuration generated successfully"
-        
-        # Show generated config summary
-        log "📋 Generated Config Summary:"
-        log "   App: ${APP_NAME:-QuikApp} v${VERSION_NAME:-1.0.0}"
-        log "   Workflow: ${WORKFLOW_ID:-unknown}"
-        log "   Bundle ID: ${BUNDLE_ID:-not_set}"
-        log "   Firebase: ${PUSH_NOTIFY:-false}"
-        log "   iOS Signing: ${CERT_PASSWORD:+true}"
-        log "   Profile Type: ${PROFILE_TYPE:-app-store}"
-    else
-        log "❌ Failed to generate environment configuration"
-        exit 1
-    fi
-else
-    log "❌ Environment configuration generator not found"
-    exit 1
-fi
-
-# 🔧 Set Build Environment Variables
-log "🔧 Setting Build Environment Variables..."
-export OUTPUT_DIR="${OUTPUT_DIR:-output/ios}"
-export PROJECT_ROOT="${PROJECT_ROOT:-$(pwd)}"
-export CM_BUILD_DIR="${CM_BUILD_DIR:-$(pwd)}"
-
-log "📋 Build Environment Variables:"
-log "   OUTPUT_DIR: $OUTPUT_DIR"
-log "   PROJECT_ROOT: $PROJECT_ROOT"
-log "   CM_BUILD_DIR: $CM_BUILD_DIR"
 
 # Create necessary directories
 mkdir -p ios/certificates

@@ -8,17 +8,17 @@ class EnvConfig {
   static const String appId = "";
   static const String versionName = "1.0.0";
   static const int versionCode = 1;
-  static const String appName = "QuikApp";
+  static const String appName = "TestApp";
   static const String orgName = "";
   static const String webUrl = "";
   static const String userName = "";
   static const String emailId = "";
   static const String branch = "main";
-  static const String workflowId = "";
+  static const String workflowId = "ios-test";
 
   // Package Identifiers
   static const String pkgName = "";
-  static const String bundleId = "";
+  static const String bundleId = "com.test.app";
 
   // Feature Flags (converted to bool)
   static const bool pushNotify = false;
@@ -73,10 +73,10 @@ class EnvConfig {
   static const String cmKeyPassword = "";
 
   // iOS Signing
-  static const String appleTeamId = "";
+  static const String appleTeamId = "9H2AD7NQ49";
   static const String apnsKeyId = "";
   static const String apnsAuthKeyUrl = "";
-  static const String certPassword = "";
+  static const String certPassword = "test";
   static const String profileUrl = "";
   static const String certP12Url = "";
   static const String certCerUrl = "";
@@ -86,9 +86,9 @@ class EnvConfig {
 
   // Build Environment
   static const String buildId = "unknown";
-  static const String buildDir = "";
-  static const String projectRoot = "";
-  static const String outputDir = "output";
+  static const String buildDir = "/Users/alakaraj/workspace/quikapptest06";
+  static const String projectRoot = "/Users/alakaraj/workspace/quikapptest06";
+  static const String outputDir = "test_output/ios";
 
   // Utility Methods
   static bool get isAndroidBuild => workflowId.startsWith('android');
