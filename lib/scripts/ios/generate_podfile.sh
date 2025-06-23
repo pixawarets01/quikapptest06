@@ -72,15 +72,12 @@ ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
 # 🔧 Pre-install hook for Firebase compatibility
 pre_install do |installer|
-  # Clean up any conflicting Firebase versions and set Swift compatibility
+  # Set up Firebase compatibility for all pods
   installer.pod_targets.each do |pod|
     if pod.name.start_with?('Firebase')
-      pod.build_configurations.each do |config|
-        config.build_settings['SWIFT_VERSION'] = '5.0'
-        config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
-        # Add Swift compiler flags for AccessLevelOnImport compatibility
-        config.build_settings['OTHER_SWIFT_FLAGS'] = '$(inherited) -enable-experimental-feature AccessLevelOnImport'
-      end
+      # Set Swift version and other settings for Firebase pods
+      pod.build_settings['SWIFT_VERSION'] = '5.0'
+      pod.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
     end
   end
 end
