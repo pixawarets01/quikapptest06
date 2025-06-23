@@ -126,7 +126,7 @@ verify_code_signing_setup() {
     fi
     
     # Check certificate
-    if ! security find-identity -v -p codesigning build.keychain | grep -q "iPhone Distribution\|iPhone Developer"; then
+    if ! security find-identity -v -p codesigning build.keychain | grep -q "iPhone Distribution\|iPhone Developer\|iOS Distribution Certificate"; then
         handle_error "Code signing certificate not found"
     fi
     

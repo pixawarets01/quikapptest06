@@ -25,20 +25,20 @@ configure_xcode_code_signing() {
     log "✅ Project file backed up"
     
     # Determine code signing identity based on profile type
-    local code_sign_identity="iPhone Distribution"
+    local code_sign_identity="iOS Distribution Certificate"
     local code_sign_style="Manual"
     
     case "$profile_type" in
         "app-store")
-            code_sign_identity="iPhone Distribution"
+            code_sign_identity="iOS Distribution Certificate"
             code_sign_style="Manual"
             ;;
         "ad-hoc")
-            code_sign_identity="iPhone Distribution"
+            code_sign_identity="iOS Distribution Certificate"
             code_sign_style="Manual"
             ;;
         "enterprise")
-            code_sign_identity="iPhone Distribution"
+            code_sign_identity="iOS Distribution Certificate"
             code_sign_style="Manual"
             ;;
         "development")
@@ -47,7 +47,7 @@ configure_xcode_code_signing() {
             ;;
         *)
             log "⚠️ Unknown profile type: $profile_type, using app-store defaults"
-            code_sign_identity="iPhone Distribution"
+            code_sign_identity="iOS Distribution Certificate"
             code_sign_style="Manual"
             ;;
     esac
@@ -227,10 +227,12 @@ setup_keychain_and_certificates() {
     
     # Verify certificate installation
     log "🔍 Verifying certificate installation..."
-    if security find-identity -v -p codesigning build.keychain | grep -q "iPhone Distribution\|iPhone Developer"; then
+    if security find-identity -v -p codesigning build.keychain | grep -q "iPhone Distribution\|iPhone Developer\|iOS Distribution Certificate"; then
         log "✅ Certificate verification successful"
     else
         log "❌ Certificate verification failed"
+        log "🔍 Available identities in keychain:"
+        security find-identity -v -p codesigning build.keychain
         return 1
     fi
     
@@ -345,7 +347,7 @@ generate_export_options() {
     <key>signingStyle</key>
     <string>manual</string>
     <key>signingCertificate</key>
-    <string>iPhone Distribution</string>
+    <string>iOS Distribution Certificate</string>
     <key>provisioningProfiles</key>
     <dict>
         <key>$BUNDLE_ID</key>
@@ -413,7 +415,7 @@ verify_code_signing_setup() {
     fi
     
     # Check certificate
-    if ! security find-identity -v -p codesigning build.keychain | grep -q "iPhone Distribution\|iPhone Developer"; then
+    if ! security find-identity -v -p codesigning build.keychain | grep -q "iPhone Distribution\|iPhone Developer\|iOS Distribution Certificate"; then
         log "❌ Code signing certificate not found"
         verification_passed=false
     fi

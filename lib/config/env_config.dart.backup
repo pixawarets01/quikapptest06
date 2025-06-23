@@ -5,25 +5,25 @@
 
 class EnvConfig {
   // App Metadata
-  static const String appId = "";
-  static const String versionName = "1.0.0";
-  static const int versionCode = 1;
-  static const String appName = "QuikApp";
-  static const String orgName = "";
-  static const String webUrl = "";
-  static const String userName = "";
-  static const String emailId = "";
+  static const String appId = "1002";
+  static const String versionName = "1.0.3";
+  static const int versionCode = 3;
+  static const String appName = "Twinklub App";
+  static const String orgName = "JPR Garments";
+  static const String webUrl = "https://twinklub.com/";
+  static const String userName = "prasannasrie";
+  static const String emailId = "prasannasrinivasan32@gmail.com";
   static const String branch = "main";
-  static const String workflowId = "";
+  static const String workflowId = "ios-workflow";
 
   // Package Identifiers
-  static const String pkgName = "";
-  static const String bundleId = "";
+  static const String pkgName = "com.twinklub.twinklub";
+  static const String bundleId = "com.twinklub.twinklub";
 
   // Feature Flags (converted to bool)
-  static const bool pushNotify = false;
-  static const bool isChatbot = false;
-  static const bool isDomainUrl = false;
+  static const bool pushNotify = true;
+  static const bool isChatbot = true;
+  static const bool isDomainUrl = true;
   static const bool isSplash = true;
   static const bool isPulldown = true;
   static const bool isBottommenu = true;
@@ -32,63 +32,63 @@ class EnvConfig {
   // Permissions (converted to bool)
   static const bool isCamera = false;
   static const bool isLocation = false;
-  static const bool isMic = false;
-  static const bool isNotification = false;
+  static const bool isMic = true;
+  static const bool isNotification = true;
   static const bool isContact = false;
   static const bool isBiometric = false;
   static const bool isCalendar = false;
-  static const bool isStorage = false;
+  static const bool isStorage = true;
 
   // UI/Branding
-  static const String logoUrl = "";
-  static const String splashUrl = "";
+  static const String logoUrl = "https://raw.githubusercontent.com/prasanna91/QuikApp/main/twinklub_png_logo.png";
+  static const String splashUrl = "https://raw.githubusercontent.com/prasanna91/QuikApp/main/twinklub_png_logo.png";
   static const String splashBg = "";
-  static const String splashBgColor = "#FFFFFF";
-  static const String splashTagline = "";
-  static const String splashTaglineColor = "#000000";
-  static const String splashAnimation = "none";
-  static const int splashDuration = 3;
+  static const String splashBgColor = "#cbdbf5";
+  static const String splashTagline = "TWINKLUB";
+  static const String splashTaglineColor = "#a30237";
+  static const String splashAnimation = "zoom";
+  static const int splashDuration = 4;
 
   // Bottom Menu Configuration
-  static const String bottommenuItems = "[]";
+  static const String bottommenuItems = """[{"label":"Home","icon":{"type":"preset","name":"home_outlined"},"url":"https://twinklub.com/"},{"label":"New Arraivals","icon":{"type":"custom","icon_url":"https://raw.githubusercontent.com/prasanna91/QuikApp/main/card.svg","icon_size":"24"},"url":"https://www.twinklub.com/collections/new-arrivals"},{"label":"Collections","icon":{"type":"custom","icon_url":"https://raw.githubusercontent.com/prasanna91/QuikApp/main/about.svg","icon_size":"24"},"url":"https://www.twinklub.com/collections/all"},{"label":"Contact","icon":{"type":"custom","icon_url":"https://raw.githubusercontent.com/prasanna91/QuikApp/main/contact.svg","icon_size":"24"},"url":"https://www.twinklub.com/account"}]""";
   static const String bottommenuBgColor = "#FFFFFF";
-  static const String bottommenuIconColor = "#000000";
-  static const String bottommenuTextColor = "#000000";
+  static const String bottommenuIconColor = "#6d6e8c";
+  static const String bottommenuTextColor = "#6d6e8c";
   static const String bottommenuFont = "DM Sans";
-  static const double bottommenuFontSize = 14.0;
+  static const double bottommenuFontSize = 12;
   static const bool bottommenuFontBold = false;
   static const bool bottommenuFontItalic = false;
-  static const String bottommenuActiveTabColor = "#0000FF";
-  static const String bottommenuIconPosition = "top";
+  static const String bottommenuActiveTabColor = "#a30237";
+  static const String bottommenuIconPosition = "above";
   static const String bottommenuVisibleOn = "";
 
   // Firebase Configuration
-  static const String firebaseConfigAndroid = "";
-  static const String firebaseConfigIos = "";
+  static const String firebaseConfigAndroid = "https://raw.githubusercontent.com/prasanna91/QuikApp/main/google-services-TK.json";
+  static const String firebaseConfigIos = "https://raw.githubusercontent.com/prasanna91/QuikApp/main/GoogleService-Info-TK.plist";
 
   // Android Signing
-  static const String keyStoreUrl = "";
-  static const String cmKeystorePassword = "";
-  static const String cmKeyAlias = "";
-  static const String cmKeyPassword = "";
+  static const String keyStoreUrl = "https://raw.githubusercontent.com/prasanna91/QuikApp/main/keystore.jks";
+  static const String cmKeystorePassword = "opeN@1234";
+  static const String cmKeyAlias = "my_key_alias";
+  static const String cmKeyPassword = "opeN@1234";
 
   // iOS Signing
-  static const String appleTeamId = "";
-  static const String apnsKeyId = "";
-  static const String apnsAuthKeyUrl = "";
-  static const String certPassword = "";
-  static const String profileUrl = "";
+  static const String appleTeamId = "9H2AD7NQ49";
+  static const String apnsKeyId = "6VB3VLTXV6";
+  static const String apnsAuthKeyUrl = "https://raw.githubusercontent.com/prasanna91/QuikApp/main/AuthKey_V566SWNF69.p8";
+  static const String certPassword = "User@54321";
+  static const String profileUrl = "https://raw.githubusercontent.com/prasanna91/QuikApp/main/Twinklub.mobileprovision";
   static const String certP12Url = "";
-  static const String certCerUrl = "";
-  static const String certKeyUrl = "";
+  static const String certCerUrl = "https://raw.githubusercontent.com/prasanna91/QuikApp/main/apple_distribution.cer";
+  static const String certKeyUrl = "https://raw.githubusercontent.com/prasanna91/QuikApp/main/privatekey.key";
   static const String profileType = "app-store";
-  static const String appStoreConnectKeyIdentifier = "";
+  static const String appStoreConnectKeyIdentifier = "F5229W2Q8S";
 
   // Build Environment
-  static const String buildId = "unknown";
-  static const String buildDir = "";
-  static const String projectRoot = "";
-  static const String outputDir = "output";
+  static const String buildId = "test-build-123";
+  static const String buildDir = "/tmp/build";
+  static const String projectRoot = "/tmp/project";
+  static const String outputDir = "/tmp/output";
 
   // Utility Methods
   static bool get isAndroidBuild => workflowId.startsWith('android');
