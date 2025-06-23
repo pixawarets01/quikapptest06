@@ -422,7 +422,7 @@ workflows:
       - build/app/outputs/logs/
 
   ios-workflow:
-    name: iOS Universal Build (App Store + Ad Hoc)
+    name: iOS Universal Build (App Store + Ad Hoc + Enterprise + Development)
     max_build_duration: 90
     instance_type: mac_mini_m2
     environment:
@@ -447,11 +447,24 @@ workflows:
         # 🔥 Firebase Configuration
         FIREBASE_CONFIG_IOS: $FIREBASE_CONFIG_IOS
 
-        # 🍎 iOS Signing Configuration (Universal)
+        # 🍎 iOS Signing Configuration (Universal - All Profile Types)
         <<: *ios_signing_config
 
         # 📱 iOS Distribution Options
         <<: *ios_distribution_options
+
+        # 📧 Email Configuration (for notifications)
+        ENABLE_EMAIL_NOTIFICATIONS: $ENABLE_EMAIL_NOTIFICATIONS
+        EMAIL_SMTP_SERVER: $EMAIL_SMTP_SERVER
+        EMAIL_SMTP_PORT: $EMAIL_SMTP_PORT
+        EMAIL_SMTP_USER: $EMAIL_SMTP_USER
+        EMAIL_SMTP_PASS: $EMAIL_SMTP_PASS
+
+        # 🔧 Build Environment Variables
+        CM_BUILD_ID: $CM_BUILD_ID
+        CM_BUILD_DIR: $CM_BUILD_DIR
+        PROJECT_ROOT: $PROJECT_ROOT
+        OUTPUT_DIR: $OUTPUT_DIR
 
     scripts:
       - name: Pre-build Setup
@@ -489,6 +502,24 @@ workflows:
             echo "⚠️ No Firebase configuration provided"
           fi
 
+          # Enhanced Firebase validation based on PUSH_NOTIFY
+          echo "🔍 Validating Firebase configuration..."
+          if [ "${PUSH_NOTIFY:-false}" = "true" ]; then
+            echo "🔔 Push notifications ENABLED - Firebase required"
+            if [ -z "$FIREBASE_CONFIG_IOS" ]; then
+              echo "❌ FIREBASE_CONFIG_IOS is required when PUSH_NOTIFY is true"
+              exit 1
+            else
+              echo "✅ Firebase configuration provided for push notifications"
+            fi
+          else
+            echo "🔕 Push notifications DISABLED - Firebase optional"
+            if [ -n "$FIREBASE_CONFIG_IOS" ]; then
+              echo "⚠️ Firebase configuration provided but PUSH_NOTIFY is false"
+              echo "   Firebase will be disabled during build"
+            fi
+          fi
+
           # Verify iOS signing configuration
           if [ -n "$CERT_PASSWORD" ] && [ -n "$PROFILE_URL" ]; then
             echo "🔐 iOS signing configuration detected"
@@ -496,16 +527,46 @@ workflows:
             echo "⚠️ Incomplete iOS signing configuration"
           fi
 
-          # Verify profile type
-          if [ "$PROFILE_TYPE" = "app-store" ] || [ "$PROFILE_TYPE" = "ad-hoc" ]; then
-            echo "✅ Profile type: $PROFILE_TYPE"
-          else
-            echo "❌ Invalid profile type: $PROFILE_TYPE (must be 'app-store' or 'ad-hoc')"
-            exit 1
-          fi
+          # Enhanced profile type validation
+          echo "🔍 Validating profile type: $PROFILE_TYPE"
+          case "$PROFILE_TYPE" in
+            "app-store"|"ad-hoc"|"enterprise"|"development")
+              echo "✅ Valid profile type: $PROFILE_TYPE"
+              ;;
+            *)
+              echo "❌ Invalid profile type: $PROFILE_TYPE"
+              echo "   Supported types: app-store, ad-hoc, enterprise, development"
+              exit 1
+              ;;
+          esac
 
           # Verify environment
           echo "✅ Environment verification completed"
+
+          # Enhanced build process validation
+          echo "🔍 Validating build process components..."
+          if [ -f "lib/scripts/ios/build_ipa.sh" ]; then
+            echo "✅ Enhanced build script found"
+          else
+            echo "❌ Enhanced build script not found"
+            exit 1
+          fi
+
+          if [ -f "lib/scripts/ios/code_signing.sh" ]; then
+            echo "✅ Enhanced code signing script found"
+          else
+            echo "❌ Enhanced code signing script not found"
+            exit 1
+          fi
+
+          if [ -f "lib/scripts/ios/firebase.sh" ]; then
+            echo "✅ Firebase script found"
+          else
+            echo "❌ Firebase script not found"
+            exit 1
+          fi
+
+          echo "✅ Build process components validated"
 
       - name: Build iOS Universal IPA
         script: |

@@ -184,10 +184,79 @@ import_p12_to_keychain() {
     return 1
 }
 
+# Function to download provisioning profile with retries
+download_provisioning_profile() {
+    local url="$1"
+    local output_path="$2"
+    local max_retries=3
+    local retry_delay=5
+    local attempt=1
+
+    while [ $attempt -le $max_retries ]; do
+        echo "📥 Downloading provisioning profile (Attempt $attempt/$max_retries)..."
+        
+        # Create temp directory with proper permissions
+        local temp_dir=$(mktemp -d)
+        chmod 755 "$temp_dir"
+        local temp_file="$temp_dir/profile.mobileprovision"
+        
+        if curl -f -s -L "$url" -o "$temp_file"; then
+            # Verify the download
+            if [ -s "$temp_file" ]; then
+                # Check if it's a valid provisioning profile
+                if grep -q "<?xml" "$temp_file" || file "$temp_file" | grep -q "binary"; then
+                    mv "$temp_file" "$output_path"
+                    chmod 644 "$output_path"
+                    rm -rf "$temp_dir"
+                    echo "✅ Provisioning profile downloaded successfully"
+                    return 0
+                else
+                    echo "⚠️ Downloaded file is not a valid provisioning profile"
+                fi
+            else
+                echo "⚠️ Downloaded file is empty"
+            fi
+        fi
+        
+        rm -rf "$temp_dir"
+        echo "⚠️ Failed to download provisioning profile, retrying in $retry_delay seconds..."
+        sleep $retry_delay
+        attempt=$((attempt + 1))
+    done
+
+    echo "❌ Failed to download provisioning profile after $max_retries attempts"
+    return 1
+}
+
 # Main function
 if [ "$#" -ne 4 ]; then
     echo "Usage: $0 <cert_file> <key_file> <password> <output_p12>"
     exit 1
 fi
 
-handle_certificates "$1" "$2" "$3" "$4" && import_p12_to_keychain "$4" "$3" 
+handle_certificates "$1" "$2" "$3" "$4" && import_p12_to_keychain "$4" "$3"
+
+# Main execution
+main() {
+    if [ -z "$PROFILE_URL" ]; then
+        echo "❌ PROFILE_URL is not set"
+        exit 1
+    fi
+
+    local profile_path="$CERT_DIR/profile.mobileprovision"
+    
+    echo "🔐 Setting up certificates directory..."
+    
+    # Clean up any existing files
+    rm -f "$profile_path"
+    
+    # Download and install the provisioning profile
+    if download_provisioning_profile "$PROFILE_URL" "$profile_path"; then
+        echo "✅ Certificate setup completed successfully"
+    else
+        echo "❌ Certificate setup failed"
+        exit 1
+    fi
+}
+
+main "$@" 
