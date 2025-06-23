@@ -158,11 +158,36 @@ verify_code_signing_setup() {
         handle_error "ExportOptions.plist not found"
     fi
     
-    # Verify ExportOptions.plist content
-    if ! grep -q "method.*$PROFILE_TYPE" ios/ExportOptions.plist; then
-        handle_error "ExportOptions.plist does not contain correct method: $PROFILE_TYPE"
+    # Verify ExportOptions.plist content - check for method value
+    log "🔍 Checking ExportOptions.plist method..."
+    
+    # Use a more reliable method to extract the method value
+    local METHOD_VALUE=""
+    if command -v plutil >/dev/null 2>&1; then
+        # Use plutil if available (macOS)
+        METHOD_VALUE=$(plutil -extract method raw ios/ExportOptions.plist 2>/dev/null)
+    else
+        # Fallback to grep/sed approach
+        METHOD_VALUE=$(grep -A1 "<key>method</key>" ios/ExportOptions.plist | grep "<string>" | head -1 | sed 's/.*<string>\([^<]*\)<\/string>.*/\1/')
     fi
     
+    if [ -z "$METHOD_VALUE" ]; then
+        log "❌ Could not extract method value from ExportOptions.plist"
+        log "📋 ExportOptions.plist contents:"
+        cat ios/ExportOptions.plist
+        handle_error "ExportOptions.plist does not contain valid method value"
+    fi
+    
+    if [ "$METHOD_VALUE" != "$PROFILE_TYPE" ]; then
+        log "❌ ExportOptions.plist method mismatch:"
+        log "   Expected: $PROFILE_TYPE"
+        log "   Found: $METHOD_VALUE"
+        log "📋 ExportOptions.plist contents:"
+        cat ios/ExportOptions.plist
+        handle_error "ExportOptions.plist method does not match profile type"
+    fi
+    
+    log "✅ ExportOptions.plist method verified: $METHOD_VALUE"
     log "✅ Code signing setup verified"
 }
 

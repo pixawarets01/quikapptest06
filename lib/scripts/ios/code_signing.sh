@@ -94,7 +94,7 @@ configure_xcode_code_signing() {
     log "✅ Xcode project code signing configuration completed"
 }
 
-# Function to setup keychain and certificates
+# Function to set up keychain and certificates
 setup_keychain_and_certificates() {
     log "🔑 Setting up keychain and certificates..."
     
@@ -105,9 +105,21 @@ setup_keychain_and_certificates() {
     log "🗑️ Checking for existing build keychain..."
     if security list-keychains | grep -q "build.keychain"; then
         log "🗑️ Removing existing build keychain..."
+        # Try to delete the keychain
         security delete-keychain build.keychain 2>/dev/null || true
         # Wait a moment for the deletion to complete
-        sleep 1
+        sleep 2
+        
+        # Check if it was actually deleted
+        if security list-keychains | grep -q "build.keychain"; then
+            log "⚠️ Keychain still exists, trying force removal..."
+            # Try to remove from keychain search list first
+            security list-keychains | grep -v "build.keychain" | tr '\n' ' ' | xargs security list-keychains -s 2>/dev/null || true
+            sleep 1
+            # Try deletion again
+            security delete-keychain build.keychain 2>/dev/null || true
+            sleep 1
+        fi
     fi
     
     # Also try to remove from keychain search list
@@ -119,7 +131,12 @@ setup_keychain_and_certificates() {
         log "✅ Build keychain created successfully"
     else
         log "❌ Failed to create build keychain"
-        return 1
+        log "🔍 Debug: Checking if keychain already exists..."
+        if security list-keychains | grep -q "build.keychain"; then
+            log "✅ Keychain already exists, proceeding with existing keychain"
+        else
+            return 1
+        fi
     fi
     
     # Configure the keychain
