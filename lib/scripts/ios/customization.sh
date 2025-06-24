@@ -26,27 +26,18 @@ if [ -n "$APP_NAME" ]; then
   fi
 fi
 
-# Update app icon if logo exists in assets
-if [ -f assets/images/logo.png ]; then
-  log "Updating app icon from assets/images/logo.png"
-  mkdir -p ios/Runner/Assets.xcassets/AppIcon.appiconset
-  
-  # Copy logo to AppIcon (you may want to resize these appropriately)
-  cp assets/images/logo.png ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png
-  cp assets/images/logo.png ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@1x.png
-  cp assets/images/logo.png ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@2x.png
-  cp assets/images/logo.png ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@3x.png
-  cp assets/images/logo.png ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@1x.png
-  cp assets/images/logo.png ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@2x.png
-  cp assets/images/logo.png ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@3x.png
-  cp assets/images/logo.png ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@1x.png
-  cp assets/images/logo.png ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@2x.png
-  cp assets/images/logo.png ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@3x.png
-  cp assets/images/logo.png ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@2x.png
-  cp assets/images/logo.png ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@3x.png
-  cp assets/images/logo.png ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@1x.png
-  cp assets/images/logo.png ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@2x.png
-  cp assets/images/logo.png ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-83.5x83.5@2x.png
+# Generate app icons using the icon generation script
+log "Generating app icons..."
+if [ -f "lib/scripts/utils/fix_ios_icons.sh" ]; then
+  chmod +x lib/scripts/utils/fix_ios_icons.sh
+  if lib/scripts/utils/fix_ios_icons.sh; then
+    log "✅ App icons fixed successfully"
+  else
+    log "❌ Failed to fix app icons"
+    exit 1
+  fi
+else
+  log "⚠️ Icon fix script not found, skipping icon generation"
 fi
 
 log "iOS app customization completed successfully"
