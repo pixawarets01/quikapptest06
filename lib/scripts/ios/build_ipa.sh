@@ -312,7 +312,7 @@ EOF
         "ad-hoc")
             cat >> "$EXPORT_OPTIONS_PLIST" << EOF
     <key>thinning</key>
-    <string>&lt;none&gt;</string>
+    <string>none</string>
     <key>manifest</key>
     <dict>
         <key>appURL</key>
@@ -337,7 +337,7 @@ EOF
     <key>distributionBundleIdentifier</key>
     <string>$BUNDLE_ID</string>
     <key>thinning</key>
-    <string>&lt;none&gt;</string>
+    <string>none</string>
 EOF
             ;;
     esac

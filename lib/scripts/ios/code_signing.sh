@@ -308,7 +308,7 @@ generate_export_options() {
     local upload_symbols="true"
     local upload_bitcode="false"
     local compile_bitcode="false"
-    local thinning="<none>"
+    local thinning="none"
     local destination="export"
     
     case "$profile_type" in
@@ -316,28 +316,28 @@ generate_export_options() {
             upload_symbols="true"
             upload_bitcode="false"
             compile_bitcode="false"
-            thinning="<none>"
+            thinning="none"
             destination="upload"
             ;;
         "ad-hoc")
             upload_symbols="false"
             upload_bitcode="false"
             compile_bitcode="false"
-            thinning="<none>"
+            thinning="none"
             destination="export"
             ;;
         "enterprise")
             upload_symbols="false"
             upload_bitcode="false"
             compile_bitcode="false"
-            thinning="<none>"
+            thinning="none"
             destination="export"
             ;;
         "development")
             upload_symbols="false"
             upload_bitcode="false"
             compile_bitcode="false"
-            thinning="<none>"
+            thinning="none"
             destination="export"
             ;;
     esac
