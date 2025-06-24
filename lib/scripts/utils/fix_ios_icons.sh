@@ -10,6 +10,25 @@ fix_ios_icons() {
     local output_dir="ios/Runner/Assets.xcassets/AppIcon.appiconset"
     mkdir -p "$output_dir"
     
+    # Debug: Check current state of icons
+    log "🔍 Current icon state:"
+    if [ -d "$output_dir" ]; then
+        local icon_count=$(ls -1 "$output_dir"/*.png 2>/dev/null | wc -l)
+        log "   Found $icon_count icon files in $output_dir"
+        
+        # Check a few specific icons
+        for icon in "Icon-App-1024x1024@1x.png" "Icon-App-20x20@1x.png"; do
+            if [ -f "$output_dir/$icon" ]; then
+                local size=$(ls -lh "$output_dir/$icon" | awk '{print $5}')
+                log "   $icon: $size"
+            else
+                log "   $icon: missing"
+            fi
+        done
+    else
+        log "   Icon directory does not exist"
+    fi
+    
     # Create a simple valid 1024x1024 icon using base64
     # This is a minimal but valid PNG that Xcode will accept
     log "📱 Creating valid iOS app icons..."
@@ -46,6 +65,18 @@ EOF
     # Check if the main icon is valid
     if [ -s "$output_dir/Icon-App-1024x1024@1x.png" ]; then
         log "✅ Main app icon is valid"
+        
+        # Show final state of key icons
+        log "🔍 Final icon state:"
+        for icon in "Icon-App-1024x1024@1x.png" "Icon-App-20x20@1x.png" "Icon-App-60x60@2x.png"; do
+            if [ -f "$output_dir/$icon" ]; then
+                local size=$(ls -lh "$output_dir/$icon" | awk '{print $5}')
+                log "   $icon: $size"
+            else
+                log "   $icon: missing"
+            fi
+        done
+        
         return 0
     else
         log "❌ Main app icon is invalid"

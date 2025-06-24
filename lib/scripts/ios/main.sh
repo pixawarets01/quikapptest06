@@ -487,6 +487,21 @@ else
     exit 1
 fi
 
+# 🔧 CRITICAL: Fix iOS App Icons Before Flutter Build
+log "🔧 Fixing iOS app icons before Flutter build..."
+if [ -f "lib/scripts/utils/fix_ios_icons.sh" ]; then
+    chmod +x lib/scripts/utils/fix_ios_icons.sh
+    if lib/scripts/utils/fix_ios_icons.sh; then
+        log "✅ iOS app icons fixed successfully before Flutter build"
+    else
+        log "❌ Failed to fix iOS app icons"
+        exit 1
+    fi
+else
+    log "❌ iOS icon fix script not found"
+    exit 1
+fi
+
 # 📦 STAGE 1: First Podfile Injection for Flutter Build (No Code Signing)
 log "📦 STAGE 1: First Podfile Injection for Flutter Build (No Code Signing)..."
 
