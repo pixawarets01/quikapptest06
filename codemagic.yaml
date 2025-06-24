@@ -453,7 +453,7 @@ workflows:
         # 📱 iOS Distribution Options
         <<: *ios_distribution_options
 
-        # 📧 Email Configuration (for notifications)
+        # 📧 Email Configuration (for notifications)7
         ENABLE_EMAIL_NOTIFICATIONS: $ENABLE_EMAIL_NOTIFICATIONS
         EMAIL_SMTP_SERVER: $EMAIL_SMTP_SERVER
         EMAIL_SMTP_PORT: $EMAIL_SMTP_PORT
