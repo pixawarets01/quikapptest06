@@ -29,6 +29,9 @@ VERSION_NAME=${VERSION_NAME:-}
 VERSION_CODE=${VERSION_CODE:-}
 PROFILE_TYPE=${PROFILE_TYPE:-"app-store"}
 BUILD_MODE=${BUILD_MODE:-"release"}
+OUTPUT_DIR=${OUTPUT_DIR:-"output/ios"}
+EXPORT_OPTIONS_PLIST="ios/ExportOptions.plist"
+APPLE_TEAM_ID=${APPLE_TEAM_ID:-}
 
 # Function to validate build environment
 validate_build_environment() {
@@ -37,37 +40,50 @@ validate_build_environment() {
     # Check required variables
     if [ -z "$BUNDLE_ID" ]; then
         error "BUNDLE_ID is required"
+        exit 1
     fi
     
     if [ -z "$VERSION_NAME" ]; then
         error "VERSION_NAME is required"
+        exit 1
     fi
     
     if [ -z "$VERSION_CODE" ]; then
         error "VERSION_CODE is required"
+        exit 1
+    fi
+    
+    if [ -z "$APPLE_TEAM_ID" ]; then
+        error "APPLE_TEAM_ID is required"
+        exit 1
     fi
     
     # Check required files
     if [ ! -f "ios/Runner/Info.plist" ]; then
         error "Info.plist not found"
+        exit 1
     fi
     
+    # ExportOptions.plist will be generated if missing, so don't fail here
     if [ ! -f "ios/ExportOptions.plist" ]; then
-        error "ExportOptions.plist not found"
+        log "⚠️ ExportOptions.plist not found (will be generated later)"
     fi
     
     if [ ! -f "ios/Podfile" ]; then
         error "Podfile not found"
+        exit 1
     fi
     
     # Check Flutter environment
     if ! command -v flutter &> /dev/null; then
         error "Flutter not found in PATH"
+        exit 1
     fi
     
     # Check Xcode environment
     if ! command -v xcodebuild &> /dev/null; then
         error "Xcode not found in PATH"
+        exit 1
     fi
     
     log "✅ Build environment validation passed"
@@ -296,6 +312,77 @@ EOF
     cat "$EXPORT_OPTIONS_PLIST"
 }
 
+# Function to archive the app
+archive_app() {
+    log "📦 Creating iOS app archive..."
+    
+    local ARCHIVE_PATH="build/ios/archive/Runner.xcarchive"
+    local WORKSPACE_PATH="ios/Runner.xcworkspace"
+    local SCHEME="Runner"
+    
+    # Create archive directory
+    mkdir -p "$(dirname "$ARCHIVE_PATH")"
+    
+    # Archive the app
+    log "🏗️ Running xcodebuild archive..."
+    if xcodebuild \
+        -workspace "$WORKSPACE_PATH" \
+        -scheme "$SCHEME" \
+        -configuration Release \
+        -archivePath "$ARCHIVE_PATH" \
+        -destination "generic/platform=iOS" \
+        DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+        CODE_SIGN_STYLE=Manual \
+        CODE_SIGN_IDENTITY="Apple Distribution" \
+        PROVISIONING_PROFILE_SPECIFIER="$(security cms -D -i ios/certificates/profile.mobileprovision | plutil -extract Name raw -o - -)" \
+        clean archive; then
+        log "✅ Archive created successfully: $ARCHIVE_PATH"
+    else
+        handle_error "Failed to create archive"
+    fi
+    
+    # Verify archive
+    if [ ! -d "$ARCHIVE_PATH" ]; then
+        handle_error "Archive not found at expected location: $ARCHIVE_PATH"
+    fi
+    
+    log "✅ App archive completed"
+}
+
+# Function to export IPA from archive
+export_ipa() {
+    log "📱 Exporting IPA from archive..."
+    
+    local ARCHIVE_PATH="build/ios/archive/Runner.xcarchive"
+    local EXPORT_PATH="build/ios/ipa"
+    
+    # Create export directory
+    mkdir -p "$EXPORT_PATH"
+    
+    # Export IPA
+    log "🏗️ Running xcodebuild -exportArchive..."
+    if xcodebuild \
+        -exportArchive \
+        -archivePath "$ARCHIVE_PATH" \
+        -exportPath "$EXPORT_PATH" \
+        -exportOptionsPlist "$EXPORT_OPTIONS_PLIST" \
+        -allowProvisioningUpdates; then
+        log "✅ IPA exported successfully to: $EXPORT_PATH"
+    else
+        handle_error "Failed to export IPA"
+    fi
+    
+    # Verify IPA was created
+    local IPA_FILE=$(find "$EXPORT_PATH" -name "*.ipa" 2>/dev/null | head -1)
+    if [ -n "$IPA_FILE" ] && [ -f "$IPA_FILE" ]; then
+        log "✅ IPA verified: $IPA_FILE"
+    else
+        handle_error "No IPA file found in export directory: $EXPORT_PATH"
+    fi
+    
+    log "✅ IPA export completed"
+}
+
 # Function to build IPA with Flutter
 build_ipa() {
     log "Building IPA with profile-specific configuration..."
@@ -319,12 +406,21 @@ build_ipa() {
     export_ipa
     
     # Copy IPA to output directory
+    local EXPORT_PATH="build/ios/ipa"
     mkdir -p "$OUTPUT_DIR"
-    cp "$EXPORT_PATH/Runner.ipa" "$OUTPUT_DIR/"
+    
+    # Find the IPA file in the export directory
+    local IPA_FILE=$(find "$EXPORT_PATH" -name "*.ipa" 2>/dev/null | head -1)
+    if [ -n "$IPA_FILE" ] && [ -f "$IPA_FILE" ]; then
+        cp "$IPA_FILE" "$OUTPUT_DIR/"
+        log "✅ IPA copied to $OUTPUT_DIR/"
+    else
+        handle_error "No IPA file found in export directory: $EXPORT_PATH"
+    fi
     
     success "IPA build completed successfully for $PROFILE_TYPE"
-    log "📱 Final IPA location: $OUTPUT_DIR/Runner.ipa"
-    log "📊 IPA size: $(du -h "$OUTPUT_DIR/Runner.ipa" | cut -f1)"
+    log "📱 Final IPA location: $OUTPUT_DIR/$(basename "$IPA_FILE")"
+    log "📊 IPA size: $(du -h "$OUTPUT_DIR/$(basename "$IPA_FILE")" | cut -f1)"
     
     # Profile-specific success message
     case "$PROFILE_TYPE" in
