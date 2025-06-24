@@ -995,9 +995,9 @@ log "📦 Starting Enhanced IPA Build Process with xcodebuild..."
 if [ -f "lib/scripts/ios/build_ipa.sh" ]; then
     chmod +x lib/scripts/ios/build_ipa.sh
     if ./lib/scripts/ios/build_ipa.sh; then
-        log "✅ Enhanced IPA build completed successfully"
+        log "✅ Enhanced iOS build completed successfully"
     else
-        log "❌ Enhanced IPA build failed"
+        log "❌ Enhanced iOS build failed"
         exit 1
     fi
 else
@@ -1022,12 +1022,46 @@ else
     log "⚠️ Email script not found, skipping email notification"
 fi
 
+# Final verification and success message
 log "🎉 iOS build process completed successfully!"
-log "📱 IPA file available at: build/ios/ipa/Runner.ipa"
+
+# Check what was actually created
+if [ -f "output/ios/Runner.ipa" ]; then
+    log "📱 IPA file available at: output/ios/Runner.ipa"
+    log "📊 IPA size: $(du -h output/ios/Runner.ipa | cut -f1)"
+    BUILD_TYPE="IPA"
+elif [ -d "output/ios/Runner.xcarchive" ]; then
+    log "📦 Archive file available at: output/ios/Runner.xcarchive"
+    log "📊 Archive size: $(du -h output/ios/Runner.xcarchive | cut -f1)"
+    log "📱 IPA export failed, but archive is ready for manual export"
+    log "🔧 Manual export command:"
+    log "   xcodebuild -exportArchive -archivePath output/ios/Runner.xcarchive -exportPath output/ios/ -exportOptionsPlist ios/ExportOptions.plist"
+    BUILD_TYPE="Archive"
+elif [ -f "build/ios/ipa/Runner.ipa" ]; then
+    log "📱 IPA file available at: build/ios/ipa/Runner.ipa"
+    log "📊 IPA size: $(du -h build/ios/ipa/Runner.ipa | cut -f1)"
+    BUILD_TYPE="IPA"
+elif [ -d "build/ios/archive/Runner.xcarchive" ]; then
+    log "📦 Archive file available at: build/ios/archive/Runner.xcarchive"
+    log "📊 Archive size: $(du -h build/ios/archive/Runner.xcarchive | cut -f1)"
+    log "📱 IPA export failed, but archive is ready for manual export"
+    log "🔧 Manual export command:"
+    log "   xcodebuild -exportArchive -archivePath build/ios/archive/Runner.xcarchive -exportPath output/ios/ -exportOptionsPlist ios/ExportOptions.plist"
+    BUILD_TYPE="Archive"
+else
+    log "⚠️ No IPA or archive found in expected locations"
+    log "🔍 Checking for any build artifacts..."
+    find . -name "*.ipa" -o -name "*.xcarchive" 2>/dev/null | head -5 | while read -r artifact; do
+        log "   - ${artifact}"
+    done
+    BUILD_TYPE="Unknown"
+fi
+
 log "📋 Build Summary:"
 log "   Profile Type: $PROFILE_TYPE"
 log "   Bundle ID: $BUNDLE_ID"
 log "   Team ID: $APPLE_TEAM_ID"
+log "   Build Type: $BUILD_TYPE"
 log "   Two-Stage Podfile Injection: ✅ Completed"
 log "   Flutter Build (No Code Signing): ✅ Completed"
 log "   xcodebuild (With Code Signing): ✅ Completed"

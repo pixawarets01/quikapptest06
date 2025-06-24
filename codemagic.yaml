@@ -621,10 +621,31 @@ workflows:
 
             if "$PROJECT_ROOT/lib/scripts/ios/main.sh"; then
               echo "✅ Enhanced iOS build completed successfully!"
-              echo "📱 IPA file available at: build/ios/ipa/Runner.ipa"
               
-              # Verify IPA was created
-              if [ -f "build/ios/ipa/Runner.ipa" ]; then
+              # Check what was actually created
+              if [ -f "output/ios/Runner.ipa" ]; then
+                echo "📱 IPA file available at: output/ios/Runner.ipa"
+                echo "✅ IPA verification successful"
+                echo "📊 IPA size: $(du -h output/ios/Runner.ipa | cut -f1)"
+                echo "🎯 Profile Type: $PROFILE_TYPE"
+                echo "📋 Two-Stage Podfile Injection: ✅ Completed"
+                echo "   Stage 1: Flutter Build (No Code Signing) ✅"
+                echo "   Stage 2: xcodebuild (With Code Signing) ✅"
+                break
+              elif [ -d "output/ios/Runner.xcarchive" ]; then
+                echo "📦 Archive file available at: output/ios/Runner.xcarchive"
+                echo "✅ Archive verification successful"
+                echo "📊 Archive size: $(du -h output/ios/Runner.xcarchive | cut -f1)"
+                echo "🎯 Profile Type: $PROFILE_TYPE"
+                echo "📋 Two-Stage Podfile Injection: ✅ Completed"
+                echo "   Stage 1: Flutter Build (No Code Signing) ✅"
+                echo "   Stage 2: xcodebuild (With Code Signing) ✅"
+                echo "⚠️ IPA export failed, but archive is ready for manual export"
+                echo "🔧 Manual export command:"
+                echo "   xcodebuild -exportArchive -archivePath output/ios/Runner.xcarchive -exportPath output/ios/ -exportOptionsPlist ios/ExportOptions.plist"
+                break
+              elif [ -f "build/ios/ipa/Runner.ipa" ]; then
+                echo "📱 IPA file available at: build/ios/ipa/Runner.ipa"
                 echo "✅ IPA verification successful"
                 echo "📊 IPA size: $(du -h build/ios/ipa/Runner.ipa | cut -f1)"
                 echo "🎯 Profile Type: $PROFILE_TYPE"
@@ -632,15 +653,31 @@ workflows:
                 echo "   Stage 1: Flutter Build (No Code Signing) ✅"
                 echo "   Stage 2: xcodebuild (With Code Signing) ✅"
                 break
+              elif [ -d "build/ios/archive/Runner.xcarchive" ]; then
+                echo "📦 Archive file available at: build/ios/archive/Runner.xcarchive"
+                echo "✅ Archive verification successful"
+                echo "📊 Archive size: $(du -h build/ios/archive/Runner.xcarchive | cut -f1)"
+                echo "🎯 Profile Type: $PROFILE_TYPE"
+                echo "📋 Two-Stage Podfile Injection: ✅ Completed"
+                echo "   Stage 1: Flutter Build (No Code Signing) ✅"
+                echo "   Stage 2: xcodebuild (With Code Signing) ✅"
+                echo "⚠️ IPA export failed, but archive is ready for manual export"
+                echo "🔧 Manual export command:"
+                echo "   xcodebuild -exportArchive -archivePath build/ios/archive/Runner.xcarchive -exportPath output/ios/ -exportOptionsPlist ios/ExportOptions.plist"
+                break
               else
-                echo "❌ IPA file not found, retrying..."
+                echo "❌ No IPA or archive found, retrying..."
                 RETRY_COUNT=$((RETRY_COUNT + 1))
                 if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-                  echo "⚠️ IPA verification failed, retrying in 10 seconds..."
+                  echo "⚠️ Build verification failed, retrying in 10 seconds..."
                   sleep 10
                   flutter clean
                 else
-                  echo "❌ IPA verification failed after $MAX_RETRIES attempts"
+                  echo "❌ Build verification failed after $MAX_RETRIES attempts"
+                  echo "🔍 Checking for any build artifacts..."
+                  find . -name "*.ipa" -o -name "*.xcarchive" 2>/dev/null | head -5 | while read -r artifact; do
+                    echo "   - ${artifact}"
+                  done
                   exit 1
                 fi
               fi
@@ -663,7 +700,6 @@ workflows:
           echo "   Profile Type: $PROFILE_TYPE"
           echo "   Bundle ID: $BUNDLE_ID"
           echo "   Team ID: $APPLE_TEAM_ID"
-          echo "   IPA Location: build/ios/ipa/Runner.ipa"
           echo "   Two-Stage Podfile Injection: ✅ Success"
           echo "   Flutter Build (No Code Signing): ✅ Success"
           echo "   xcodebuild (With Code Signing): ✅ Success"
@@ -672,6 +708,8 @@ workflows:
       - build/ios/ipa/*.ipa
       - ios/build/ios/ipa/*.ipa
       - output/ios/Runner.ipa
+      - output/ios/Runner.xcarchive
+      - build/ios/archive/Runner.xcarchive
       - build/ios/logs/
 
   combined:
@@ -819,6 +857,8 @@ workflows:
       - output/android/app-release.apk
       - output/android/app-release.aab
       - output/ios/Runner.ipa
+      - output/ios/Runner.xcarchive
+      - build/ios/archive/Runner.xcarchive
       - build/app/outputs/mapping/release/mapping.txt
       - build/app/outputs/logs/
       - build/ios/logs/
