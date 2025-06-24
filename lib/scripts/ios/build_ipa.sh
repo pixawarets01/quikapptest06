@@ -160,61 +160,101 @@ verify_code_signing_setup() {
     # Check keychain
     if ! security list-keychains | grep -q "build.keychain"; then
         error "Build keychain not found"
+        exit 1
     fi
     
     # Check certificate
     if ! security find-identity -v -p codesigning build.keychain | grep -q "iPhone Distribution\|iPhone Developer\|iOS Distribution Certificate\|Apple Distribution"; then
         error "Code signing certificate not found"
+        exit 1
     fi
     
     # Check provisioning profile
     if [ ! -f "ios/certificates/profile.mobileprovision" ]; then
         error "Provisioning profile not found"
+        exit 1
     fi
     
     # Check ExportOptions.plist - generate if missing
+    log "🔍 Checking for ExportOptions.plist..."
     if [ ! -f "ios/ExportOptions.plist" ]; then
         log "⚠️ ExportOptions.plist not found, generating it..."
         
         # Check if we have the required environment variables
+        log "🔍 Environment variables check:"
+        log "   APPLE_TEAM_ID: ${APPLE_TEAM_ID:-not_set}"
+        log "   BUNDLE_ID: ${BUNDLE_ID:-not_set}"
+        log "   PROFILE_TYPE: ${PROFILE_TYPE:-not_set}"
+        
         if [ -z "${APPLE_TEAM_ID:-}" ] || [ -z "${BUNDLE_ID:-}" ] || [ -z "${PROFILE_TYPE:-}" ]; then
             log "❌ Missing required environment variables for ExportOptions.plist generation"
-            log "   APPLE_TEAM_ID: ${APPLE_TEAM_ID:-not_set}"
-            log "   BUNDLE_ID: ${BUNDLE_ID:-not_set}"
-            log "   PROFILE_TYPE: ${PROFILE_TYPE:-not_set}"
             handle_error "Cannot generate ExportOptions.plist without required environment variables"
         fi
         
         # Generate ExportOptions.plist
+        log "🔧 Generating ExportOptions.plist..."
         generate_export_options
+    else
+        log "✅ ExportOptions.plist already exists"
     fi
     
     # Verify ExportOptions.plist content - check for method value
     log "🔍 Checking ExportOptions.plist method..."
+    log "🔍 Current working directory: $(pwd)"
+    log "🔍 ExportOptions.plist path: $(realpath ios/ExportOptions.plist 2>/dev/null || echo 'ios/ExportOptions.plist')"
+    log "🔍 ExportOptions.plist exists: $([ -f "ios/ExportOptions.plist" ] && echo 'yes' || echo 'no')"
+    
+    if [ ! -f "ios/ExportOptions.plist" ]; then
+        log "❌ ExportOptions.plist still not found after generation attempt"
+        handle_error "ExportOptions.plist does not exist"
+    fi
+    
+    log "🔍 ExportOptions.plist file size: $(ls -lh ios/ExportOptions.plist | awk '{print $5}')"
+    log "📋 ExportOptions.plist contents:"
+    cat ios/ExportOptions.plist
     
     # Use a more reliable method to extract the method value
     local METHOD_VALUE=""
+    log "🔍 Attempting to extract method value..."
+    
     if command -v plutil >/dev/null 2>&1; then
         # Use plutil if available (macOS)
-        METHOD_VALUE=$(plutil -extract method raw ios/ExportOptions.plist 2>/dev/null)
-    else
+        log "🔧 Using plutil to extract method..."
+        METHOD_VALUE=$(plutil -extract method raw ios/ExportOptions.plist 2>/dev/null || echo "")
+        log "🔍 plutil result: '$METHOD_VALUE'"
+    fi
+    
+    if [ -z "$METHOD_VALUE" ]; then
         # Fallback to grep/sed approach
-        METHOD_VALUE=$(grep -A1 "<key>method</key>" ios/ExportOptions.plist | grep "<string>" | head -1 | sed 's/.*<string>\([^<]*\)<\/string>.*/\1/')
+        log "🔧 Using grep/sed fallback to extract method..."
+        METHOD_VALUE=$(grep -A1 "<key>method</key>" ios/ExportOptions.plist | grep "<string>" | head -1 | sed 's/.*<string>\([^<]*\)<\/string>.*/\1/' 2>/dev/null || echo "")
+        log "🔍 grep/sed result: '$METHOD_VALUE'"
     fi
     
     if [ -z "$METHOD_VALUE" ]; then
         log "❌ Could not extract method value from ExportOptions.plist"
-        log "📋 ExportOptions.plist contents:"
-        cat ios/ExportOptions.plist
-        handle_error "ExportOptions.plist does not contain valid method value"
+        log "🔧 Attempting alternative extraction methods..."
+        
+        # Try alternative grep approach
+        METHOD_VALUE=$(grep -o '<string>[^<]*</string>' ios/ExportOptions.plist | head -1 | sed 's/<string>\(.*\)<\/string>/\1/' 2>/dev/null || echo "")
+        log "🔍 Alternative grep result: '$METHOD_VALUE'"
+        
+        if [ -z "$METHOD_VALUE" ]; then
+            log "❌ All method extraction attempts failed"
+            log "🔍 Expected PROFILE_TYPE: '$PROFILE_TYPE'"
+            log "❌ This indicates the ExportOptions.plist file is malformed or corrupted"
+            handle_error "ExportOptions.plist does not contain valid method value"
+        fi
     fi
+    
+    log "🔍 Extracted method value: '$METHOD_VALUE'"
+    log "🔍 Expected profile type: '$PROFILE_TYPE'"
     
     if [ "$METHOD_VALUE" != "$PROFILE_TYPE" ]; then
         log "❌ ExportOptions.plist method mismatch:"
-        log "   Expected: $PROFILE_TYPE"
-        log "   Found: $METHOD_VALUE"
-        log "📋 ExportOptions.plist contents:"
-        cat ios/ExportOptions.plist
+        log "   Expected: '$PROFILE_TYPE'"
+        log "   Found: '$METHOD_VALUE'"
+        log "🔧 This suggests the ExportOptions.plist was not generated correctly"
         handle_error "ExportOptions.plist method does not match profile type"
     fi
     
