@@ -262,115 +262,148 @@ verify_code_signing_setup() {
     log "✅ Code signing setup verified"
 }
 
-# Function to generate dynamic ExportOptions.plist
+# Function to generate ExportOptions.plist
 generate_export_options() {
-    log "Generating dynamic ExportOptions.plist..."
+    log "📝 Generating ExportOptions.plist for profile type: $PROFILE_TYPE"
     
-    # Extract profile UUID and name
-    PROFILE_UUID=$(security cms -D -i ios/certificates/profile.mobileprovision | plutil -extract UUID raw -o - -)
-    PROFILE_NAME=$(security cms -D -i ios/certificates/profile.mobileprovision | plutil -extract Name raw -o - -)
-    
-    if [ -z "$PROFILE_UUID" ] || [ -z "$PROFILE_NAME" ]; then
-        error "Failed to extract profile information"
-        exit 1
-    fi
-    
-    log "Profile UUID: $PROFILE_UUID"
-    log "Profile Name: $PROFILE_NAME"
+    # Create directory if it doesn't exist
+    mkdir -p "$(dirname "$EXPORT_OPTIONS_PLIST")"
     
     # Generate ExportOptions.plist based on profile type
-    cat > "$EXPORT_OPTIONS_PLIST" << EOF
+    case "$PROFILE_TYPE" in
+        "app-store")
+            log "🔍 Creating App Store export options"
+            cat > "$EXPORT_OPTIONS_PLIST" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>method</key>
-    <string>$PROFILE_TYPE</string>
+    <string>app-store</string>
     <key>teamID</key>
     <string>$APPLE_TEAM_ID</string>
-    <key>signingStyle</key>
-    <string>manual</string>
-    <key>provisioningProfiles</key>
-    <dict>
-        <key>$BUNDLE_ID</key>
-        <string>$PROFILE_NAME</string>
-    </dict>
-    <key>signingCertificate</key>
-    <string>Apple Distribution</string>
+    <key>uploadBitcode</key>
+    <false/>
+    <key>uploadSymbols</key>
+    <true/>
     <key>compileBitcode</key>
     <false/>
+    <key>thinning</key>
+    <string>none</string>
     <key>stripSwiftSymbols</key>
     <true/>
-    <key>uploadBitcode</key>
-    <false/>
-    <key>uploadSymbols</key>
+    <key>generateAppStoreInformation</key>
     <true/>
-EOF
-
-    # Add profile-specific options
-    case "$PROFILE_TYPE" in
-        "ad-hoc")
-            cat >> "$EXPORT_OPTIONS_PLIST" << EOF
-    <key>thinning</key>
-    <string>none</string>
-    <key>manifest</key>
-    <dict>
-        <key>appURL</key>
-        <string>https://example.com/app.ipa</string>
-        <key>displayImageURL</key>
-        <string>https://example.com/display.png</string>
-        <key>fullSizeImageURL</key>
-        <string>https://example.com/fullsize.png</string>
-    </dict>
-EOF
-            ;;
-        "app-store")
-            cat >> "$EXPORT_OPTIONS_PLIST" << EOF
-    <key>distributionBundleIdentifier</key>
-    <string>$BUNDLE_ID</string>
-    <key>iCloudContainerEnvironment</key>
-    <string>Production</string>
-    <key>uploadSymbols</key>
-    <false/>
-    <key>uploadBitcode</key>
-    <false/>
-    <key>manageAppVersionAndBuildNumber</key>
-    <false/>
-    <key>thinning</key>
-    <string>none</string>
-    <key>method</key>
-    <string>app-store</string>
-    <key>uploadToAppStore</key>
-    <false/>
-EOF
-            ;;
-        "enterprise")
-            cat >> "$EXPORT_OPTIONS_PLIST" << EOF
-    <key>distributionBundleIdentifier</key>
-    <string>$BUNDLE_ID</string>
-    <key>thinning</key>
-    <string>none</string>
-EOF
-            ;;
-        "development")
-            cat >> "$EXPORT_OPTIONS_PLIST" << EOF
-    <key>thinning</key>
-    <string>none</string>
-    <key>uploadSymbols</key>
-    <false/>
-    <key>uploadBitcode</key>
-    <false/>
-EOF
-            ;;
-    esac
-    
-    cat >> "$EXPORT_OPTIONS_PLIST" << EOF
 </dict>
 </plist>
 EOF
+            ;;
+        "ad-hoc")
+            log "🔍 Creating Ad-Hoc export options"
+            cat > "$EXPORT_OPTIONS_PLIST" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>method</key>
+    <string>ad-hoc</string>
+    <key>teamID</key>
+    <string>$APPLE_TEAM_ID</string>
+    <key>uploadBitcode</key>
+    <false/>
+    <key>uploadSymbols</key>
+    <true/>
+    <key>compileBitcode</key>
+    <false/>
+    <key>thinning</key>
+    <string>none</string>
+    <key>stripSwiftSymbols</key>
+    <true/>
+EOF
+            
+            # Add manifest options if INSTALL_URL is provided
+            if [ -n "${INSTALL_URL:-}" ]; then
+                log "🔍 Adding OTA manifest options for Ad-Hoc distribution"
+                cat >> "$EXPORT_OPTIONS_PLIST" << EOF
+    <key>manifest</key>
+    <dict>
+        <key>appURL</key>
+        <string>$INSTALL_URL</string>
+        <key>displayImageURL</key>
+        <string>${DISPLAY_IMAGE_URL:-$INSTALL_URL/icon.png}</string>
+        <key>fullSizeImageURL</key>
+        <string>${FULL_SIZE_IMAGE_URL:-$INSTALL_URL/icon.png}</string>
+    </dict>
+EOF
+            fi
+            
+            cat >> "$EXPORT_OPTIONS_PLIST" << EOF
+</dict>
+</plist>
+EOF
+            ;;
+        "enterprise")
+            log "🔍 Creating Enterprise export options"
+            cat > "$EXPORT_OPTIONS_PLIST" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>method</key>
+    <string>enterprise</string>
+    <key>teamID</key>
+    <string>$APPLE_TEAM_ID</string>
+    <key>uploadBitcode</key>
+    <false/>
+    <key>uploadSymbols</key>
+    <true/>
+    <key>compileBitcode</key>
+    <false/>
+    <key>thinning</key>
+    <string>none</string>
+    <key>stripSwiftSymbols</key>
+    <true/>
+</dict>
+</plist>
+EOF
+            ;;
+        "development")
+            log "🔍 Creating Development export options"
+            cat > "$EXPORT_OPTIONS_PLIST" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>method</key>
+    <string>development</string>
+    <key>teamID</key>
+    <string>$APPLE_TEAM_ID</string>
+    <key>uploadBitcode</key>
+    <false/>
+    <key>uploadSymbols</key>
+    <true/>
+    <key>compileBitcode</key>
+    <false/>
+    <key>thinning</key>
+    <string>none</string>
+    <key>stripSwiftSymbols</key>
+    <true/>
+</dict>
+</plist>
+EOF
+            ;;
+        *)
+            handle_error "Unsupported profile type: $PROFILE_TYPE"
+            ;;
+    esac
     
-    success "ExportOptions.plist generated successfully"
-    log "ExportOptions.plist contents:"
+    # Validate the generated plist
+    if ! plutil -lint "$EXPORT_OPTIONS_PLIST" >/dev/null 2>&1; then
+        handle_error "Generated ExportOptions.plist is invalid"
+    fi
+    
+    log "✅ ExportOptions.plist generated successfully: $EXPORT_OPTIONS_PLIST"
+    log "🔍 ExportOptions.plist contents:"
     cat "$EXPORT_OPTIONS_PLIST"
 }
 
@@ -411,6 +444,54 @@ archive_app() {
     log "✅ App archive completed"
 }
 
+# Function to validate archive before export
+validate_archive() {
+    log "🔍 Validating archive before export..."
+    
+    local ARCHIVE_PATH="build/ios/archive/Runner.xcarchive"
+    
+    if [ ! -d "$ARCHIVE_PATH" ]; then
+        handle_error "Archive not found at: $ARCHIVE_PATH"
+    fi
+    
+    # Check archive structure
+    if [ ! -d "$ARCHIVE_PATH/Products/Applications" ]; then
+        handle_error "Invalid archive structure - missing Products/Applications directory"
+    fi
+    
+    # Find the .app bundle
+    local APP_BUNDLE=$(find "$ARCHIVE_PATH/Products/Applications" -name "*.app" -type d 2>/dev/null | head -1)
+    if [ -z "$APP_BUNDLE" ]; then
+        handle_error "No .app bundle found in archive"
+    fi
+    
+    log "✅ Archive validation passed"
+    log "🔍 App bundle: $APP_BUNDLE"
+    log "📊 App bundle size: $(du -sh "$APP_BUNDLE" | cut -f1)"
+    
+    # Check if app is properly signed
+    if codesign -dv "$APP_BUNDLE" 2>&1 | grep -q "not signed"; then
+        log "⚠️ App bundle is not signed"
+    else
+        log "✅ App bundle is properly signed"
+        log "🔍 Code signing details:"
+        codesign -dv "$APP_BUNDLE" 2>&1 | grep -E "(Authority|TeamIdentifier|BundleIdentifier)" | head -5 || log "   Could not extract signing details"
+    fi
+    
+    # Check bundle identifier
+    local BUNDLE_ID_IN_APP=$(defaults read "$APP_BUNDLE/Info.plist" CFBundleIdentifier 2>/dev/null || echo "")
+    if [ -n "$BUNDLE_ID_IN_APP" ]; then
+        log "🔍 Bundle ID in app: $BUNDLE_ID_IN_APP"
+        if [ "$BUNDLE_ID_IN_APP" != "$BUNDLE_ID" ]; then
+            log "⚠️ Bundle ID mismatch: expected $BUNDLE_ID, found $BUNDLE_ID_IN_APP"
+        else
+            log "✅ Bundle ID matches: $BUNDLE_ID"
+        fi
+    else
+        log "⚠️ Could not read bundle ID from app"
+    fi
+}
+
 # Function to export IPA from archive
 export_ipa() {
     log "📱 Exporting IPA from archive..."
@@ -421,10 +502,29 @@ export_ipa() {
     # Create export directory
     mkdir -p "$EXPORT_PATH"
     
+    # Verify archive exists
+    if [ ! -d "$ARCHIVE_PATH" ]; then
+        handle_error "Archive not found at: $ARCHIVE_PATH"
+    fi
+    
+    # Verify ExportOptions.plist exists
+    if [ ! -f "$EXPORT_OPTIONS_PLIST" ]; then
+        handle_error "ExportOptions.plist not found at: $EXPORT_OPTIONS_PLIST"
+    fi
+    
+    # Validate archive before export
+    validate_archive
+    
     # Export IPA with better error handling
     log "🏗️ Running xcodebuild -exportArchive..."
     log "🔍 Export method: $PROFILE_TYPE"
     log "🔍 ExportOptions.plist: $EXPORT_OPTIONS_PLIST"
+    log "🔍 Archive path: $ARCHIVE_PATH"
+    log "🔍 Export path: $EXPORT_PATH"
+    
+    # Show ExportOptions.plist contents for debugging
+    log "🔍 ExportOptions.plist contents:"
+    cat "$EXPORT_OPTIONS_PLIST"
     
     # Run export and capture output
     local export_output
@@ -437,7 +537,8 @@ export_ipa() {
     
     local export_exit_code=$?
     
-    # Log the output
+    # Log the full output
+    log "🔍 Export command output:"
     echo "$export_output"
     
     if [ $export_exit_code -eq 0 ]; then
@@ -461,7 +562,62 @@ export_ipa() {
             else
                 handle_error "No IPA file found after export attempt"
             fi
+        elif echo "$export_output" | grep -q "exportOptionsPlist.*error\|invalid.*plist"; then
+            log "🔍 Detected ExportOptions.plist error"
+            log "🔧 Attempting to fix ExportOptions.plist..."
+            
+            # Try to regenerate ExportOptions.plist
+            generate_export_options
+            
+            # Try export again
+            log "🔄 Retrying export with regenerated ExportOptions.plist..."
+            export_output=$(xcodebuild \
+                -exportArchive \
+                -archivePath "$ARCHIVE_PATH" \
+                -exportPath "$EXPORT_PATH" \
+                -exportOptionsPlist "$EXPORT_OPTIONS_PLIST" \
+                -allowProvisioningUpdates 2>&1)
+            
+            export_exit_code=$?
+            echo "$export_output"
+            
+            if [ $export_exit_code -eq 0 ]; then
+                log "✅ IPA exported successfully on retry"
+            else
+                handle_error "Export failed on retry: $export_output"
+            fi
+        elif echo "$export_output" | grep -q "provisioning.*profile\|certificate.*error"; then
+            log "🔍 Detected provisioning profile or certificate error"
+            log "🔧 Checking provisioning profile and certificate setup..."
+            
+            # Check provisioning profile
+            if [ -f "ios/certificates/profile.mobileprovision" ]; then
+                log "✅ Provisioning profile exists"
+                log "🔍 Profile details:"
+                security cms -D -i ios/certificates/profile.mobileprovision 2>/dev/null | grep -E "(Name|UUID|application-identifier)" | head -5 || log "   Could not extract profile details"
+            else
+                log "❌ Provisioning profile not found"
+            fi
+            
+            # Check certificate
+            if [ -f "ios/certificates/cert.p12" ]; then
+                log "✅ Certificate exists"
+                log "🔍 Certificate details:"
+                security find-identity -v -p codesigning build.keychain | grep "Apple Distribution" || log "   Could not find Apple Distribution certificate"
+            else
+                log "❌ Certificate not found"
+            fi
+            
+            handle_error "Provisioning profile or certificate issue: $export_output"
         else
+            log "🔍 Unknown export error - analyzing output..."
+            log "🔍 Common export issues:"
+            log "   - Invalid ExportOptions.plist format"
+            log "   - Missing provisioning profile"
+            log "   - Certificate not in keychain"
+            log "   - Bundle ID mismatch"
+            log "   - Archive corruption"
+            
             handle_error "Failed to export IPA: $export_output"
         fi
     fi
@@ -472,50 +628,94 @@ export_ipa() {
         log "✅ IPA verified: $IPA_FILE"
         log "📊 IPA size: $(du -h "$IPA_FILE" | cut -f1)"
     else
+        log "❌ No IPA file found in export directory: $EXPORT_PATH"
+        log "🔍 Export directory contents:"
+        ls -la "$EXPORT_PATH" 2>/dev/null || log "   Directory not accessible"
         handle_error "No IPA file found in export directory: $EXPORT_PATH"
     fi
     
     log "✅ IPA export completed"
 }
 
-# Function to build IPA with Flutter
+# Main build function
 build_ipa() {
-    log "Building IPA with profile-specific configuration..."
+    log "🚀 Starting enhanced iOS IPA build process..."
+    log "📱 Profile Type: $PROFILE_TYPE"
+    log "📦 Bundle ID: $BUNDLE_ID"
+    log "👥 Team ID: $APPLE_TEAM_ID"
     
-    # Validate profile type
-    case "$PROFILE_TYPE" in
-        "app-store"|"ad-hoc"|"enterprise"|"development")
-            log "✅ Valid profile type: $PROFILE_TYPE"
-            ;;
-        *)
-            error "Invalid profile type: $PROFILE_TYPE"
-            error "Supported types: app-store, ad-hoc, enterprise, development"
-            exit 1
-            ;;
-    esac
+    # Set up build environment
+    setup_build_environment
     
-    # Archive the app with profile-specific settings
-    archive_app
+    # Generate ExportOptions.plist
+    generate_export_options
     
-    # Export IPA with profile-specific settings
+    # Build and archive the app
+    build_and_archive_app
+    
+    # Validate archive before export
+    validate_archive
+    
+    # Export IPA
     export_ipa
     
-    # Copy IPA to output directory
-    local EXPORT_PATH="build/ios/ipa"
-    mkdir -p "$OUTPUT_DIR"
+    # Final verification
+    verify_ipa
     
-    # Find the IPA file in the export directory
-    local IPA_FILE=$(find "$EXPORT_PATH" -name "*.ipa" 2>/dev/null | head -1)
-    if [ -n "$IPA_FILE" ] && [ -f "$IPA_FILE" ]; then
-        cp "$IPA_FILE" "$OUTPUT_DIR/"
-        log "✅ IPA copied to $OUTPUT_DIR/"
-    else
-        handle_error "No IPA file found in export directory: $EXPORT_PATH"
+    # Process final IPA (copy to output, TestFlight upload, etc.)
+    process_final_ipa
+    
+    log "🎉 Enhanced iOS IPA build completed successfully!"
+    log "📱 IPA file: $OUTPUT_DIR/Runner.ipa"
+    log "📊 IPA size: $(du -h $OUTPUT_DIR/Runner.ipa | cut -f1)"
+}
+
+# Function to verify IPA after export
+verify_ipa() {
+    log "🔍 Verifying exported IPA..."
+    
+    local IPA_FILE="build/ios/ipa/Runner.ipa"
+    
+    if [ ! -f "$IPA_FILE" ]; then
+        handle_error "IPA file not found at: $IPA_FILE"
     fi
     
-    success "IPA build completed successfully for $PROFILE_TYPE"
-    log "📱 Final IPA location: $OUTPUT_DIR/$(basename "$IPA_FILE")"
-    log "📊 IPA size: $(du -h "$OUTPUT_DIR/$(basename "$IPA_FILE")" | cut -f1)"
+    # Check IPA size
+    local IPA_SIZE=$(du -h "$IPA_FILE" | cut -f1)
+    log "📊 IPA size: $IPA_SIZE"
+    
+    # Verify IPA structure
+    if ! unzip -t "$IPA_FILE" >/dev/null 2>&1; then
+        handle_error "IPA file is corrupted or invalid"
+    fi
+    
+    # Check for Payload/Runner.app
+    if ! unzip -l "$IPA_FILE" | grep -q "Payload/Runner.app"; then
+        handle_error "IPA does not contain Runner.app"
+    fi
+    
+    log "✅ IPA verification passed"
+    log "🎯 IPA is ready for distribution"
+}
+
+# Function to process final IPA
+process_final_ipa() {
+    log "📱 Processing final IPA..."
+    
+    local SOURCE_IPA="build/ios/ipa/Runner.ipa"
+    local OUTPUT_IPA="$OUTPUT_DIR/Runner.ipa"
+    
+    # Create output directory
+    mkdir -p "$OUTPUT_DIR"
+    
+    # Copy IPA to output directory
+    if [ -f "$SOURCE_IPA" ]; then
+        cp "$SOURCE_IPA" "$OUTPUT_IPA"
+        log "✅ IPA copied to: $OUTPUT_IPA"
+        log "📊 Final IPA size: $(du -h "$OUTPUT_IPA" | cut -f1)"
+    else
+        handle_error "Source IPA not found: $SOURCE_IPA"
+    fi
     
     # TestFlight upload integration
     if [[ "$PROFILE_TYPE" == "app-store" && "${IS_TESTFLIGHT:-false}" == "true" ]]; then
@@ -528,8 +728,7 @@ build_ipa() {
             source "$TESTFLIGHT_SCRIPT"
             
             # Attempt TestFlight upload
-            local FINAL_IPA_PATH="$OUTPUT_DIR/$(basename "$IPA_FILE")"
-            if upload_to_testflight "$FINAL_IPA_PATH"; then
+            if upload_to_testflight "$OUTPUT_IPA"; then
                 log "🎉 TestFlight upload completed successfully!"
             else
                 log "⚠️ TestFlight upload failed, but IPA build was successful"
