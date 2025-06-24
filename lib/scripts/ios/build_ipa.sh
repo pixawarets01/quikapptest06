@@ -499,18 +499,33 @@ validate_archive() {
         codesign -dv "${APP_BUNDLE}" 2>&1 | grep -E "(Authority|TeamIdentifier|BundleIdentifier)" | head -5 || log "   Could not extract signing details"
     fi
     
-    # Check bundle identifier
-    local BUNDLE_ID_IN_APP
+    # Check bundle identifier - try multiple methods
+    local BUNDLE_ID_IN_APP=""
+    
+    # Method 1: Try defaults read
     BUNDLE_ID_IN_APP=$(defaults read "${APP_BUNDLE}/Info.plist" CFBundleIdentifier 2>/dev/null || echo "")
-    if [ -n "${BUNDLE_ID_IN_APP}" ]; then
+    
+    # Method 2: Try plutil if defaults fails
+    if [ -z "${BUNDLE_ID_IN_APP}" ]; then
+        BUNDLE_ID_IN_APP=$(plutil -extract CFBundleIdentifier raw "${APP_BUNDLE}/Info.plist" 2>/dev/null || echo "")
+    fi
+    
+    # Method 3: Try grep if plutil fails
+    if [ -z "${BUNDLE_ID_IN_APP}" ]; then
+        BUNDLE_ID_IN_APP=$(grep -A1 "<key>CFBundleIdentifier</key>" "${APP_BUNDLE}/Info.plist" 2>/dev/null | grep "<string>" | sed 's/.*<string>\(.*\)<\/string>.*/\1/' || echo "")
+    fi
+    
+    # Method 4: Try using the environment variable as fallback
+    if [ -z "${BUNDLE_ID_IN_APP}" ]; then
+        BUNDLE_ID_IN_APP="${BUNDLE_ID}"
+        log "⚠️ Could not read bundle ID from app, using environment variable: ${BUNDLE_ID_IN_APP}"
+    else
         log "🔍 Bundle ID in app: ${BUNDLE_ID_IN_APP}"
         if [ "${BUNDLE_ID_IN_APP}" != "${BUNDLE_ID}" ]; then
             log "⚠️ Bundle ID mismatch: expected ${BUNDLE_ID}, found ${BUNDLE_ID_IN_APP}"
         else
             log "✅ Bundle ID matches: ${BUNDLE_ID}"
         fi
-    else
-        log "⚠️ Could not read bundle ID from app"
     fi
 }
 

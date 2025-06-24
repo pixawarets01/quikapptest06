@@ -138,6 +138,111 @@ if [ -f "lib/scripts/utils/gen_env_config.sh" ]; then
         log "   Firebase: ${PUSH_NOTIFY:-false}"
         log "   iOS Signing: ${CERT_PASSWORD:+true}"
         log "   Profile Type: ${PROFILE_TYPE:-app-store}"
+        
+        # Create a minimal env_config.dart if generation failed
+        log "🔧 Creating minimal environment configuration..."
+        mkdir -p lib/config
+        cat > lib/config/env_config.dart <<EOF
+// 🔥 GENERATED FILE: DO NOT EDIT 🔥
+// Minimal configuration created due to generation failure
+
+class EnvConfig {
+  // App Metadata
+  static const String appId = "${APP_ID:-}";
+  static const String versionName = "${VERSION_NAME:-1.0.0}";
+  static const int versionCode = ${VERSION_CODE:-1};
+  static const String appName = "${APP_NAME:-QuikApp}";
+  static const String orgName = "${ORG_NAME:-}";
+  static const String webUrl = "${WEB_URL:-}";
+  static const String userName = "${USER_NAME:-}";
+  static const String emailId = "${EMAIL_ID:-}";
+  static const String branch = "main";
+  static const String workflowId = "${WORKFLOW_ID:-}";
+
+  // Package Identifiers
+  static const String pkgName = "";
+  static const String bundleId = "${BUNDLE_ID:-}";
+
+  // Feature Flags
+  static const bool pushNotify = ${PUSH_NOTIFY:-false};
+  static const bool isChatbot = ${IS_CHATBOT:-false};
+  static const bool isDomainUrl = ${IS_DOMAIN_URL:-false};
+  static const bool isSplash = ${IS_SPLASH:-true};
+  static const bool isPulldown = ${IS_PULLDOWN:-true};
+  static const bool isBottommenu = ${IS_BOTTOMMENU:-true};
+  static const bool isLoadIndicator = ${IS_LOAD_IND:-true};
+
+  // Permissions
+  static const bool isCamera = ${IS_CAMERA:-false};
+  static const bool isLocation = ${IS_LOCATION:-false};
+  static const bool isMic = ${IS_MIC:-false};
+  static const bool isNotification = ${IS_NOTIFICATION:-false};
+  static const bool isContact = ${IS_CONTACT:-false};
+  static const bool isBiometric = ${IS_BIOMETRIC:-false};
+  static const bool isCalendar = ${IS_CALENDAR:-false};
+  static const bool isStorage = ${IS_STORAGE:-false};
+
+  // UI/Branding
+  static const String logoUrl = "${LOGO_URL:-}";
+  static const String splashUrl = "${SPLASH_URL:-}";
+  static const String splashBg = "${SPLASH_BG_URL:-}";
+  static const String splashBgColor = "${SPLASH_BG_COLOR:-#FFFFFF}";
+  static const String splashTagline = "${SPLASH_TAGLINE:-}";
+  static const String splashTaglineColor = "${SPLASH_TAGLINE_COLOR:-#000000}";
+  static const String splashAnimation = "${SPLASH_ANIMATION:-none}";
+  static const int splashDuration = ${SPLASH_DURATION:-3};
+
+  // Bottom Menu Configuration
+  static const String bottommenuItems = """${BOTTOMMENU_ITEMS:-[]}""";
+  static const String bottommenuBgColor = "${BOTTOMMENU_BG_COLOR:-#FFFFFF}";
+  static const String bottommenuIconColor = "${BOTTOMMENU_ICON_COLOR:-#000000}";
+  static const String bottommenuTextColor = "${BOTTOMMENU_TEXT_COLOR:-#000000}";
+  static const String bottommenuFont = "${BOTTOMMENU_FONT:-DM Sans}";
+  static const double bottommenuFontSize = ${BOTTOMMENU_FONT_SIZE:-14.0};
+  static const bool bottommenuFontBold = ${BOTTOMMENU_FONT_BOLD:-false};
+  static const bool bottommenuFontItalic = ${BOTTOMMENU_FONT_ITALIC:-false};
+  static const String bottommenuActiveTabColor = "${BOTTOMMENU_ACTIVE_TAB_COLOR:-#0000FF}";
+  static const String bottommenuIconPosition = "${BOTTOMMENU_ICON_POSITION:-top}";
+  static const String bottommenuVisibleOn = "${BOTTOMMENU_VISIBLE_ON:-}";
+
+  // Firebase Configuration
+  static const String firebaseConfigAndroid = "";
+  static const String firebaseConfigIos = "${FIREBASE_CONFIG_IOS:-}";
+
+  // Android Signing
+  static const String keyStoreUrl = "";
+  static const String cmKeystorePassword = "";
+  static const String cmKeyAlias = "";
+  static const String cmKeyPassword = "";
+
+  // iOS Signing
+  static const String appleTeamId = "${APPLE_TEAM_ID:-}";
+  static const String apnsKeyId = "${APNS_KEY_ID:-}";
+  static const String apnsAuthKeyUrl = "${APNS_AUTH_KEY_URL:-}";
+  static const String certPassword = "${CERT_PASSWORD:-}";
+  static const String profileUrl = "${PROFILE_URL:-}";
+  static const String certP12Url = "${CERT_P12_URL:-}";
+  static const String certCerUrl = "${CERT_CER_URL:-}";
+  static const String certKeyUrl = "${CERT_KEY_URL:-}";
+  static const String profileType = "${PROFILE_TYPE:-app-store}";
+  static const String appStoreConnectKeyIdentifier = "${APP_STORE_CONNECT_KEY_IDENTIFIER:-}";
+
+  // Build Environment
+  static const String buildId = "${CM_BUILD_ID:-unknown}";
+  static const String buildDir = "${CM_BUILD_DIR:-}";
+  static const String projectRoot = "${PROJECT_ROOT:-}";
+  static const String outputDir = "${OUTPUT_DIR:-output}";
+
+  // Utility Methods
+  static bool get isAndroidBuild => workflowId.startsWith('android');
+  static bool get isIosBuild => workflowId.contains('ios');
+  static bool get isCombinedBuild => workflowId == 'combined';
+  static bool get hasFirebase => firebaseConfigAndroid.isNotEmpty || firebaseConfigIos.isNotEmpty;
+  static bool get hasKeystore => keyStoreUrl.isNotEmpty;
+  static bool get hasIosSigning => certPassword.isNotEmpty && profileUrl.isNotEmpty;
+}
+EOF
+        log "✅ Minimal environment configuration created"
     fi
 else
     log "❌ Environment configuration generator not found"
