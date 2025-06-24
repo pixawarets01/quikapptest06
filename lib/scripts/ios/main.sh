@@ -2,24 +2,24 @@
 set -euo pipefail
 
 # Initialize logging
-log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"; }
+log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*"; }
 
 # Error handling
 trap 'handle_error $LINENO $?' ERR
 handle_error() {
-    local line_no=$1
-    local exit_code=$2
-    local error_msg="Error occurred at line $line_no. Exit code: $exit_code"
+    local line_no="$1"
+    local exit_code="$2"
+    local error_msg="Error occurred at line ${line_no}. Exit code: ${exit_code}"
     
-    log "❌ $error_msg"
+    log "❌ ${error_msg}"
     
     # Send failure email
     if [ -f "lib/scripts/utils/send_email.sh" ]; then
         chmod +x lib/scripts/utils/send_email.sh
-        lib/scripts/utils/send_email.sh "build_failed" "iOS" "${CM_BUILD_ID:-unknown}" "$error_msg" || true
+        lib/scripts/utils/send_email.sh "build_failed" "iOS" "${CM_BUILD_ID:-unknown}" "${error_msg}" || true
     fi
     
-    exit $exit_code
+    exit "${exit_code}"
 }
 
 # Function to validate environment variables
@@ -32,7 +32,7 @@ validate_environment_variables() {
     
     for var in "${required_vars[@]}"; do
         if [[ -z "${!var:-}" ]]; then
-            missing_vars+=("$var")
+            missing_vars+=("${var}")
         fi
     done
     
@@ -41,7 +41,7 @@ validate_environment_variables() {
         local testflight_vars=("APP_STORE_CONNECT_KEY_IDENTIFIER" "APP_STORE_CONNECT_ISSUER_ID" "APP_STORE_CONNECT_API_KEY")
         for var in "${testflight_vars[@]}"; do
             if [[ -z "${!var:-}" ]]; then
-                missing_vars+=("$var")
+                missing_vars+=("${var}")
             fi
         done
     fi
@@ -59,7 +59,7 @@ validate_environment_variables() {
     if [[ ${#missing_vars[@]} -gt 0 ]]; then
         log "❌ Missing required environment variables:"
         for var in "${missing_vars[@]}"; do
-            log "   - $var"
+            log "   - ${var}"
         done
         log "🔍 Available environment variables:"
         env | grep -E "(BUNDLE_ID|VERSION_|APPLE_TEAM_ID|CERT_|PROFILE_|APP_STORE_CONNECT_)" | head -10 || log "   No relevant variables found"
@@ -92,9 +92,9 @@ export PROJECT_ROOT="${PROJECT_ROOT:-$(pwd)}"
 export CM_BUILD_DIR="${CM_BUILD_DIR:-$(pwd)}"
 
 log "📋 Build Environment Variables:"
-log "   OUTPUT_DIR: $OUTPUT_DIR"
-log "   PROJECT_ROOT: $PROJECT_ROOT"
-log "   CM_BUILD_DIR: $CM_BUILD_DIR"
+log "   OUTPUT_DIR: ${OUTPUT_DIR}"
+log "   PROJECT_ROOT: ${PROJECT_ROOT}"
+log "   CM_BUILD_DIR: ${CM_BUILD_DIR}"
 
 # 🎯 CRITICAL: Generate Environment Configuration FIRST
 log "🎯 Generating Environment Configuration from API Variables..."
@@ -175,7 +175,7 @@ flutter pub get
 
 # Create necessary directories
 mkdir -p ios/certificates
-mkdir -p "$OUTPUT_DIR"
+mkdir -p "${OUTPUT_DIR}"
 mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
 
 # 📥 Download Required Configuration Files
@@ -203,7 +203,7 @@ fi
 # APNS Key
 if [ -n "${APNS_AUTH_KEY_URL:-}" ]; then
     log "🔑 Downloading APNS Key..."
-    if curl -L --fail --silent --show-error --output "ios/certificates/AuthKey.p8" "$APNS_AUTH_KEY_URL"; then
+    if curl -L --fail --silent --show-error --output "ios/certificates/AuthKey.p8" "${APNS_AUTH_KEY_URL}"; then
         log "✅ APNS key downloaded successfully"
     else
         log "❌ Failed to download APNS key"
@@ -216,7 +216,7 @@ fi
 # Provisioning Profile
 if [ -n "${PROFILE_URL:-}" ]; then
     log "📱 Downloading Provisioning Profile..."
-    if curl -L --fail --silent --show-error --output "ios/certificates/profile.mobileprovision" "$PROFILE_URL"; then
+    if curl -L --fail --silent --show-error --output "ios/certificates/profile.mobileprovision" "${PROFILE_URL}"; then
         log "✅ Provisioning profile downloaded successfully"
         # Install provisioning profile
         cp ios/certificates/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
@@ -233,10 +233,10 @@ fi
 # Certificates
 if [ -n "${CERT_P12_URL:-}" ]; then
     log "🔐 Downloading P12 Certificate from URL..."
-    log "🔍 P12 URL: $CERT_P12_URL"
+    log "🔍 P12 URL: ${CERT_P12_URL}"
     log "🔍 Using CERT_PASSWORD for P12 access"
     
-    if curl -L --fail --silent --show-error --output "ios/certificates/cert.p12" "$CERT_P12_URL"; then
+    if curl -L --fail --silent --show-error --output "ios/certificates/cert.p12" "${CERT_P12_URL}"; then
         log "✅ P12 certificate downloaded successfully"
         
         # Verify the downloaded P12 file
@@ -245,7 +245,7 @@ if [ -n "${CERT_P12_URL:-}" ]; then
             log "✅ P12 file is not empty"
             
             # Test P12 password
-            if openssl pkcs12 -in ios/certificates/cert.p12 -noout -passin "pass:$CERT_PASSWORD" 2>/dev/null; then
+            if openssl pkcs12 -in ios/certificates/cert.p12 -noout -passin "pass:${CERT_PASSWORD}" 2>/dev/null; then
                 log "✅ P12 password verification successful"
             else
                 log "❌ P12 password verification failed - CERT_PASSWORD may be incorrect"
@@ -266,18 +266,18 @@ else
     # Download CER and KEY files
     if [ -n "${CERT_CER_URL:-}" ] && [ -n "${CERT_KEY_URL:-}" ]; then
         log "🔐 Downloading Certificate and Key..."
-        log "🔍 CER URL: $CERT_CER_URL"
-        log "🔍 KEY URL: $CERT_KEY_URL"
+        log "🔍 CER URL: ${CERT_CER_URL}"
+        log "🔍 KEY URL: ${CERT_KEY_URL}"
         log "🔍 Using CERT_PASSWORD for P12 generation"
         
-        if curl -L --fail --silent --show-error --output "ios/certificates/cert.cer" "$CERT_CER_URL"; then
+        if curl -L --fail --silent --show-error --output "ios/certificates/cert.cer" "${CERT_CER_URL}"; then
             log "✅ Certificate downloaded successfully"
         else
             log "❌ Failed to download certificate"
             exit 1
         fi
         
-        if curl -L --fail --silent --show-error --output "ios/certificates/cert.key" "$CERT_KEY_URL"; then
+        if curl -L --fail --silent --show-error --output "ios/certificates/cert.key" "${CERT_KEY_URL}"; then
             log "✅ Private key downloaded successfully"
         else
             log "❌ Failed to download private key"
@@ -335,14 +335,14 @@ else
             -inkey ios/certificates/cert.key \
             -in ios/certificates/cert.pem \
             -out ios/certificates/cert.p12 \
-            -password "pass:$CERT_PASSWORD" \
+            -password "pass:${CERT_PASSWORD}" \
             -name "iOS Distribution Certificate" \
             -legacy; then
             log "✅ P12 certificate generated successfully (with password)"
             
             # Verify the generated P12 with password
             log "🔍 Verifying generated P12 file with password..."
-            if openssl pkcs12 -in ios/certificates/cert.p12 -noout -passin "pass:$CERT_PASSWORD" -legacy 2>/dev/null; then
+            if openssl pkcs12 -in ios/certificates/cert.p12 -noout -passin "pass:${CERT_PASSWORD}" -legacy 2>/dev/null; then
                 log "✅ Generated P12 verification successful (with password)"
                 log "🔍 P12 file size: $(ls -lh ios/certificates/cert.p12 | awk '{print $5}')"
             else

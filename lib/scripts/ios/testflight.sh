@@ -7,28 +7,28 @@ set -euo pipefail
 
 # Source common functions
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-UTILS_DIR="$SCRIPT_DIR/../utils"
+UTILS_DIR="${SCRIPT_DIR}/../utils"
 
 # Import common functions if available
-if [ -f "$UTILS_DIR/safe_run.sh" ]; then
-    source "$UTILS_DIR/safe_run.sh"
+if [ -f "${UTILS_DIR}/safe_run.sh" ]; then
+    source "${UTILS_DIR}/safe_run.sh"
 fi
 
 # Logging functions
 log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] 🚀 $1"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] 🚀 $*"
 }
 
 error() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ❌ $1" >&2
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ❌ $*" >&2
 }
 
 success() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✅ $1"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✅ $*"
 }
 
 warning() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ⚠️ $1"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ⚠️ $*"
 }
 
 # Function to validate TestFlight upload requirements
@@ -36,14 +36,14 @@ validate_testflight_requirements() {
     log "🔍 Validating TestFlight upload requirements..."
     
     # Check if TestFlight upload is enabled
-    if [[ "$(echo "$IS_TESTFLIGHT" | tr '[:upper:]' '[:lower:]')" != "true" ]]; then
-        log "📱 TestFlight upload disabled (IS_TESTFLIGHT=$IS_TESTFLIGHT)"
+    if [[ "$(echo "${IS_TESTFLIGHT}" | tr '[:upper:]' '[:lower:]')" != "true" ]]; then
+        log "📱 TestFlight upload disabled (IS_TESTFLIGHT=${IS_TESTFLIGHT})"
         return 1
     fi
     
     # Check if profile type is app-store
-    if [[ "$PROFILE_TYPE" != "app-store" ]]; then
-        log "📱 TestFlight upload requires app-store profile type (current: $PROFILE_TYPE)"
+    if [[ "${PROFILE_TYPE}" != "app-store" ]]; then
+        log "📱 TestFlight upload requires app-store profile type (current: ${PROFILE_TYPE})"
         return 1
     fi
     
@@ -73,7 +73,7 @@ validate_testflight_requirements() {
     if [[ ${#missing_vars[@]} -gt 0 ]]; then
         error "Missing required TestFlight upload variables:"
         for var in "${missing_vars[@]}"; do
-            error "  - $var"
+            error "  - ${var}"
         done
         return 1
     fi
@@ -87,37 +87,37 @@ setup_api_key() {
     log "🔑 Setting up App Store Connect API key..."
     
     local API_KEY_FILE="AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8"
-    local API_KEY_PATH="$SCRIPT_DIR/../certificates/$API_KEY_FILE"
+    local API_KEY_PATH="${SCRIPT_DIR}/../certificates/${API_KEY_FILE}"
     
     # Create certificates directory if it doesn't exist
-    mkdir -p "$(dirname "$API_KEY_PATH")"
+    mkdir -p "$(dirname "${API_KEY_PATH}")"
     
     # Check if API key is already a file path
-    if [[ -f "$APP_STORE_CONNECT_API_KEY" ]]; then
-        log "📁 API key provided as file path: $APP_STORE_CONNECT_API_KEY"
-        cp "$APP_STORE_CONNECT_API_KEY" "$API_KEY_PATH"
+    if [[ -f "${APP_STORE_CONNECT_API_KEY}" ]]; then
+        log "📁 API key provided as file path: ${APP_STORE_CONNECT_API_KEY}"
+        cp "${APP_STORE_CONNECT_API_KEY}" "${API_KEY_PATH}"
     else
         # Check if it's a base64 encoded string
-        if [[ "$APP_STORE_CONNECT_API_KEY" == *"-----BEGIN PRIVATE KEY-----"* ]]; then
+        if [[ "${APP_STORE_CONNECT_API_KEY}" == *"-----BEGIN PRIVATE KEY-----"* ]]; then
             log "📝 API key provided as PEM format"
-            echo "$APP_STORE_CONNECT_API_KEY" > "$API_KEY_PATH"
+            echo "${APP_STORE_CONNECT_API_KEY}" > "${API_KEY_PATH}"
         else
             log "🔓 API key provided as base64 encoded string"
-            echo "$APP_STORE_CONNECT_API_KEY" | base64 --decode > "$API_KEY_PATH"
+            echo "${APP_STORE_CONNECT_API_KEY}" | base64 --decode > "${API_KEY_PATH}"
         fi
     fi
     
     # Set proper permissions
-    chmod 600 "$API_KEY_PATH"
+    chmod 600 "${API_KEY_PATH}"
     
     # Verify the key file
-    if [[ ! -f "$API_KEY_PATH" ]]; then
-        error "Failed to create API key file: $API_KEY_PATH"
+    if [[ ! -f "${API_KEY_PATH}" ]]; then
+        error "Failed to create API key file: ${API_KEY_PATH}"
         return 1
     fi
     
-    log "✅ API key setup completed: $API_KEY_PATH"
-    echo "$API_KEY_PATH"
+    log "✅ API key setup completed: ${API_KEY_PATH}"
+    echo "${API_KEY_PATH}"
 }
 
 # Function to upload IPA to TestFlight using xcrun altool
@@ -126,43 +126,44 @@ upload_to_testflight_altool() {
     local API_KEY_PATH="$2"
     
     log "🚀 Uploading IPA to TestFlight using xcrun altool..."
-    log "📱 IPA: $IPA_PATH"
-    log "🔑 API Key: $APP_STORE_CONNECT_KEY_IDENTIFIER"
-    log "🏢 Team ID: $APPLE_TEAM_ID"
-    log "📦 Bundle ID: $BUNDLE_ID"
+    log "📱 IPA: ${IPA_PATH}"
+    log "🔑 API Key: ${APP_STORE_CONNECT_KEY_IDENTIFIER}"
+    log "🏢 Team ID: ${APPLE_TEAM_ID}"
+    log "📦 Bundle ID: ${BUNDLE_ID}"
     
     # Set environment variables for altool
-    export ALTOOL_KEY_ID="$APP_STORE_CONNECT_KEY_IDENTIFIER"
-    export ALTOOL_ISSUER_ID="$APP_STORE_CONNECT_ISSUER_ID"
-    export ALTOOL_KEY_PATH="$API_KEY_PATH"
+    export ALTOOL_KEY_ID="${APP_STORE_CONNECT_KEY_IDENTIFIER}"
+    export ALTOOL_ISSUER_ID="${APP_STORE_CONNECT_ISSUER_ID}"
+    export ALTOOL_KEY_PATH="${API_KEY_PATH}"
     
     # Upload using xcrun altool
     local upload_output
     upload_output=$(xcrun altool --upload-app \
         --type ios \
-        --file "$IPA_PATH" \
-        --apiKey "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
-        --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
+        --file "${IPA_PATH}" \
+        --apiKey "${APP_STORE_CONNECT_KEY_IDENTIFIER}" \
+        --apiIssuer "${APP_STORE_CONNECT_ISSUER_ID}" \
         --verbose 2>&1)
     
     local upload_exit_code=$?
     
     # Log the output
-    echo "$upload_output"
+    echo "${upload_output}"
     
-    if [[ $upload_exit_code -eq 0 ]]; then
+    if [[ ${upload_exit_code} -eq 0 ]]; then
         success "✅ IPA uploaded to TestFlight successfully!"
         
         # Extract upload ID if available
-        local upload_id=$(echo "$upload_output" | grep -o "RequestUUID: [a-f0-9-]*" | cut -d' ' -f2)
-        if [[ -n "$upload_id" ]]; then
-            log "📋 Upload ID: $upload_id"
+        local upload_id
+        upload_id=$(echo "${upload_output}" | grep -o "RequestUUID: [a-f0-9-]*" | cut -d' ' -f2)
+        if [[ -n "${upload_id}" ]]; then
+            log "📋 Upload ID: ${upload_id}"
         fi
         
         return 0
     else
         # Use comprehensive error analysis
-        analyze_upload_error "$upload_output" "$upload_exit_code"
+        analyze_upload_error "${upload_output}" "${upload_exit_code}"
         return $?
     fi
 }
@@ -173,11 +174,11 @@ upload_to_testflight_transporter() {
     local API_KEY_PATH="$2"
     
     log "🚀 Uploading IPA to TestFlight using transporter..."
-    log "📱 IPA: $IPA_PATH"
-    log "🔑 API Key: $APP_STORE_CONNECT_KEY_IDENTIFIER"
+    log "📱 IPA: ${IPA_PATH}"
+    log "🔑 API Key: ${APP_STORE_CONNECT_KEY_IDENTIFIER}"
     
     # Check if transporter is available
-    if ! command -v transporter &> /dev/null; then
+    if ! command -v transporter >/dev/null 2>&1; then
         log "📦 Transporter not available, falling back to altool"
         return 1
     fi
@@ -185,24 +186,24 @@ upload_to_testflight_transporter() {
     # Upload using transporter
     local upload_output
     upload_output=$(transporter \
-        --apiKey "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
-        --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
-        --apiKeyPath "$API_KEY_PATH" \
-        --upload "$IPA_PATH" \
+        --apiKey "${APP_STORE_CONNECT_KEY_IDENTIFIER}" \
+        --apiIssuer "${APP_STORE_CONNECT_ISSUER_ID}" \
+        --apiKeyPath "${API_KEY_PATH}" \
+        --upload "${IPA_PATH}" \
         --verbose 2>&1)
     
     local upload_exit_code=$?
     
     # Log the output
-    echo "$upload_output"
+    echo "${upload_output}"
     
-    if [[ $upload_exit_code -eq 0 ]]; then
+    if [[ ${upload_exit_code} -eq 0 ]]; then
         success "✅ IPA uploaded to TestFlight successfully using transporter!"
         return 0
     else
         error "❌ Transporter upload failed"
         # Use comprehensive error analysis
-        analyze_upload_error "$upload_output" "$upload_exit_code"
+        analyze_upload_error "${upload_output}" "${upload_exit_code}"
         return $?
     fi
 }

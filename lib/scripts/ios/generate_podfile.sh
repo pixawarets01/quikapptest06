@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"; }
+log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*"; }
 
 log "🚀 Starting dynamic Podfile generation..."
 
@@ -9,19 +9,19 @@ log "🚀 Starting dynamic Podfile generation..."
 REQUIRED_VARS=("APPLE_TEAM_ID" "BUNDLE_ID" "PROFILE_TYPE")
 for VAR in "${REQUIRED_VARS[@]}"; do
     if [ -z "${!VAR:-}" ]; then
-        log "❌ Missing required variable: $VAR"
+        log "❌ Missing required variable: ${VAR}"
         exit 1
     fi
-    log "✅ $VAR: ${!VAR}"
+    log "✅ ${VAR}: ${!VAR}"
 done
 
 # Validate profile type
-case "$PROFILE_TYPE" in
+case "${PROFILE_TYPE}" in
     "app-store"|"ad-hoc"|"enterprise"|"development")
-        log "✅ Valid profile type: $PROFILE_TYPE"
+        log "✅ Valid profile type: ${PROFILE_TYPE}"
         ;;
     *)
-        log "❌ Invalid profile type: $PROFILE_TYPE"
+        log "❌ Invalid profile type: ${PROFILE_TYPE}"
         log "   Supported types: app-store, ad-hoc, enterprise, development"
         exit 1
         ;;
@@ -33,28 +33,28 @@ CODE_SIGN_IDENTITY="${CODE_SIGN_IDENTITY:-Apple Distribution}"
 KEYCHAIN_NAME="${KEYCHAIN_NAME:-build.keychain}"
 
 log "📋 Configuration:"
-log "   Team ID: $APPLE_TEAM_ID"
-log "   Bundle ID: $BUNDLE_ID"
-log "   Profile Type: $PROFILE_TYPE"
-log "   Profile Name: $PROFILE_NAME"
-log "   Code Sign Identity: $CODE_SIGN_IDENTITY"
+log "   Team ID: ${APPLE_TEAM_ID}"
+log "   Bundle ID: ${BUNDLE_ID}"
+log "   Profile Type: ${PROFILE_TYPE}"
+log "   Profile Name: ${PROFILE_NAME}"
+log "   Code Sign Identity: ${CODE_SIGN_IDENTITY}"
 
 # Get current directory for Flutter root detection
 CURRENT_DIR=$(pwd)
 
 # Function to generate Podfile for specific stage and profile type
 generate_podfile() {
-    local STAGE=$1
-    local PROFILE_TYPE=$2
+    local STAGE="$1"
+    local PROFILE_TYPE="$2"
     
-    log "📝 Generating Podfile for stage: $STAGE, profile: $PROFILE_TYPE"
+    log "📝 Generating Podfile for stage: ${STAGE}, profile: ${PROFILE_TYPE}"
     
     # Ensure ios directory exists
     mkdir -p ios
     
     # Create backup of existing Podfile
     if [ -f "ios/Podfile" ]; then
-        cp ios/Podfile ios/Podfile.backup.$(date +%Y%m%d_%H%M%S)
+        cp ios/Podfile "ios/Podfile.backup.$(date +%Y%m%d_%H%M%S)"
         log "✅ Created backup of existing Podfile"
     fi
     
@@ -130,18 +130,18 @@ target 'Runner' do
 EOF
 
     # Add profile-specific configuration
-    case "$PROFILE_TYPE" in
+    case "${PROFILE_TYPE}" in
         "app-store")
-            printf '\n  # App Store Configuration\n  post_install do |installer|\n    installer.pods_project.targets.each do |target|\n      flutter_additional_ios_build_settings(target)\n      target.build_configurations.each do |config|\n        config.build_settings["IPHONEOS_DEPLOYMENT_TARGET"] = "13.0"\n        config.build_settings["ENABLE_BITCODE"] = "NO"\n        config.build_settings["ONLY_ACTIVE_ARCH"] = "NO"\n        config.build_settings["CODE_SIGN_STYLE"] = "Manual"\n        config.build_settings["DEVELOPMENT_TEAM"] = "%s"\n        config.build_settings["PROVISIONING_PROFILE_SPECIFIER"] = "%s"\n        config.build_settings["CODE_SIGN_IDENTITY"] = "%s"\n        config.build_settings["CODE_SIGNING_ALLOWED"] = "NO"\n        config.build_settings["CODE_SIGNING_REQUIRED"] = "NO"\n        \n        # 🔧 Swift Compiler Fixes for Firebase (Global)\n        config.build_settings["SWIFT_ACTIVE_COMPILATION_CONDITIONS"] = "$(inherited)"\n        config.build_settings["OTHER_SWIFT_FLAGS"] = "$(inherited) -enable-experimental-feature AccessLevelOnImport"\n        \n        # 🔧 Additional Firebase Compatibility\n        config.build_settings["CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER"] = "NO"\n        config.build_settings["GCC_PREPROCESSOR_DEFINITIONS"] = "$(inherited) COCOAPODS=1"\n        \n        # 🔧 GoogleDataTransport/Protobuf Fixes\n        config.build_settings["GCC_C_LANGUAGE_STANDARD"] = "gnu99"\n        config.build_settings["CLANG_WARN_IMPLICIT_FUNCTION_DECLARATION"] = "NO"\n        config.build_settings["OTHER_CFLAGS"] = "$(inherited) -Wno-implicit-function-declaration"\n        \n        # 🔧 Nanopb Integration\n        config.build_settings["HEADER_SEARCH_PATHS"] = "$(inherited) $(PODS_ROOT)/nanopb"\n        config.build_settings["LIBRARY_SEARCH_PATHS"] = "$(inherited) $(PODS_ROOT)/nanopb"\n      end\n    end\n  end\n' "$APPLE_TEAM_ID" "$PROFILE_NAME" "$CODE_SIGN_IDENTITY" >> ios/Podfile
+            printf '\n  # App Store Configuration\n  post_install do |installer|\n    installer.pods_project.targets.each do |target|\n      flutter_additional_ios_build_settings(target)\n      target.build_configurations.each do |config|\n        config.build_settings["IPHONEOS_DEPLOYMENT_TARGET"] = "13.0"\n        config.build_settings["ENABLE_BITCODE"] = "NO"\n        config.build_settings["ONLY_ACTIVE_ARCH"] = "NO"\n        config.build_settings["CODE_SIGN_STYLE"] = "Manual"\n        config.build_settings["DEVELOPMENT_TEAM"] = "%s"\n        config.build_settings["PROVISIONING_PROFILE_SPECIFIER"] = "%s"\n        config.build_settings["CODE_SIGN_IDENTITY"] = "%s"\n        config.build_settings["CODE_SIGNING_ALLOWED"] = "NO"\n        config.build_settings["CODE_SIGNING_REQUIRED"] = "NO"\n        \n        # 🔧 Swift Compiler Fixes for Firebase (Global)\n        config.build_settings["SWIFT_ACTIVE_COMPILATION_CONDITIONS"] = "$(inherited)"\n        config.build_settings["OTHER_SWIFT_FLAGS"] = "$(inherited) -enable-experimental-feature AccessLevelOnImport"\n        \n        # 🔧 Additional Firebase Compatibility\n        config.build_settings["CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER"] = "NO"\n        config.build_settings["GCC_PREPROCESSOR_DEFINITIONS"] = "$(inherited) COCOAPODS=1"\n        \n        # 🔧 GoogleDataTransport/Protobuf Fixes\n        config.build_settings["GCC_C_LANGUAGE_STANDARD"] = "gnu99"\n        config.build_settings["CLANG_WARN_IMPLICIT_FUNCTION_DECLARATION"] = "NO"\n        config.build_settings["OTHER_CFLAGS"] = "$(inherited) -Wno-implicit-function-declaration"\n        \n        # 🔧 Nanopb Integration\n        config.build_settings["HEADER_SEARCH_PATHS"] = "$(inherited) $(PODS_ROOT)/nanopb"\n        config.build_settings["LIBRARY_SEARCH_PATHS"] = "$(inherited) $(PODS_ROOT)/nanopb"\n      end\n    end\n  end\n' "${APPLE_TEAM_ID}" "${PROFILE_NAME}" "${CODE_SIGN_IDENTITY}" >> ios/Podfile
             ;;
         "ad-hoc")
-            printf '\n  # Ad-Hoc Configuration\n  post_install do |installer|\n    installer.pods_project.targets.each do |target|\n      flutter_additional_ios_build_settings(target)\n      target.build_configurations.each do |config|\n        config.build_settings["IPHONEOS_DEPLOYMENT_TARGET"] = "13.0"\n        config.build_settings["ENABLE_BITCODE"] = "NO"\n        config.build_settings["ONLY_ACTIVE_ARCH"] = "NO"\n        config.build_settings["CODE_SIGN_STYLE"] = "Manual"\n        config.build_settings["DEVELOPMENT_TEAM"] = "%s"\n        config.build_settings["PROVISIONING_PROFILE_SPECIFIER"] = "%s"\n        config.build_settings["CODE_SIGN_IDENTITY"] = "%s"\n        config.build_settings["CODE_SIGNING_ALLOWED"] = "NO"\n        config.build_settings["CODE_SIGNING_REQUIRED"] = "NO"\n        config.build_settings["ENABLE_TESTABILITY"] = "YES"\n        \n        # 🔧 Swift Compiler Fixes for Firebase\n        config.build_settings["SWIFT_ACTIVE_COMPILATION_CONDITIONS"] = "$(inherited)"\n        config.build_settings["OTHER_SWIFT_FLAGS"] = "$(inherited) -enable-experimental-feature AccessLevelOnImport"\n        \n        # 🔧 Additional Firebase Compatibility\n        config.build_settings["CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER"] = "NO"\n        config.build_settings["GCC_PREPROCESSOR_DEFINITIONS"] = "$(inherited) COCOAPODS=1"\n        \n        # 🔧 GoogleDataTransport/Protobuf Fixes\n        config.build_settings["GCC_C_LANGUAGE_STANDARD"] = "gnu99"\n        config.build_settings["CLANG_WARN_IMPLICIT_FUNCTION_DECLARATION"] = "NO"\n        config.build_settings["OTHER_CFLAGS"] = "$(inherited) -Wno-implicit-function-declaration"\n        \n        # 🔧 Nanopb Integration\n        config.build_settings["HEADER_SEARCH_PATHS"] = "$(inherited) $(PODS_ROOT)/nanopb"\n        config.build_settings["LIBRARY_SEARCH_PATHS"] = "$(inherited) $(PODS_ROOT)/nanopb"\n      end\n    end\n  end\n' "$APPLE_TEAM_ID" "$PROFILE_NAME" "$CODE_SIGN_IDENTITY" >> ios/Podfile
+            printf '\n  # Ad-Hoc Configuration\n  post_install do |installer|\n    installer.pods_project.targets.each do |target|\n      flutter_additional_ios_build_settings(target)\n      target.build_configurations.each do |config|\n        config.build_settings["IPHONEOS_DEPLOYMENT_TARGET"] = "13.0"\n        config.build_settings["ENABLE_BITCODE"] = "NO"\n        config.build_settings["ONLY_ACTIVE_ARCH"] = "NO"\n        config.build_settings["CODE_SIGN_STYLE"] = "Manual"\n        config.build_settings["DEVELOPMENT_TEAM"] = "%s"\n        config.build_settings["PROVISIONING_PROFILE_SPECIFIER"] = "%s"\n        config.build_settings["CODE_SIGN_IDENTITY"] = "%s"\n        config.build_settings["CODE_SIGNING_ALLOWED"] = "NO"\n        config.build_settings["CODE_SIGNING_REQUIRED"] = "NO"\n        config.build_settings["ENABLE_TESTABILITY"] = "YES"\n        \n        # 🔧 Swift Compiler Fixes for Firebase\n        config.build_settings["SWIFT_ACTIVE_COMPILATION_CONDITIONS"] = "$(inherited)"\n        config.build_settings["OTHER_SWIFT_FLAGS"] = "$(inherited) -enable-experimental-feature AccessLevelOnImport"\n        \n        # 🔧 Additional Firebase Compatibility\n        config.build_settings["CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER"] = "NO"\n        config.build_settings["GCC_PREPROCESSOR_DEFINITIONS"] = "$(inherited) COCOAPODS=1"\n        \n        # 🔧 GoogleDataTransport/Protobuf Fixes\n        config.build_settings["GCC_C_LANGUAGE_STANDARD"] = "gnu99"\n        config.build_settings["CLANG_WARN_IMPLICIT_FUNCTION_DECLARATION"] = "NO"\n        config.build_settings["OTHER_CFLAGS"] = "$(inherited) -Wno-implicit-function-declaration"\n        \n        # 🔧 Nanopb Integration\n        config.build_settings["HEADER_SEARCH_PATHS"] = "$(inherited) $(PODS_ROOT)/nanopb"\n        config.build_settings["LIBRARY_SEARCH_PATHS"] = "$(inherited) $(PODS_ROOT)/nanopb"\n      end\n    end\n  end\n' "${APPLE_TEAM_ID}" "${PROFILE_NAME}" "${CODE_SIGN_IDENTITY}" >> ios/Podfile
             ;;
         "enterprise")
-            printf '\n  # Enterprise Configuration\n  post_install do |installer|\n    installer.pods_project.targets.each do |target|\n      flutter_additional_ios_build_settings(target)\n      target.build_configurations.each do |config|\n        config.build_settings["IPHONEOS_DEPLOYMENT_TARGET"] = "13.0"\n        config.build_settings["ENABLE_BITCODE"] = "NO"\n        config.build_settings["ONLY_ACTIVE_ARCH"] = "NO"\n        config.build_settings["CODE_SIGN_STYLE"] = "Manual"\n        config.build_settings["DEVELOPMENT_TEAM"] = "%s"\n        config.build_settings["PROVISIONING_PROFILE_SPECIFIER"] = "%s"\n        config.build_settings["CODE_SIGN_IDENTITY"] = "%s"\n        config.build_settings["CODE_SIGNING_ALLOWED"] = "NO"\n        config.build_settings["CODE_SIGNING_REQUIRED"] = "NO"\n        config.build_settings["ENABLE_TESTABILITY"] = "YES"\n        \n        # 🔧 Swift Compiler Fixes for Firebase\n        config.build_settings["SWIFT_ACTIVE_COMPILATION_CONDITIONS"] = "$(inherited)"\n        config.build_settings["OTHER_SWIFT_FLAGS"] = "$(inherited) -enable-experimental-feature AccessLevelOnImport"\n        \n        # 🔧 Additional Firebase Compatibility\n        config.build_settings["CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER"] = "NO"\n        config.build_settings["GCC_PREPROCESSOR_DEFINITIONS"] = "$(inherited) COCOAPODS=1"\n        \n        # 🔧 GoogleDataTransport/Protobuf Fixes\n        config.build_settings["GCC_C_LANGUAGE_STANDARD"] = "gnu99"\n        config.build_settings["CLANG_WARN_IMPLICIT_FUNCTION_DECLARATION"] = "NO"\n        config.build_settings["OTHER_CFLAGS"] = "$(inherited) -Wno-implicit-function-declaration"\n        \n        # 🔧 Nanopb Integration\n        config.build_settings["HEADER_SEARCH_PATHS"] = "$(inherited) $(PODS_ROOT)/nanopb"\n        config.build_settings["LIBRARY_SEARCH_PATHS"] = "$(inherited) $(PODS_ROOT)/nanopb"\n      end\n    end\n  end\n' "$APPLE_TEAM_ID" "$PROFILE_NAME" "$CODE_SIGN_IDENTITY" >> ios/Podfile
+            printf '\n  # Enterprise Configuration\n  post_install do |installer|\n    installer.pods_project.targets.each do |target|\n      flutter_additional_ios_build_settings(target)\n      target.build_configurations.each do |config|\n        config.build_settings["IPHONEOS_DEPLOYMENT_TARGET"] = "13.0"\n        config.build_settings["ENABLE_BITCODE"] = "NO"\n        config.build_settings["ONLY_ACTIVE_ARCH"] = "NO"\n        config.build_settings["CODE_SIGN_STYLE"] = "Manual"\n        config.build_settings["DEVELOPMENT_TEAM"] = "%s"\n        config.build_settings["PROVISIONING_PROFILE_SPECIFIER"] = "%s"\n        config.build_settings["CODE_SIGN_IDENTITY"] = "%s"\n        config.build_settings["CODE_SIGNING_ALLOWED"] = "NO"\n        config.build_settings["CODE_SIGNING_REQUIRED"] = "NO"\n        config.build_settings["ENABLE_TESTABILITY"] = "YES"\n        \n        # 🔧 Swift Compiler Fixes for Firebase\n        config.build_settings["SWIFT_ACTIVE_COMPILATION_CONDITIONS"] = "$(inherited)"\n        config.build_settings["OTHER_SWIFT_FLAGS"] = "$(inherited) -enable-experimental-feature AccessLevelOnImport"\n        \n        # 🔧 Additional Firebase Compatibility\n        config.build_settings["CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER"] = "NO"\n        config.build_settings["GCC_PREPROCESSOR_DEFINITIONS"] = "$(inherited) COCOAPODS=1"\n        \n        # 🔧 GoogleDataTransport/Protobuf Fixes\n        config.build_settings["GCC_C_LANGUAGE_STANDARD"] = "gnu99"\n        config.build_settings["CLANG_WARN_IMPLICIT_FUNCTION_DECLARATION"] = "NO"\n        config.build_settings["OTHER_CFLAGS"] = "$(inherited) -Wno-implicit-function-declaration"\n        \n        # 🔧 Nanopb Integration\n        config.build_settings["HEADER_SEARCH_PATHS"] = "$(inherited) $(PODS_ROOT)/nanopb"\n        config.build_settings["LIBRARY_SEARCH_PATHS"] = "$(inherited) $(PODS_ROOT)/nanopb"\n      end\n    end\n  end\n' "${APPLE_TEAM_ID}" "${PROFILE_NAME}" "${CODE_SIGN_IDENTITY}" >> ios/Podfile
             ;;
         "development")
-            printf '\n  # Development Configuration\n  post_install do |installer|\n    installer.pods_project.targets.each do |target|\n      flutter_additional_ios_build_settings(target)\n      target.build_configurations.each do |config|\n        config.build_settings["IPHONEOS_DEPLOYMENT_TARGET"] = "13.0"\n        config.build_settings["ENABLE_BITCODE"] = "NO"\n        config.build_settings["ONLY_ACTIVE_ARCH"] = "YES"\n        config.build_settings["CODE_SIGN_STYLE"] = "Manual"\n        config.build_settings["DEVELOPMENT_TEAM"] = "%s"\n        config.build_settings["PROVISIONING_PROFILE_SPECIFIER"] = "%s"\n        config.build_settings["CODE_SIGN_IDENTITY"] = "%s"\n        config.build_settings["CODE_SIGNING_ALLOWED"] = "NO"\n        config.build_settings["CODE_SIGNING_REQUIRED"] = "NO"\n        config.build_settings["ENABLE_TESTABILITY"] = "YES"\n        config.build_settings["DEBUG_INFORMATION_FORMAT"] = "dwarf-with-dsym"\n        \n        # 🔧 Swift Compiler Fixes for Firebase\n        config.build_settings["SWIFT_ACTIVE_COMPILATION_CONDITIONS"] = "$(inherited)"\n        config.build_settings["OTHER_SWIFT_FLAGS"] = "$(inherited) -enable-experimental-feature AccessLevelOnImport"\n        \n        # 🔧 Additional Firebase Compatibility\n        config.build_settings["CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER"] = "NO"\n        config.build_settings["GCC_PREPROCESSOR_DEFINITIONS"] = "$(inherited) COCOAPODS=1"\n        \n        # 🔧 GoogleDataTransport/Protobuf Fixes\n        config.build_settings["GCC_C_LANGUAGE_STANDARD"] = "gnu99"\n        config.build_settings["CLANG_WARN_IMPLICIT_FUNCTION_DECLARATION"] = "NO"\n        config.build_settings["OTHER_CFLAGS"] = "$(inherited) -Wno-implicit-function-declaration"\n        \n        # 🔧 Nanopb Integration\n        config.build_settings["HEADER_SEARCH_PATHS"] = "$(inherited) $(PODS_ROOT)/nanopb"\n        config.build_settings["LIBRARY_SEARCH_PATHS"] = "$(inherited) $(PODS_ROOT)/nanopb"\n      end\n    end\n  end\n' "$APPLE_TEAM_ID" "$PROFILE_NAME" "$CODE_SIGN_IDENTITY" >> ios/Podfile
+            printf '\n  # Development Configuration\n  post_install do |installer|\n    installer.pods_project.targets.each do |target|\n      flutter_additional_ios_build_settings(target)\n      target.build_configurations.each do |config|\n        config.build_settings["IPHONEOS_DEPLOYMENT_TARGET"] = "13.0"\n        config.build_settings["ENABLE_BITCODE"] = "NO"\n        config.build_settings["ONLY_ACTIVE_ARCH"] = "YES"\n        config.build_settings["CODE_SIGN_STYLE"] = "Manual"\n        config.build_settings["DEVELOPMENT_TEAM"] = "%s"\n        config.build_settings["PROVISIONING_PROFILE_SPECIFIER"] = "%s"\n        config.build_settings["CODE_SIGN_IDENTITY"] = "%s"\n        config.build_settings["CODE_SIGNING_ALLOWED"] = "NO"\n        config.build_settings["CODE_SIGNING_REQUIRED"] = "NO"\n        config.build_settings["ENABLE_TESTABILITY"] = "YES"\n        config.build_settings["DEBUG_INFORMATION_FORMAT"] = "dwarf-with-dsym"\n        \n        # 🔧 Swift Compiler Fixes for Firebase\n        config.build_settings["SWIFT_ACTIVE_COMPILATION_CONDITIONS"] = "$(inherited)"\n        config.build_settings["OTHER_SWIFT_FLAGS"] = "$(inherited) -enable-experimental-feature AccessLevelOnImport"\n        \n        # 🔧 Additional Firebase Compatibility\n        config.build_settings["CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER"] = "NO"\n        config.build_settings["GCC_PREPROCESSOR_DEFINITIONS"] = "$(inherited) COCOAPODS=1"\n        \n        # 🔧 GoogleDataTransport/Protobuf Fixes\n        config.build_settings["GCC_C_LANGUAGE_STANDARD"] = "gnu99"\n        config.build_settings["CLANG_WARN_IMPLICIT_FUNCTION_DECLARATION"] = "NO"\n        config.build_settings["OTHER_CFLAGS"] = "$(inherited) -Wno-implicit-function-declaration"\n        \n        # 🔧 Nanopb Integration\n        config.build_settings["HEADER_SEARCH_PATHS"] = "$(inherited) $(PODS_ROOT)/nanopb"\n        config.build_settings["LIBRARY_SEARCH_PATHS"] = "$(inherited) $(PODS_ROOT)/nanopb"\n      end\n    end\n  end\n' "${APPLE_TEAM_ID}" "${PROFILE_NAME}" "${CODE_SIGN_IDENTITY}" >> ios/Podfile
             ;;
     esac
 
@@ -149,16 +149,16 @@ EOF
 end
 EOF
 
-    log "✅ Podfile generated for $STAGE stage with $PROFILE_TYPE profile"
+    log "✅ Podfile generated for ${STAGE} stage with ${PROFILE_TYPE} profile"
     log "📄 Podfile contents:"
     cat ios/Podfile
 }
 
 # Generate Podfile for current stage
 STAGE="${PODFILE_STAGE:-flutter-build}"
-generate_podfile "$STAGE" "$PROFILE_TYPE"
+generate_podfile "${STAGE}" "${PROFILE_TYPE}"
 
 log "🎉 Dynamic Podfile generation completed successfully!"
 log "📁 Podfile location: ios/Podfile"
-log "🔧 Profile Type: $PROFILE_TYPE"
-log "🏢 Team ID: $APPLE_TEAM_ID" 
+log "🔧 Profile Type: ${PROFILE_TYPE}"
+log "🏢 Team ID: ${APPLE_TEAM_ID}" 
