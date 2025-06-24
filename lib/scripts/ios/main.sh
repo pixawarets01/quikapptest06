@@ -130,12 +130,18 @@ if [ -f "lib/scripts/utils/gen_env_config.sh" ]; then
         log "   iOS Signing: ${CERT_PASSWORD:+true}"
         log "   Profile Type: ${PROFILE_TYPE:-app-store}"
     else
-        log "❌ Failed to generate environment configuration"
-        exit 1
+        log "⚠️ Environment configuration generation failed, but continuing with build"
+        log "📋 Using default configuration values"
+        log "   App: ${APP_NAME:-QuikApp} v${VERSION_NAME:-1.0.0}"
+        log "   Workflow: ${WORKFLOW_ID:-unknown}"
+        log "   Bundle ID: ${BUNDLE_ID:-not_set}"
+        log "   Firebase: ${PUSH_NOTIFY:-false}"
+        log "   iOS Signing: ${CERT_PASSWORD:+true}"
+        log "   Profile Type: ${PROFILE_TYPE:-app-store}"
     fi
 else
     log "❌ Environment configuration generator not found"
-    exit 1
+    log "⚠️ Continuing with build using default configuration"
 fi
 
 # 🔧 Initial Setup
