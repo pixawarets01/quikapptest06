@@ -330,6 +330,18 @@ EOF
     <string>$BUNDLE_ID</string>
     <key>iCloudContainerEnvironment</key>
     <string>Production</string>
+    <key>uploadSymbols</key>
+    <false/>
+    <key>uploadBitcode</key>
+    <false/>
+    <key>manageAppVersionAndBuildNumber</key>
+    <false/>
+    <key>thinning</key>
+    <string>none</string>
+    <key>method</key>
+    <string>app-store</string>
+    <key>uploadToAppStore</key>
+    <false/>
 EOF
             ;;
         "enterprise")
@@ -409,23 +421,56 @@ export_ipa() {
     # Create export directory
     mkdir -p "$EXPORT_PATH"
     
-    # Export IPA
+    # Export IPA with better error handling
     log "🏗️ Running xcodebuild -exportArchive..."
-    if xcodebuild \
+    log "🔍 Export method: $PROFILE_TYPE"
+    log "🔍 ExportOptions.plist: $EXPORT_OPTIONS_PLIST"
+    
+    # Run export and capture output
+    local export_output
+    export_output=$(xcodebuild \
         -exportArchive \
         -archivePath "$ARCHIVE_PATH" \
         -exportPath "$EXPORT_PATH" \
         -exportOptionsPlist "$EXPORT_OPTIONS_PLIST" \
-        -allowProvisioningUpdates; then
+        -allowProvisioningUpdates 2>&1)
+    
+    local export_exit_code=$?
+    
+    # Log the output
+    echo "$export_output"
+    
+    if [ $export_exit_code -eq 0 ]; then
         log "✅ IPA exported successfully to: $EXPORT_PATH"
     else
-        handle_error "Failed to export IPA"
+        log "❌ Export failed with exit code: $export_exit_code"
+        
+        # Check if it's an authentication issue
+        if echo "$export_output" | grep -q "Failed to Use Accounts\|App Store Connect access"; then
+            log "🔍 Detected App Store Connect authentication issue"
+            log "🔧 This is expected in CI/CD environments without App Store Connect credentials"
+            log "📱 The IPA can still be used for manual upload to App Store Connect"
+            
+            # Check if IPA was actually created despite the error
+            local IPA_FILE=$(find "$EXPORT_PATH" -name "*.ipa" 2>/dev/null | head -1)
+            if [ -n "$IPA_FILE" ] && [ -f "$IPA_FILE" ]; then
+                log "✅ IPA was created successfully despite authentication warning: $IPA_FILE"
+                log "📊 IPA size: $(du -h "$IPA_FILE" | cut -f1)"
+                log "🎉 Build completed - IPA ready for manual upload"
+                return 0
+            else
+                handle_error "No IPA file found after export attempt"
+            fi
+        else
+            handle_error "Failed to export IPA: $export_output"
+        fi
     fi
     
     # Verify IPA was created
     local IPA_FILE=$(find "$EXPORT_PATH" -name "*.ipa" 2>/dev/null | head -1)
     if [ -n "$IPA_FILE" ] && [ -f "$IPA_FILE" ]; then
         log "✅ IPA verified: $IPA_FILE"
+        log "📊 IPA size: $(du -h "$IPA_FILE" | cut -f1)"
     else
         handle_error "No IPA file found in export directory: $EXPORT_PATH"
     fi
@@ -472,11 +517,41 @@ build_ipa() {
     log "📱 Final IPA location: $OUTPUT_DIR/$(basename "$IPA_FILE")"
     log "📊 IPA size: $(du -h "$OUTPUT_DIR/$(basename "$IPA_FILE")" | cut -f1)"
     
+    # TestFlight upload integration
+    if [[ "$PROFILE_TYPE" == "app-store" && "${IS_TESTFLIGHT:-false}" == "true" ]]; then
+        log "🚀 TestFlight upload enabled - attempting automatic upload..."
+        
+        # Source the TestFlight script
+        local TESTFLIGHT_SCRIPT="$SCRIPT_DIR/testflight.sh"
+        if [[ -f "$TESTFLIGHT_SCRIPT" ]]; then
+            log "📱 Loading TestFlight upload script: $TESTFLIGHT_SCRIPT"
+            source "$TESTFLIGHT_SCRIPT"
+            
+            # Attempt TestFlight upload
+            local FINAL_IPA_PATH="$OUTPUT_DIR/$(basename "$IPA_FILE")"
+            if upload_to_testflight "$FINAL_IPA_PATH"; then
+                log "🎉 TestFlight upload completed successfully!"
+            else
+                log "⚠️ TestFlight upload failed, but IPA build was successful"
+                log "📱 You can manually upload the IPA to TestFlight"
+            fi
+        else
+            log "❌ TestFlight script not found: $TESTFLIGHT_SCRIPT"
+            log "📱 Skipping automatic TestFlight upload"
+        fi
+    else
+        log "📱 TestFlight upload not enabled (PROFILE_TYPE=$PROFILE_TYPE, IS_TESTFLIGHT=${IS_TESTFLIGHT:-false})"
+    fi
+    
     # Profile-specific success message
     case "$PROFILE_TYPE" in
         "app-store")
-            log "🎉 App Store IPA ready for App Store Connect upload"
-            log "📋 Next steps: Upload to App Store Connect via Xcode or Transporter"
+            log "🎉 App Store IPA ready for manual upload to App Store Connect"
+            log "📋 Next steps: Download IPA and upload via Xcode or Transporter"
+            log "🔐 Note: App Store Connect authentication is handled during upload, not build"
+            if [[ "${IS_TESTFLIGHT:-false}" == "true" ]]; then
+                log "🚀 TestFlight upload was attempted automatically"
+            fi
             ;;
         "ad-hoc")
             log "🎉 Ad-Hoc IPA ready for OTA distribution"

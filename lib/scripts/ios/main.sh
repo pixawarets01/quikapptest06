@@ -22,10 +22,65 @@ handle_error() {
     exit $exit_code
 }
 
+# Function to validate environment variables
+validate_environment_variables() {
+    log "🔍 Validating environment variables..."
+    
+    # Required variables for all iOS builds
+    local required_vars=("BUNDLE_ID" "VERSION_NAME" "VERSION_CODE" "APPLE_TEAM_ID")
+    local missing_vars=()
+    
+    for var in "${required_vars[@]}"; do
+        if [[ -z "${!var:-}" ]]; then
+            missing_vars+=("$var")
+        fi
+    done
+    
+    # Check for TestFlight-specific variables if TestFlight is enabled
+    if [[ "$(echo "${IS_TESTFLIGHT:-false}" | tr '[:upper:]' '[:lower:]')" == "true" ]]; then
+        local testflight_vars=("APP_STORE_CONNECT_KEY_IDENTIFIER" "APP_STORE_CONNECT_ISSUER_ID" "APP_STORE_CONNECT_API_KEY")
+        for var in "${testflight_vars[@]}"; do
+            if [[ -z "${!var:-}" ]]; then
+                missing_vars+=("$var")
+            fi
+        done
+    fi
+    
+    # Check for certificate variables
+    if [[ -z "${CERT_P12_URL:-}" ]] && [[ -z "${CERT_CER_URL:-}" ]] && [[ -z "${CERT_KEY_URL:-}" ]]; then
+        missing_vars+=("CERT_P12_URL or CERT_CER_URL+CERT_KEY_URL")
+    fi
+    
+    # Check for provisioning profile
+    if [[ -z "${PROFILE_URL:-}" ]]; then
+        missing_vars+=("PROFILE_URL")
+    fi
+    
+    if [[ ${#missing_vars[@]} -gt 0 ]]; then
+        log "❌ Missing required environment variables:"
+        for var in "${missing_vars[@]}"; do
+            log "   - $var"
+        done
+        log "🔍 Available environment variables:"
+        env | grep -E "(BUNDLE_ID|VERSION_|APPLE_TEAM_ID|CERT_|PROFILE_|APP_STORE_CONNECT_)" | head -10 || log "   No relevant variables found"
+        return 1
+    fi
+    
+    log "✅ All required environment variables are present"
+    return 0
+}
+
 # Send build started email
 if [ -f "lib/scripts/utils/send_email.sh" ]; then
     chmod +x lib/scripts/utils/send_email.sh
     lib/scripts/utils/send_email.sh "build_started" "iOS" "${CM_BUILD_ID:-unknown}" || true
+fi
+
+# 🔍 CRITICAL: Validate Environment Variables FIRST
+log "🔍 Validating environment variables..."
+if ! validate_environment_variables; then
+    log "❌ Environment variable validation failed"
+    exit 1
 fi
 
 log "🚀 Starting iOS Universal IPA Build Process..."
@@ -543,33 +598,45 @@ fi
 log "🔍 Verifying bundle ID updates..."
 INFO_PLIST_BUNDLE_ID=$(plutil -extract CFBundleIdentifier raw ios/Runner/Info.plist 2>/dev/null || echo "")
 
-# More robust project bundle ID extraction - specifically look for main app bundle ID
-PROJECT_BUNDLE_ID=""
-if [ -f "$PROJECT_FILE" ]; then
-    # Method 1: Use grep with regex to extract just the bundle ID value
-    PROJECT_BUNDLE_ID=$(grep 'PRODUCT_BUNDLE_IDENTIFIER' "$PROJECT_FILE" 2>/dev/null | grep -v "RunnerTests" | head -1 | sed -n 's/.*PRODUCT_BUNDLE_IDENTIFIER[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' 2>/dev/null || echo "")
+# Function to extract bundle ID from Xcode project file
+extract_bundle_id_from_project() {
+    local project_file="$1"
+    local bundle_id=""
     
-    # Method 2: If Method 1 failed, try with awk
-    if [ -z "$PROJECT_BUNDLE_ID" ]; then
-        PROJECT_BUNDLE_ID=$(awk '/PRODUCT_BUNDLE_IDENTIFIER/ && !/RunnerTests/ {match($0, /PRODUCT_BUNDLE_IDENTIFIER[[:space:]]*=[[:space:]]*"([^"]*)"/, arr); if (arr[1] != "") print arr[1]; exit}' "$PROJECT_FILE" 2>/dev/null || echo "")
+    log "🔍 Extracting bundle ID from project file: $project_file"
+    
+    # Method 1: Standard regex with sed
+    bundle_id=$(grep 'PRODUCT_BUNDLE_IDENTIFIER' "$project_file" 2>/dev/null | grep -v "RunnerTests" | head -1 | sed -n 's/.*PRODUCT_BUNDLE_IDENTIFIER[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' 2>/dev/null || echo "")
+    
+    # Method 2: awk fallback
+    if [[ -z "$bundle_id" ]]; then
+        log "🔍 Method 1 failed, trying awk..."
+        bundle_id=$(awk '/PRODUCT_BUNDLE_IDENTIFIER/ && !/RunnerTests/ {match($0, /PRODUCT_BUNDLE_IDENTIFIER[[:space:]]*=[[:space:]]*"([^"]*)"/, arr); if (arr[1] != "") print arr[1]; exit}' "$project_file" 2>/dev/null || echo "")
     fi
     
-    # Method 3: If still empty, try with grep and sed combination
-    if [ -z "$PROJECT_BUNDLE_ID" ]; then
-        PROJECT_BUNDLE_ID=$(grep 'PRODUCT_BUNDLE_IDENTIFIER' "$PROJECT_FILE" 2>/dev/null | grep -v "RunnerTests" | head -1 | grep -o '"[^"]*"' | head -1 | sed 's/"//g' 2>/dev/null || echo "")
+    # Method 3: grep + sed combination
+    if [[ -z "$bundle_id" ]]; then
+        log "🔍 Method 2 failed, trying grep + sed..."
+        bundle_id=$(grep 'PRODUCT_BUNDLE_IDENTIFIER' "$project_file" 2>/dev/null | grep -v "RunnerTests" | head -1 | grep -o '"[^"]*"' | head -1 | sed 's/"//g' 2>/dev/null || echo "")
     fi
     
-    # Final cleanup: ensure we have a clean bundle ID
-    if [ -n "$PROJECT_BUNDLE_ID" ]; then
+    # Clean up the extracted bundle ID
+    if [[ -n "$bundle_id" ]]; then
         # Remove any whitespace and ensure it's just the bundle ID
-        PROJECT_BUNDLE_ID=$(echo "$PROJECT_BUNDLE_ID" | xargs)
+        bundle_id=$(echo "$bundle_id" | xargs)
         
         # If it still contains the full line structure, extract just the bundle ID
-        if [[ "$PROJECT_BUNDLE_ID" == *"PRODUCT_BUNDLE_IDENTIFIER"* ]]; then
-            PROJECT_BUNDLE_ID=$(echo "$PROJECT_BUNDLE_ID" | sed -n 's/.*PRODUCT_BUNDLE_IDENTIFIER[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p')
+        if [[ "$bundle_id" == *"PRODUCT_BUNDLE_IDENTIFIER"* ]]; then
+            bundle_id=$(echo "$bundle_id" | sed -n 's/.*PRODUCT_BUNDLE_IDENTIFIER[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p')
         fi
     fi
-fi
+    
+    log "🔍 Extracted bundle ID: '$bundle_id'"
+    echo "$bundle_id"
+}
+
+# More robust project bundle ID extraction - specifically look for main app bundle ID
+PROJECT_BUNDLE_ID=$(extract_bundle_id_from_project "$PROJECT_FILE")
 
 log "🔍 Verification Debug Info:"
 log "   Expected BUNDLE_ID: $BUNDLE_ID"
