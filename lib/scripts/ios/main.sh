@@ -503,44 +503,72 @@ PROJECT_FILE="ios/Runner.xcodeproj/project.pbxproj"
 cp "$PROJECT_FILE" "${PROJECT_FILE}.bundle_backup"
 log "✅ Project file backed up"
 
-# Update PRODUCT_BUNDLE_IDENTIFIER for all configurations
+# Update PRODUCT_BUNDLE_IDENTIFIER for all configurations and targets
+# First, let's see what we're working with
+log "🔍 Current PRODUCT_BUNDLE_IDENTIFIER entries in project file:"
+grep -n "PRODUCT_BUNDLE_IDENTIFIER" "$PROJECT_FILE" || log "   No PRODUCT_BUNDLE_IDENTIFIER found"
+
+# Update main app bundle identifier (com.example.quikapptest06)
 if sed -i.bak \
-    -e 's/PRODUCT_BUNDLE_IDENTIFIER = "[^"]*";/PRODUCT_BUNDLE_IDENTIFIER = "'"$BUNDLE_ID"'";/g' \
+    -e 's/PRODUCT_BUNDLE_IDENTIFIER = com\.example\.quikapptest06;/PRODUCT_BUNDLE_IDENTIFIER = "'"$BUNDLE_ID"'";/g' \
     "$PROJECT_FILE"; then
-    log "✅ Xcode project bundle identifier updated to: $BUNDLE_ID"
+    log "✅ Main app bundle identifier updated to: $BUNDLE_ID"
 else
-    log "❌ Failed to update Xcode project bundle identifier"
+    log "❌ Failed to update main app bundle identifier"
     # Restore backup
     mv "${PROJECT_FILE}.bundle_backup" "$PROJECT_FILE"
     exit 1
+fi
+
+# Update test target bundle identifier (com.example.quikapptest06.RunnerTests)
+TEST_BUNDLE_ID="${BUNDLE_ID}.RunnerTests"
+if sed -i.bak \
+    -e 's/PRODUCT_BUNDLE_IDENTIFIER = com\.example\.quikapptest06\.RunnerTests;/PRODUCT_BUNDLE_IDENTIFIER = "'"$TEST_BUNDLE_ID"'";/g' \
+    "$PROJECT_FILE"; then
+    log "✅ Test target bundle identifier updated to: $TEST_BUNDLE_ID"
+else
+    log "⚠️ Failed to update test target bundle identifier (this might be expected if test target doesn't exist)"
+fi
+
+# Also try to update any other variations that might exist
+if sed -i.bak \
+    -e 's/PRODUCT_BUNDLE_IDENTIFIER = "[^"]*quikapptest06[^"]*";/PRODUCT_BUNDLE_IDENTIFIER = "'"$BUNDLE_ID"'";/g' \
+    "$PROJECT_FILE"; then
+    log "✅ Additional bundle identifier patterns updated"
+else
+    log "⚠️ No additional bundle identifier patterns found to update"
 fi
 
 # Verify the changes
 log "🔍 Verifying bundle ID updates..."
 INFO_PLIST_BUNDLE_ID=$(plutil -extract CFBundleIdentifier raw ios/Runner/Info.plist 2>/dev/null || echo "")
 
-# More robust project bundle ID extraction
+# More robust project bundle ID extraction - specifically look for main app bundle ID
 PROJECT_BUNDLE_ID=""
 if [ -f "$PROJECT_FILE" ]; then
-    # Try multiple methods to extract bundle ID
-    PROJECT_BUNDLE_ID=$(grep -o 'PRODUCT_BUNDLE_IDENTIFIER = "[^"]*"' "$PROJECT_FILE" 2>/dev/null | head -1 | sed 's/PRODUCT_BUNDLE_IDENTIFIER = "\([^"]*\)"/\1/' 2>/dev/null || echo "")
+    # Look specifically for the main app bundle ID (not test targets)
+    PROJECT_BUNDLE_ID=$(grep -o 'PRODUCT_BUNDLE_IDENTIFIER = "[^"]*";' "$PROJECT_FILE" 2>/dev/null | grep -v "RunnerTests" | head -1 | sed 's/PRODUCT_BUNDLE_IDENTIFIER = "\([^"]*\)";/\1/' 2>/dev/null || echo "")
     
     # If that failed, try alternative method
-    if [ -z "$PROJECT_BUNDLE_ID" ]; then
-        PROJECT_BUNDLE_ID=$(grep -A1 'PRODUCT_BUNDLE_IDENTIFIER' "$PROJECT_FILE" 2>/dev/null | grep -o '"[^"]*"' | head -1 | sed 's/"//g' 2>/dev/null || echo "")
+    if [ -z "$PROJECT_BUNDLE_ID" ] || [ "$PROJECT_BUNDLE_ID" = "\$(TARGET_NAME)" ]; then
+        PROJECT_BUNDLE_ID=$(grep -A1 -B1 'PRODUCT_BUNDLE_IDENTIFIER' "$PROJECT_FILE" 2>/dev/null | grep -v "RunnerTests" | grep -o '"[^"]*"' | head -1 | sed 's/"//g' 2>/dev/null || echo "")
     fi
     
-    # If still empty, try one more method
-    if [ -z "$PROJECT_BUNDLE_ID" ]; then
-        PROJECT_BUNDLE_ID=$(awk '/PRODUCT_BUNDLE_IDENTIFIER/ {gsub(/[^"]*"([^"]*)".*/, "\\1"); print; exit}' "$PROJECT_FILE" 2>/dev/null || echo "")
+    # If still empty or contains variable reference, try one more method
+    if [ -z "$PROJECT_BUNDLE_ID" ] || [ "$PROJECT_BUNDLE_ID" = "\$(TARGET_NAME)" ]; then
+        PROJECT_BUNDLE_ID=$(awk '/PRODUCT_BUNDLE_IDENTIFIER/ && !/RunnerTests/ {gsub(/[^"]*"([^"]*)".*/, "\\1"); print; exit}' "$PROJECT_FILE" 2>/dev/null || echo "")
     fi
 fi
 
 log "🔍 Verification Debug Info:"
 log "   Expected BUNDLE_ID: $BUNDLE_ID"
 log "   Info.plist CFBundleIdentifier: $INFO_PLIST_BUNDLE_ID"
-log "   Xcode project PRODUCT_BUNDLE_IDENTIFIER: $PROJECT_BUNDLE_ID"
+log "   Xcode project PRODUCT_BUNDLE_IDENTIFIER (main app): $PROJECT_BUNDLE_ID"
 log "   Project file exists: $([ -f "$PROJECT_FILE" ] && echo 'yes' || echo 'no')"
+
+# Show all PRODUCT_BUNDLE_IDENTIFIER entries for debugging
+log "🔍 All PRODUCT_BUNDLE_IDENTIFIER entries in project file:"
+grep -n "PRODUCT_BUNDLE_IDENTIFIER" "$PROJECT_FILE" 2>/dev/null || log "   No PRODUCT_BUNDLE_IDENTIFIER found"
 
 # Verify Info.plist bundle ID
 if [ "$INFO_PLIST_BUNDLE_ID" = "$BUNDLE_ID" ]; then
@@ -553,7 +581,7 @@ else
 fi
 
 # Verify Xcode project bundle ID (with more lenient checking)
-if [ -n "$PROJECT_BUNDLE_ID" ]; then
+if [ -n "$PROJECT_BUNDLE_ID" ] && [ "$PROJECT_BUNDLE_ID" != "\$(TARGET_NAME)" ]; then
     if [ "$PROJECT_BUNDLE_ID" = "$BUNDLE_ID" ]; then
         log "✅ Xcode project bundle ID verified: $PROJECT_BUNDLE_ID"
     else
@@ -563,8 +591,8 @@ if [ -n "$PROJECT_BUNDLE_ID" ]; then
         exit 1
     fi
 else
-    log "⚠️ Could not extract Xcode project bundle ID, but Info.plist was updated successfully"
-    log "🔍 This might be acceptable if the project file structure is different"
+    log "⚠️ Could not extract Xcode project bundle ID or found variable reference, but Info.plist was updated successfully"
+    log "🔍 This might be acceptable if the project file uses variable references"
     log "🔍 Continuing with build since Info.plist bundle ID is correct"
 fi
 
@@ -572,9 +600,76 @@ log "✅ Bundle ID update completed successfully"
 log "📋 Final Bundle ID Configuration:"
 log "   Environment BUNDLE_ID: ${BUNDLE_ID}"
 log "   Info.plist CFBundleIdentifier: ${INFO_PLIST_BUNDLE_ID}"
-log "   Xcode project PRODUCT_BUNDLE_IDENTIFIER: ${PROJECT_BUNDLE_ID}"
+log "   Xcode project PRODUCT_BUNDLE_IDENTIFIER (main app): ${PROJECT_BUNDLE_ID}"
 
-# 🔐 Permissions Setup
+# 🔍 CRITICAL: Validate Bundle ID matches Provisioning Profile
+log "🔍 Validating Bundle ID matches Provisioning Profile..."
+
+# Extract bundle ID from provisioning profile
+PROFILE_BUNDLE_ID=""
+if [ -f "ios/certificates/profile.mobileprovision" ]; then
+    log "🔍 Extracting bundle ID from provisioning profile..."
+    
+    # Extract bundle ID using security command
+    PROFILE_BUNDLE_ID=$(security cms -D -i ios/certificates/profile.mobileprovision 2>/dev/null | plutil -extract Entitlements.application-identifier raw - 2>/dev/null | sed 's/^[^.]*\.//' 2>/dev/null || echo "")
+    
+    # If that method failed, try alternative extraction
+    if [ -z "$PROFILE_BUNDLE_ID" ]; then
+        PROFILE_BUNDLE_ID=$(security cms -D -i ios/certificates/profile.mobileprovision 2>/dev/null | grep -o 'application-identifier.*' | head -1 | sed 's/.*<string>\([^<]*\)<\/string>.*/\1/' | sed 's/^[^.]*\.//' 2>/dev/null || echo "")
+    fi
+    
+    # If still empty, try one more method
+    if [ -z "$PROFILE_BUNDLE_ID" ]; then
+        PROFILE_BUNDLE_ID=$(security cms -D -i ios/certificates/profile.mobileprovision 2>/dev/null | grep -A1 -B1 "application-identifier" | grep "<string>" | head -1 | sed 's/.*<string>\([^<]*\)<\/string>.*/\1/' | sed 's/^[^.]*\.//' 2>/dev/null || echo "")
+    fi
+    
+    log "🔍 Bundle ID extracted from provisioning profile: $PROFILE_BUNDLE_ID"
+else
+    log "❌ Provisioning profile not found at ios/certificates/profile.mobileprovision"
+    log "🔍 Available files in ios/certificates/:"
+    ls -la ios/certificates/ 2>/dev/null || log "   Directory not accessible"
+    exit 1
+fi
+
+# Validate bundle ID match
+if [ -n "$PROFILE_BUNDLE_ID" ]; then
+    log "🔍 Bundle ID Comparison:"
+    log "   Environment BUNDLE_ID: $BUNDLE_ID"
+    log "   Provisioning Profile Bundle ID: $PROFILE_BUNDLE_ID"
+    
+    if [ "$BUNDLE_ID" = "$PROFILE_BUNDLE_ID" ]; then
+        log "✅ Bundle ID match verified: $BUNDLE_ID"
+        log "✅ Provisioning profile is compatible with app bundle ID"
+    else
+        log "❌ Bundle ID mismatch detected!"
+        log "❌ Environment BUNDLE_ID ($BUNDLE_ID) does not match provisioning profile bundle ID ($PROFILE_BUNDLE_ID)"
+        log "🔍 This will cause code signing to fail during the build process"
+        log "🔍 Solutions:"
+        log "   1. Update BUNDLE_ID environment variable to: $PROFILE_BUNDLE_ID"
+        log "   2. Or update provisioning profile to include bundle ID: $BUNDLE_ID"
+        log "   3. Or create a new provisioning profile for bundle ID: $BUNDLE_ID"
+        
+        # Show provisioning profile details for debugging
+        log "🔍 Provisioning profile details:"
+        if security cms -D -i ios/certificates/profile.mobileprovision 2>/dev/null | grep -A5 -B5 "application-identifier" | head -10; then
+            log "   (Shown above: application-identifier section from provisioning profile)"
+        else
+            log "   Could not extract application-identifier from provisioning profile"
+        fi
+        
+        exit 1
+    fi
+else
+    log "⚠️ Could not extract bundle ID from provisioning profile"
+    log "🔍 This might be acceptable if the profile uses wildcard bundle IDs"
+    log "🔍 Continuing with build, but code signing might fail"
+    
+    # Show provisioning profile structure for debugging
+    log "🔍 Provisioning profile structure:"
+    security cms -D -i ios/certificates/profile.mobileprovision 2>/dev/null | grep -E "(application-identifier|com\.apple\.developer\.team-identifier)" | head -5 || log "   Could not extract profile structure"
+fi
+
+# �� Permissions Setup
 log "🔐 Setting up Permissions..."
 
 if [ -f "lib/scripts/ios/permissions.sh" ]; then
