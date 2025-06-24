@@ -90,11 +90,13 @@ log "🔧 Setting Build Environment Variables..."
 export OUTPUT_DIR="${OUTPUT_DIR:-output/ios}"
 export PROJECT_ROOT="${PROJECT_ROOT:-$(pwd)}"
 export CM_BUILD_DIR="${CM_BUILD_DIR:-$(pwd)}"
+export FORCE_CLEAN_EXPORT_OPTIONS="${FORCE_CLEAN_EXPORT_OPTIONS:-true}"
 
 log "📋 Build Environment Variables:"
 log "   OUTPUT_DIR: ${OUTPUT_DIR}"
 log "   PROJECT_ROOT: ${PROJECT_ROOT}"
 log "   CM_BUILD_DIR: ${CM_BUILD_DIR}"
+log "   FORCE_CLEAN_EXPORT_OPTIONS: ${FORCE_CLEAN_EXPORT_OPTIONS}"
 
 # 🎯 CRITICAL: Generate Environment Configuration FIRST
 log "🎯 Generating Environment Configuration from API Variables..."
