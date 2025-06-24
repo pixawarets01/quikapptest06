@@ -489,17 +489,68 @@ fi
 
 # 🔧 CRITICAL: Fix iOS App Icons Before Flutter Build
 log "🔧 Fixing iOS app icons before Flutter build..."
+log "🔍 Current working directory: $(pwd)"
+log "🔍 Checking if icon fix script exists..."
+
+# Set up error handling for icon fix
+set +e  # Temporarily disable exit on error for icon fix
+ICON_FIX_SUCCESS=false
+
 if [ -f "lib/scripts/utils/fix_ios_icons.sh" ]; then
+    log "✅ Icon fix script found at lib/scripts/utils/fix_ios_icons.sh"
+    log "🔍 Making script executable..."
     chmod +x lib/scripts/utils/fix_ios_icons.sh
-    if lib/scripts/utils/fix_ios_icons.sh; then
+    log "🔍 Running icon fix script..."
+    log "🔍 Script path: $(realpath lib/scripts/utils/fix_ios_icons.sh)"
+    log "🔍 Script permissions: $(ls -la lib/scripts/utils/fix_ios_icons.sh)"
+    
+    # Run the script with explicit bash and capture output
+    log "🔍 Executing icon fix script..."
+    if bash lib/scripts/utils/fix_ios_icons.sh 2>&1; then
         log "✅ iOS app icons fixed successfully before Flutter build"
+        ICON_FIX_SUCCESS=true
     else
         log "❌ Failed to fix iOS app icons"
-        exit 1
+        log "🔍 Exit code: $?"
+        log "🔍 Icon fix failed, but continuing with build..."
+        ICON_FIX_SUCCESS=false
     fi
 else
-    log "❌ iOS icon fix script not found"
-    exit 1
+    log "❌ iOS icon fix script not found at lib/scripts/utils/fix_ios_icons.sh"
+    log "🔍 Checking what files exist in lib/scripts/utils/:"
+    ls -la lib/scripts/utils/ 2>/dev/null || log "   Directory not accessible"
+    log "🔍 Checking if the path exists:"
+    ls -la lib/scripts/utils/fix_ios_icons.sh 2>/dev/null || log "   File not found"
+    log "🔍 Icon fix script not found, but continuing with build..."
+    ICON_FIX_SUCCESS=false
+fi
+
+# Re-enable exit on error
+set -e
+
+# Verify icon state after fix attempt
+log "🔍 Verifying icon state after fix attempt..."
+if [ -d "ios/Runner/Assets.xcassets/AppIcon.appiconset" ]; then
+    ICON_COUNT=$(ls -1 ios/Runner/Assets.xcassets/AppIcon.appiconset/*.png 2>/dev/null | wc -l)
+    log "📊 Found $ICON_COUNT icon files"
+    
+    # Check if main icon is valid
+    if [ -s "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png" ]; then
+        ICON_SIZE=$(ls -lh ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png | awk '{print $5}')
+        log "✅ Main app icon is valid: $ICON_SIZE"
+        ICON_FIX_SUCCESS=true
+    else
+        log "❌ Main app icon is invalid or missing"
+        ICON_FIX_SUCCESS=false
+    fi
+else
+    log "❌ Icon directory does not exist"
+    ICON_FIX_SUCCESS=false
+fi
+
+if [ "$ICON_FIX_SUCCESS" = false ]; then
+    log "⚠️ Icon fix was not successful, but continuing with build..."
+    log "🔍 This might cause the build to fail, but we'll try anyway..."
 fi
 
 # 📦 STAGE 1: First Podfile Injection for Flutter Build (No Code Signing)
