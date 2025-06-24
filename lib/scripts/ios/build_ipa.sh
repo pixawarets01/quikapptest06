@@ -340,6 +340,16 @@ EOF
     <string>none</string>
 EOF
             ;;
+        "development")
+            cat >> "$EXPORT_OPTIONS_PLIST" << EOF
+    <key>thinning</key>
+    <string>none</string>
+    <key>uploadSymbols</key>
+    <false/>
+    <key>uploadBitcode</key>
+    <false/>
+EOF
+            ;;
     esac
     
     cat >> "$EXPORT_OPTIONS_PLIST" << EOF
@@ -429,12 +439,12 @@ build_ipa() {
     
     # Validate profile type
     case "$PROFILE_TYPE" in
-        "app-store"|"ad-hoc"|"enterprise")
+        "app-store"|"ad-hoc"|"enterprise"|"development")
             log "✅ Valid profile type: $PROFILE_TYPE"
             ;;
         *)
             error "Invalid profile type: $PROFILE_TYPE"
-            error "Supported types: app-store, ad-hoc, enterprise"
+            error "Supported types: app-store, ad-hoc, enterprise, development"
             exit 1
             ;;
     esac
@@ -475,6 +485,10 @@ build_ipa() {
         "enterprise")
             log "🎉 Enterprise IPA ready for internal distribution"
             log "📋 Next steps: Distribute to enterprise users via MDM or direct installation"
+            ;;
+        "development")
+            log "🎉 Development IPA ready for testing"
+            log "📋 Next steps: Install on development devices for testing"
             ;;
     esac
 }

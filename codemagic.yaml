@@ -129,6 +129,12 @@ ios_distribution_options: &ios_distribution_options
   FULL_SIZE_IMAGE_URL: $FULL_SIZE_IMAGE_URL
   THINNING: $THINNING
 
+# 🍎 iOS Development Options Block
+ios_development_options: &ios_development_options
+  ENABLE_DEBUG_BUILD: $ENABLE_DEBUG_BUILD
+  ENABLE_DEVICE_LOGGING: $ENABLE_DEVICE_LOGGING
+  ENABLE_DEBUG_SYMBOLS: $ENABLE_DEBUG_SYMBOLS
+
 workflows:
   android-free:
     name: Android Free Build
@@ -422,7 +428,7 @@ workflows:
       - build/app/outputs/logs/
 
   ios-workflow:
-    name: iOS Universal Build (App Store + Ad Hoc + Enterprise)
+    name: iOS Universal Build (App Store + Ad Hoc + Enterprise + Development)
     max_build_duration: 90
     instance_type: mac_mini_m2
     environment:
@@ -453,7 +459,10 @@ workflows:
         # 📱 iOS Distribution Options
         <<: *ios_distribution_options
 
-        # 📧 Email Configuration (for notifications)7
+        # 🍎 iOS Development Options
+        <<: *ios_development_options
+
+        # 📧 Email Configuration (for notifications)
         ENABLE_EMAIL_NOTIFICATIONS: $ENABLE_EMAIL_NOTIFICATIONS
         EMAIL_SMTP_SERVER: $EMAIL_SMTP_SERVER
         EMAIL_SMTP_PORT: $EMAIL_SMTP_PORT
@@ -529,12 +538,12 @@ workflows:
           # Enhanced profile type validation
           echo "🔍 Validating profile type: $PROFILE_TYPE"
           case "$PROFILE_TYPE" in
-            "app-store"|"ad-hoc"|"enterprise")
+            "app-store"|"ad-hoc"|"enterprise"|"development")
               echo "✅ Valid profile type: $PROFILE_TYPE"
               ;;
             *)
               echo "❌ Invalid profile type: $PROFILE_TYPE"
-              echo "   Supported types: app-store, ad-hoc, enterprise"
+              echo "   Supported types: app-store, ad-hoc, enterprise, development"
               exit 1
               ;;
           esac
@@ -703,6 +712,9 @@ workflows:
 
         # 📱 iOS Distribution Options
         <<: *ios_distribution_options
+
+        # 🍎 iOS Development Options
+        <<: *ios_development_options
 
     scripts:
       - name: Pre-build Setup

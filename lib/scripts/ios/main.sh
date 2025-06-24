@@ -558,6 +558,11 @@ if [ -f "$PROJECT_FILE" ]; then
     if [ -z "$PROJECT_BUNDLE_ID" ] || [ "$PROJECT_BUNDLE_ID" = "\$(TARGET_NAME)" ]; then
         PROJECT_BUNDLE_ID=$(awk '/PRODUCT_BUNDLE_IDENTIFIER/ && !/RunnerTests/ {gsub(/[^"]*"([^"]*)".*/, "\\1"); print; exit}' "$PROJECT_FILE" 2>/dev/null || echo "")
     fi
+    
+    # If still empty, try extracting from the full line and clean it up
+    if [ -z "$PROJECT_BUNDLE_ID" ] || [[ "$PROJECT_BUNDLE_ID" == *"PRODUCT_BUNDLE_IDENTIFIER"* ]]; then
+        PROJECT_BUNDLE_ID=$(grep 'PRODUCT_BUNDLE_IDENTIFIER' "$PROJECT_FILE" 2>/dev/null | grep -v "RunnerTests" | head -1 | sed 's/.*PRODUCT_BUNDLE_IDENTIFIER[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/' 2>/dev/null || echo "")
+    fi
 fi
 
 log "🔍 Verification Debug Info:"
@@ -669,7 +674,7 @@ else
     security cms -D -i ios/certificates/profile.mobileprovision 2>/dev/null | grep -E "(application-identifier|com\.apple\.developer\.team-identifier)" | head -5 || log "   Could not extract profile structure"
 fi
 
-# �� Permissions Setup
+# 🔐 Permissions Setup
 log "🔐 Setting up Permissions..."
 
 if [ -f "lib/scripts/ios/permissions.sh" ]; then
