@@ -43,6 +43,23 @@ log "   CM_BUILD_DIR: $CM_BUILD_DIR"
 
 # 🎯 CRITICAL: Generate Environment Configuration FIRST
 log "🎯 Generating Environment Configuration from API Variables..."
+
+# Debug: Show all environment variables
+log "🔍 Debug: Environment Variables Received:"
+log "   APP_ID: ${APP_ID:-not_set}"
+log "   APP_NAME: ${APP_NAME:-not_set}"
+log "   VERSION_NAME: ${VERSION_NAME:-not_set}"
+log "   VERSION_CODE: ${VERSION_CODE:-not_set}"
+log "   BUNDLE_ID: ${BUNDLE_ID:-not_set}"
+log "   WORKFLOW_ID: ${WORKFLOW_ID:-not_set}"
+log "   PUSH_NOTIFY: ${PUSH_NOTIFY:-not_set}"
+log "   OUTPUT_DIR: ${OUTPUT_DIR:-not_set}"
+log "   PROJECT_ROOT: ${PROJECT_ROOT:-not_set}"
+log "   CM_BUILD_DIR: ${CM_BUILD_DIR:-not_set}"
+log "   CERT_PASSWORD: ${CERT_PASSWORD:+set}"
+log "   PROFILE_URL: ${PROFILE_URL:+set}"
+log "   PROFILE_TYPE: ${PROFILE_TYPE:-not_set}"
+
 if [ -f "lib/scripts/utils/gen_env_config.sh" ]; then
     chmod +x lib/scripts/utils/gen_env_config.sh
     source lib/scripts/utils/gen_env_config.sh

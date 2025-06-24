@@ -88,6 +88,13 @@ generate_env_config() {
     log "   APP_NAME: ${APP_NAME:-not_set}"
     log "   PKG_NAME: ${PKG_NAME:-not_set}"
     log "   WORKFLOW_ID: ${WORKFLOW_ID:-not_set}"
+    log "   OUTPUT_DIR: ${OUTPUT_DIR:-not_set}"
+    log "   PROJECT_ROOT: ${PROJECT_ROOT:-not_set}"
+    log "   CM_BUILD_DIR: ${CM_BUILD_DIR:-not_set}"
+    log "   BUNDLE_ID: ${BUNDLE_ID:-not_set}"
+    log "   APP_ID: ${APP_ID:-not_set}"
+    log "   VERSION_NAME: ${VERSION_NAME:-not_set}"
+    log "   VERSION_CODE: ${VERSION_CODE:-not_set}"
 
     # Create the directory if it doesn't exist
     mkdir -p lib/config
@@ -214,6 +221,17 @@ EOF
     # Validate generated config
     if [ -f "lib/config/env_config.dart" ]; then
         log "✅ Environment configuration generated successfully"
+        
+        # Verify outputDir value
+        log "🔍 Verifying outputDir value in generated file..."
+        if grep -q "static const String outputDir = \"${OUTPUT_DIR:-output}\"" lib/config/env_config.dart; then
+            log "✅ outputDir value correctly set to: ${OUTPUT_DIR:-output}"
+        else
+            log "❌ outputDir value mismatch in generated file"
+            log "   Expected: ${OUTPUT_DIR:-output}"
+            log "   Found in file:"
+            grep "static const String outputDir" lib/config/env_config.dart || log "   Not found in file"
+        fi
         
         # Check if config is valid Dart
         if command -v dart >/dev/null 2>&1; then

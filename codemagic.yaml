@@ -463,8 +463,7 @@ workflows:
         # 🔧 Build Environment Variables
         CM_BUILD_ID: $CM_BUILD_ID
         CM_BUILD_DIR: $CM_BUILD_DIR
-        PROJECT_ROOT: $PROJECT_ROOT
-        OUTPUT_DIR: $OUTPUT_DIR
+        OUTPUT_DIR: "output/ios"
 
     scripts:
       - name: Pre-build Setup
