@@ -471,7 +471,76 @@ else
     exit 1
 fi
 
-# 🔐 Permissions Setup
+# 🔧 CRITICAL: Update Bundle ID from Codemagic Environment Variables
+log "🔧 Updating Bundle ID from Codemagic environment variables..."
+
+# Validate BUNDLE_ID environment variable
+if [ -z "${BUNDLE_ID:-}" ]; then
+    log "❌ BUNDLE_ID environment variable is not set"
+    log "🔍 Available environment variables:"
+    env | grep -i bundle || log "   No bundle-related variables found"
+    exit 1
+fi
+
+log "📋 Current Bundle ID Configuration:"
+log "   BUNDLE_ID from environment: ${BUNDLE_ID}"
+log "   Current Info.plist bundle ID: $(plutil -extract CFBundleIdentifier raw ios/Runner/Info.plist 2>/dev/null || echo 'not found')"
+
+# Update Info.plist bundle identifier
+log "🔧 Updating Info.plist bundle identifier..."
+if plutil -replace CFBundleIdentifier -string "$BUNDLE_ID" ios/Runner/Info.plist; then
+    log "✅ Info.plist bundle identifier updated to: $BUNDLE_ID"
+else
+    log "❌ Failed to update Info.plist bundle identifier"
+    exit 1
+fi
+
+# Update Xcode project bundle identifier for all configurations
+log "🔧 Updating Xcode project bundle identifier..."
+PROJECT_FILE="ios/Runner.xcodeproj/project.pbxproj"
+
+# Backup the project file
+cp "$PROJECT_FILE" "${PROJECT_FILE}.bundle_backup"
+log "✅ Project file backed up"
+
+# Update PRODUCT_BUNDLE_IDENTIFIER for all configurations
+if sed -i.bak \
+    -e 's/PRODUCT_BUNDLE_IDENTIFIER = "[^"]*";/PRODUCT_BUNDLE_IDENTIFIER = "'"$BUNDLE_ID"'";/g' \
+    "$PROJECT_FILE"; then
+    log "✅ Xcode project bundle identifier updated to: $BUNDLE_ID"
+else
+    log "❌ Failed to update Xcode project bundle identifier"
+    # Restore backup
+    mv "${PROJECT_FILE}.bundle_backup" "$PROJECT_FILE"
+    exit 1
+fi
+
+# Verify the changes
+log "🔍 Verifying bundle ID updates..."
+INFO_PLIST_BUNDLE_ID=$(plutil -extract CFBundleIdentifier raw ios/Runner/Info.plist 2>/dev/null || echo "")
+PROJECT_BUNDLE_ID=$(grep -o 'PRODUCT_BUNDLE_IDENTIFIER = "[^"]*"' "$PROJECT_FILE" | head -1 | sed 's/PRODUCT_BUNDLE_IDENTIFIER = "\([^"]*\)"/\1/')
+
+if [ "$INFO_PLIST_BUNDLE_ID" = "$BUNDLE_ID" ]; then
+    log "✅ Info.plist bundle ID verified: $INFO_PLIST_BUNDLE_ID"
+else
+    log "❌ Info.plist bundle ID mismatch: expected '$BUNDLE_ID', got '$INFO_PLIST_BUNDLE_ID'"
+    exit 1
+fi
+
+if [ "$PROJECT_BUNDLE_ID" = "$BUNDLE_ID" ]; then
+    log "✅ Xcode project bundle ID verified: $PROJECT_BUNDLE_ID"
+else
+    log "❌ Xcode project bundle ID mismatch: expected '$BUNDLE_ID', got '$PROJECT_BUNDLE_ID'"
+    exit 1
+fi
+
+log "✅ Bundle ID update completed successfully"
+log "📋 Final Bundle ID Configuration:"
+log "   Environment BUNDLE_ID: ${BUNDLE_ID}"
+log "   Info.plist CFBundleIdentifier: ${INFO_PLIST_BUNDLE_ID}"
+log "   Xcode project PRODUCT_BUNDLE_IDENTIFIER: ${PROJECT_BUNDLE_ID}"
+
+# �� Permissions Setup
 log "🔐 Setting up Permissions..."
 
 if [ -f "lib/scripts/ios/permissions.sh" ]; then
