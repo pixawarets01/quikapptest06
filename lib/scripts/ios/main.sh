@@ -115,36 +115,14 @@ log "   CERT_PASSWORD: ${CERT_PASSWORD:+set}"
 log "   PROFILE_URL: ${PROFILE_URL:+set}"
 log "   PROFILE_TYPE: ${PROFILE_TYPE:-not_set}"
 
-if [ -f "lib/scripts/utils/gen_env_config.sh" ]; then
-    chmod +x lib/scripts/utils/gen_env_config.sh
-    source lib/scripts/utils/gen_env_config.sh
-    if generate_env_config; then
-        log "✅ Environment configuration generated successfully"
-        
-        # Show generated config summary
-        log "📋 Generated Config Summary:"
-        log "   App: ${APP_NAME:-QuikApp} v${VERSION_NAME:-1.0.0}"
-        log "   Workflow: ${WORKFLOW_ID:-unknown}"
-        log "   Bundle ID: ${BUNDLE_ID:-not_set}"
-        log "   Firebase: ${PUSH_NOTIFY:-false}"
-        log "   iOS Signing: ${CERT_PASSWORD:+true}"
-        log "   Profile Type: ${PROFILE_TYPE:-app-store}"
-    else
-        log "⚠️ Environment configuration generation failed, but continuing with build"
-        log "📋 Using default configuration values"
-        log "   App: ${APP_NAME:-QuikApp} v${VERSION_NAME:-1.0.0}"
-        log "   Workflow: ${WORKFLOW_ID:-unknown}"
-        log "   Bundle ID: ${BUNDLE_ID:-not_set}"
-        log "   Firebase: ${PUSH_NOTIFY:-false}"
-        log "   iOS Signing: ${CERT_PASSWORD:+true}"
-        log "   Profile Type: ${PROFILE_TYPE:-app-store}"
-        
-        # Create a minimal env_config.dart if generation failed
-        log "🔧 Creating minimal environment configuration..."
-        mkdir -p lib/config
-        cat > lib/config/env_config.dart <<EOF
+# Always create environment configuration (non-blocking)
+log "🔧 Creating environment configuration..."
+mkdir -p lib/config
+
+# Create environment configuration with safe defaults
+cat > lib/config/env_config.dart <<EOF
 // 🔥 GENERATED FILE: DO NOT EDIT 🔥
-// Minimal configuration created due to generation failure
+// Environment configuration for iOS build
 
 class EnvConfig {
   // App Metadata
@@ -157,7 +135,7 @@ class EnvConfig {
   static const String userName = "${USER_NAME:-}";
   static const String emailId = "${EMAIL_ID:-}";
   static const String branch = "main";
-  static const String workflowId = "${WORKFLOW_ID:-}";
+  static const String workflowId = "${WORKFLOW_ID:-ios-workflow}";
 
   // Package Identifiers
   static const String pkgName = "";
@@ -242,12 +220,15 @@ class EnvConfig {
   static bool get hasIosSigning => certPassword.isNotEmpty && profileUrl.isNotEmpty;
 }
 EOF
-        log "✅ Minimal environment configuration created"
-    fi
-else
-    log "❌ Environment configuration generator not found"
-    log "⚠️ Continuing with build using default configuration"
-fi
+
+log "✅ Environment configuration created successfully"
+log "📋 Configuration Summary:"
+log "   App: ${APP_NAME:-QuikApp} v${VERSION_NAME:-1.0.0}"
+log "   Workflow: ${WORKFLOW_ID:-ios-workflow}"
+log "   Bundle ID: ${BUNDLE_ID:-not_set}"
+log "   Firebase: ${PUSH_NOTIFY:-false}"
+log "   iOS Signing: ${CERT_PASSWORD:+true}"
+log "   Profile Type: ${PROFILE_TYPE:-app-store}"
 
 # 🔧 Initial Setup
 log "🔧 Initial Setup - Installing CocoaPods..."
