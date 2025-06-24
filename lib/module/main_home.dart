@@ -57,19 +57,8 @@ class MainHome extends StatefulWidget {
 
 class _MainHomeState extends State<MainHome> {
   final GlobalKey webViewKey = GlobalKey();
-  // final String BMFont =
-  //     String.fromEnvironment('BOTTOMMENU_FONT', defaultValue: 'Public Sans');
-  // final double BMFontSize = double.tryParse(
-  //         String.fromEnvironment('BOTTOMMENU_FONT_SIZE', defaultValue: "14")) ??
-  //     12;
-  // final bool BMisBold =
-  //     bool.fromEnvironment('BOTTOMMENU_FONT_BOLD', defaultValue: false);
-  // final bool BMisItalic =
-  //     bool.fromEnvironment('BOTTOMMENU_FONT_ITALIC', defaultValue: true);
-  // final bool isChatBot = bool.fromEnvironment('IS_CHATBOT', defaultValue: true);
   late bool isBottomMenu;
 
-  // final Color taglineColor = _parseHexColor(const String.fromEnvironment('SPLASH_TAGLINE_COLOR', defaultValue: "#000000"));
   int _currentIndex = 0;
 
   InAppWebViewController? webViewController;
@@ -111,10 +100,6 @@ class _MainHomeState extends State<MainHome> {
   Offset _dragPosition =
       const Offset(16, 300); // Initial position for chat toggle
   String get InitialCurrentURL => widget.webUrl;
-
-  // Environment variables with defaults
-  final bool pushNotify =
-      bool.fromEnvironment('PUSH_NOTIFY', defaultValue: false);
 
   // Chat icon boundary constraints
   late Size _screenSize;

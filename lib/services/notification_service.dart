@@ -1,19 +1,22 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import '../config/env_config.dart';
 
 import 'dart:io';
 
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
 
-// Channel IDs
-const String _channelId = 'high_importance_channel';
-const String _channelName = 'High Importance Notifications';
-const String _channelDescription = 'This channel is used for important notifications.';
+// Channel IDs - configurable via EnvConfig
+String get _channelId => '${EnvConfig.appName.toLowerCase()}_notifications';
+String get _channelName => '${EnvConfig.appName} Notifications';
+String get _channelDescription => 'Notifications for ${EnvConfig.appName}';
 
 Future<void> initLocalNotifications() async {
   // Android initialization
-  final AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+  final AndroidInitializationSettings androidSettings =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
 
   // iOS initialization
   final DarwinInitializationSettings iOSSettings = DarwinInitializationSettings(
@@ -42,15 +45,17 @@ Future<void> initLocalNotifications() async {
 
   // Create Android notification channel
   if (Platform.isAndroid) {
-    await flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>()?.createNotificationChannel(
-      const AndroidNotificationChannel(
-        _channelId,
-        _channelName,
-        description: _channelDescription,
-        importance: Importance.high,
-      ),
-    );
+    await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(
+          AndroidNotificationChannel(
+            _channelId,
+            _channelName,
+            description: _channelDescription,
+            importance: Importance.high,
+          ),
+        );
   }
 }
 
