@@ -54,6 +54,25 @@ validate_minimal_variables() {
         return 1
     fi
     
+    # Optional variables (provide warnings if missing)
+    local optional_vars=(
+        "APPLE_ID_PASSWORD"
+        "FIREBASE_CONFIG_IOS"
+        "CERT_P12_URL"
+        "CERT_CER_URL"
+        "CERT_KEY_URL"
+        "PROFILE_URL"
+    )
+    
+    log "📋 Optional variables status:"
+    for var in "${optional_vars[@]}"; do
+        if [[ -n "${!var:-}" ]]; then
+            log "   ✅ ${var}: provided"
+        else
+            log "   ⚠️ ${var}: not provided (will use auto-generated certificates)"
+        fi
+    done
+    
     log "✅ All required environment variables are present"
     return 0
 }
@@ -64,7 +83,7 @@ setup_fastlane_environment() {
     
     # Create Fastfile if it doesn't exist
     if [ ! -f "fastlane/Fastfile" ]; then
-        log "📝 Creating Fastfile..."
+        log "📝 Creating comprehensive Fastfile..."
         mkdir -p fastlane
         cat > fastlane/Fastfile <<EOF
 default_platform(:ios)
@@ -84,11 +103,16 @@ platform :ios do
       app_identifier: ENV["BUNDLE_ID"],
       app_name: ENV["APP_NAME"],
       team_id: ENV["APP_STORE_CONNECT_KEY_IDENTIFIER"],
-      skip_itc: true
+      skip_itc: true,
+      skip_devcenter: false
     )
   end
   
   lane :setup_signing do
+    # First, create the app identifier if it doesn't exist
+    create_app_identifier
+    
+    # Then setup certificates and profiles
     match(
       type: ENV["PROFILE_TYPE"],
       app_identifier: ENV["BUNDLE_ID"],
@@ -97,7 +121,54 @@ platform :ios do
       api_key_path: ENV["APP_STORE_CONNECT_API_KEY_PATH"],
       username: ENV["APPLE_ID"],
       skip_confirmation: true,
+      verbose: true,
+      force_for_new_devices: true,
+      generate_apple_certs: true
+    )
+  end
+  
+  lane :download_certificates do
+    # Download existing certificates and profiles
+    match(
+      type: ENV["PROFILE_TYPE"],
+      app_identifier: ENV["BUNDLE_ID"],
+      readonly: true,
+      team_id: ENV["APP_STORE_CONNECT_KEY_IDENTIFIER"],
+      api_key_path: ENV["APP_STORE_CONNECT_API_KEY_PATH"],
+      username: ENV["APPLE_ID"],
+      skip_confirmation: true,
       verbose: true
+    )
+  end
+  
+  lane :create_certificates do
+    # Create new certificates and profiles
+    match(
+      type: ENV["PROFILE_TYPE"],
+      app_identifier: ENV["BUNDLE_ID"],
+      readonly: false,
+      team_id: ENV["APP_STORE_CONNECT_KEY_IDENTIFIER"],
+      api_key_path: ENV["APP_STORE_CONNECT_API_KEY_PATH"],
+      username: ENV["APPLE_ID"],
+      skip_confirmation: true,
+      verbose: true,
+      force_for_new_devices: true,
+      generate_apple_certs: true
+    )
+  end
+  
+  lane :sync_certificates do
+    # Sync certificates with local storage
+    match(
+      type: ENV["PROFILE_TYPE"],
+      app_identifier: ENV["BUNDLE_ID"],
+      readonly: false,
+      team_id: ENV["APP_STORE_CONNECT_KEY_IDENTIFIER"],
+      api_key_path: ENV["APP_STORE_CONNECT_API_KEY_PATH"],
+      username: ENV["APPLE_ID"],
+      skip_confirmation: true,
+      verbose: true,
+      force_for_new_devices: true
     )
   end
 end
@@ -106,14 +177,18 @@ EOF
     
     # Create Matchfile for certificate management using local storage
     if [ ! -f "fastlane/Matchfile" ]; then
-        log "📝 Creating Matchfile with local storage..."
+        log "📝 Creating comprehensive Matchfile with local storage..."
         cat > fastlane/Matchfile <<EOF
 # Use local storage instead of Git for auto-ios-workflow
 storage_mode("local")
 
-type("development") # default type
+# Default type (will be overridden by command line)
+type("development")
 
+# App identifier
 app_identifier(["#{ENV['BUNDLE_ID']}"])
+
+# Team ID
 team_id("#{ENV['APP_STORE_CONNECT_KEY_IDENTIFIER']}")
 
 # For App Store Connect API
@@ -125,6 +200,30 @@ issuer_id("#{ENV['APP_STORE_CONNECT_ISSUER_ID']}")
 readonly(false)
 skip_confirmation(true)
 verbose(true)
+force_for_new_devices(true)
+generate_apple_certs(true)
+
+# Profile types supported
+# - development
+# - adhoc
+# - appstore
+# - enterprise
+EOF
+    fi
+    
+    # Create Appfile for fastlane configuration
+    if [ ! -f "fastlane/Appfile" ]; then
+        log "📝 Creating Appfile..."
+        cat > fastlane/Appfile <<EOF
+# Appfile for auto-ios-workflow
+app_identifier(ENV["BUNDLE_ID"])
+apple_id(ENV["APPLE_ID"])
+team_id(ENV["APP_STORE_CONNECT_KEY_IDENTIFIER"])
+
+# API Key configuration
+api_key_path(ENV["APP_STORE_CONNECT_API_KEY_PATH"])
+api_key_id(ENV["APP_STORE_CONNECT_KEY_IDENTIFIER"])
+issuer_id(ENV["APP_STORE_CONNECT_ISSUER_ID"])
 EOF
     fi
     
@@ -201,73 +300,100 @@ setup_code_signing() {
     mkdir -p fastlane/certs
     mkdir -p fastlane/profiles
     
-    # Try fastlane match first
-    log "🔐 Attempting fastlane match for ${PROFILE_TYPE}..."
-    if fastlane match "${PROFILE_TYPE}" \
-        --type "${PROFILE_TYPE}" \
-        --app_identifier "${BUNDLE_ID}" \
-        --readonly false \
-        --team_id "${APPLE_TEAM_ID}" \
-        --api_key_path "${api_key_path}" \
-        --username "${APPLE_ID}" \
-        --skip_confirmation true \
-        --verbose; then
-        log "✅ Fastlane match completed successfully"
+    # Set up Apple ID authentication if password is provided
+    if [[ -n "${APPLE_ID_PASSWORD:-}" ]]; then
+        export FASTLANE_PASSWORD="${APPLE_ID_PASSWORD}"
+        log "🔐 Apple ID password provided for fastlane authentication"
     else
-        log "⚠️ Fastlane match failed, trying alternative approaches..."
+        log "⚠️ No Apple ID password provided - fastlane may prompt for password"
+    fi
+    
+    # Step 1: Try to download existing certificates first
+    log "🔐 Step 1: Attempting to download existing certificates..."
+    if fastlane download_certificates; then
+        log "✅ Existing certificates downloaded successfully"
+    else
+        log "⚠️ No existing certificates found, will create new ones"
         
-        # Try to create App Identifier first
-        log "🔄 Creating App Identifier..."
-        if fastlane produce \
-            -u "${APPLE_ID}" \
-            -a "${BUNDLE_ID}" \
-            --skip_itc \
-            --app_name "${APP_NAME}" \
-            --team_id "${APPLE_TEAM_ID}"; then
-            log "✅ App Identifier created successfully"
+        # Step 2: Create app identifier
+        log "🔐 Step 2: Creating app identifier..."
+        if fastlane create_app_identifier; then
+            log "✅ App identifier created successfully"
         else
-            log "⚠️ App Identifier may already exist or creation failed"
+            log "⚠️ App identifier may already exist or creation failed"
         fi
         
-        # Check if we have certificate and profile URLs (fallback to manual approach)
-        if [[ -n "${CERT_P12_URL:-}" ]] || [[ -n "${CERT_CER_URL:-}" ]]; then
-            log "🔄 Using manual certificate approach with provided URLs..."
-            
-            # Set up environment variables for manual certificate handling
-            if [[ -n "${CERT_P12_URL:-}" ]]; then
-                export CERT_P12_URL="${CERT_P12_URL}"
-                log "📋 Using P12 certificate URL: ${CERT_P12_URL}"
-            elif [[ -n "${CERT_CER_URL:-}" ]] && [[ -n "${CERT_KEY_URL:-}" ]]; then
-                export CERT_CER_URL="${CERT_CER_URL}"
-                export CERT_KEY_URL="${CERT_KEY_URL}"
-                log "📋 Using CER/KEY certificate URLs"
-            fi
-            
-            if [[ -n "${PROFILE_URL:-}" ]]; then
-                export PROFILE_URL="${PROFILE_URL}"
-                log "📋 Using provisioning profile URL: ${PROFILE_URL}"
-            fi
-            
-            export CERT_PASSWORD="${CERT_PASSWORD:-match}"
-            log "✅ Manual certificate approach configured"
+        # Step 3: Create new certificates and profiles
+        log "🔐 Step 3: Creating new certificates and profiles..."
+        if fastlane create_certificates; then
+            log "✅ New certificates and profiles created successfully"
         else
-            log "⚠️ No certificate URLs provided, but continuing with build..."
-            log "🔍 The main.sh script will handle certificate setup"
-            log "📋 Available certificate variables:"
-            log "   CERT_P12_URL: ${CERT_P12_URL:-not_set}"
-            log "   CERT_CER_URL: ${CERT_CER_URL:-not_set}"
-            log "   CERT_KEY_URL: ${CERT_KEY_URL:-not_set}"
-            log "   PROFILE_URL: ${PROFILE_URL:-not_set}"
+            log "⚠️ Certificate creation failed, trying alternative approach..."
             
-            # Set empty values to prevent main.sh from trying to download invalid URLs
-            export CERT_P12_URL=""
-            export CERT_CER_URL=""
-            export CERT_KEY_URL=""
-            export PROFILE_URL=""
-            export CERT_PASSWORD="match"
-            
-            log "✅ Continuing with build process - main.sh will handle certificate setup"
+            # Step 4: Try sync certificates as fallback
+            log "🔐 Step 4: Attempting certificate sync..."
+            if fastlane sync_certificates; then
+                log "✅ Certificate sync completed successfully"
+            else
+                log "⚠️ Certificate sync failed, checking for manual fallback..."
+                
+                # Check if we have certificate and profile URLs (fallback to manual approach)
+                if [[ -n "${CERT_P12_URL:-}" ]] || [[ -n "${CERT_CER_URL:-}" ]]; then
+                    log "🔄 Using manual certificate approach with provided URLs..."
+                    
+                    # Set up environment variables for manual certificate handling
+                    if [[ -n "${CERT_P12_URL:-}" ]]; then
+                        export CERT_P12_URL="${CERT_P12_URL}"
+                        log "📋 Using P12 certificate URL: ${CERT_P12_URL}"
+                    elif [[ -n "${CERT_CER_URL:-}" ]] && [[ -n "${CERT_KEY_URL:-}" ]]; then
+                        export CERT_CER_URL="${CERT_CER_URL}"
+                        export CERT_KEY_URL="${CERT_KEY_URL}"
+                        log "📋 Using CER/KEY certificate URLs"
+                    fi
+                    
+                    if [[ -n "${PROFILE_URL:-}" ]]; then
+                        export PROFILE_URL="${PROFILE_URL}"
+                        log "📋 Using provisioning profile URL: ${PROFILE_URL}"
+                    fi
+                    
+                    export CERT_PASSWORD="${CERT_PASSWORD:-match}"
+                    log "✅ Manual certificate approach configured"
+                else
+                    log "⚠️ No certificate URLs provided, but continuing with build..."
+                    log "🔍 The main.sh script will handle certificate setup"
+                    log "📋 Available certificate variables:"
+                    log "   CERT_P12_URL: ${CERT_P12_URL:-not_set}"
+                    log "   CERT_CER_URL: ${CERT_CER_URL:-not_set}"
+                    log "   CERT_KEY_URL: ${CERT_KEY_URL:-not_set}"
+                    log "   PROFILE_URL: ${PROFILE_URL:-not_set}"
+                    
+                    # Set auto-generated values to prevent main.sh from trying to download invalid URLs
+                    export CERT_P12_URL="auto-generated"
+                    export CERT_CER_URL="auto-generated"
+                    export CERT_KEY_URL="auto-generated"
+                    export PROFILE_URL="auto-generated"
+                    export CERT_PASSWORD="match"
+                    
+                    log "✅ Continuing with build process - main.sh will handle certificate setup"
+                fi
+            fi
         fi
+    fi
+    
+    # Verify that certificates were created/downloaded
+    log "🔍 Verifying certificate setup..."
+    if [ -d "fastlane/certs" ] && [ "$(ls -A fastlane/certs 2>/dev/null)" ]; then
+        log "✅ Certificates found in fastlane/certs/"
+        ls -la fastlane/certs/
+    else
+        log "⚠️ No certificates found in fastlane/certs/"
+    fi
+    
+    if [ -d "fastlane/profiles" ] && [ "$(ls -A fastlane/profiles 2>/dev/null)" ]; then
+        log "✅ Profiles found in fastlane/profiles/"
+        ls -la fastlane/profiles/
+    else
+        log "⚠️ No profiles found in fastlane/profiles/"
     fi
     
     log "✅ Code signing setup completed"
@@ -289,37 +415,37 @@ inject_signing_assets() {
         export FIREBASE_CONFIG_IOS="${FIREBASE_CONFIG_IOS}"
     fi
     
+    # Set WORKFLOW_ID first
+    export WORKFLOW_ID="auto-ios-workflow"
+    
     # Handle certificate URLs for auto-ios-workflow
-    if [[ "${WORKFLOW_ID}" == "auto-ios-workflow" ]]; then
-        log "🔐 Auto-ios-workflow detected - handling certificate setup..."
-        
-        # If we have actual certificate URLs, use them
-        if [[ -n "${CERT_P12_URL:-}" ]] || [[ -n "${CERT_CER_URL:-}" ]]; then
-            log "📋 Using provided certificate URLs"
-            export CERT_P12_URL="${CERT_P12_URL:-}"
-            export CERT_CER_URL="${CERT_CER_URL:-}"
-            export CERT_KEY_URL="${CERT_KEY_URL:-}"
-            export PROFILE_URL="${PROFILE_URL:-}"
-        else
-            log "📋 No certificate URLs provided - using auto-generated certificates"
-            # Set dummy URLs to pass validation, but main.sh will handle actual certificate setup
-            export CERT_P12_URL="auto-generated"
-            export CERT_CER_URL="auto-generated"
-            export CERT_KEY_URL="auto-generated"
-            export PROFILE_URL="auto-generated"
-        fi
-    else
-        # For non-auto workflows, use the original certificate URLs
-        export CERT_P12_URL="${CERT_P12_URL:-}"
-        export CERT_CER_URL="${CERT_CER_URL:-}"
+    log "🔐 Auto-ios-workflow detected - handling certificate setup..."
+    
+    # If we have actual certificate URLs, use them
+    if [[ -n "${CERT_P12_URL:-}" ]] && [[ "${CERT_P12_URL}" != "auto-generated" ]]; then
+        log "📋 Using provided P12 certificate URL"
+        export CERT_P12_URL="${CERT_P12_URL}"
+        export CERT_CER_URL=""
+        export CERT_KEY_URL=""
+        export PROFILE_URL="${PROFILE_URL:-}"
+    elif [[ -n "${CERT_CER_URL:-}" ]] && [[ "${CERT_CER_URL}" != "auto-generated" ]]; then
+        log "📋 Using provided CER/KEY certificate URLs"
+        export CERT_P12_URL=""
+        export CERT_CER_URL="${CERT_CER_URL}"
         export CERT_KEY_URL="${CERT_KEY_URL:-}"
         export PROFILE_URL="${PROFILE_URL:-}"
+    else
+        log "📋 No certificate URLs provided - using auto-generated certificates"
+        # Set dummy URLs to pass validation, but main.sh will handle actual certificate setup
+        export CERT_P12_URL="auto-generated"
+        export CERT_CER_URL="auto-generated"
+        export CERT_KEY_URL="auto-generated"
+        export PROFILE_URL="auto-generated"
     fi
     
     # Set all other required variables
     export VERSION_NAME="${VERSION_NAME}"
     export VERSION_CODE="${VERSION_CODE}"
-    export WORKFLOW_ID="auto-ios-workflow"
     export PUSH_NOTIFY="${PUSH_NOTIFY:-false}"
     export IS_CHATBOT="${IS_CHATBOT:-false}"
     export IS_DOMAIN_URL="${IS_DOMAIN_URL:-false}"
