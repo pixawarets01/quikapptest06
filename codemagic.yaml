@@ -703,7 +703,20 @@ workflows:
           echo "   Two-Stage Podfile Injection: ✅ Success"
           echo "   Flutter Build (No Code Signing): ✅ Success"
           echo "   xcodebuild (With Code Signing): ✅ Success"
-
+      - name: Export signed IPA
+        script: |
+            xcodebuild -exportArchive \
+              -archivePath output/ios/Runner.xcarchive \
+              -exportPath output/ios/ \
+              -exportOptionsPlist ios/ExportOptions.plist
+            cd output/ios/
+            la -al
+            if [[ -f "output/ios/*.ipa" ]]; then
+              echo "✅ IPA generated at: output/ios/Runner.ipa"
+            else
+              echo "❌ IPA file was not generated!"
+              exit 1
+            fi
     artifacts:
       # 📱 IPA Files (Primary artifacts)
       - output/ios/*.ipa
@@ -728,10 +741,91 @@ workflows:
       # 🔧 Additional Build Artifacts
       - output/ios/
       - build/ios/
+  auto-ios-workflow:
+    name: Auto iOS Universal Build (with Dynamic Signing)
+    max_build_duration: 90
+    instance_type: mac_mini_m2
+    environment:
+      flutter: 3.32.2
+      java: 17
+      xcode: 15.4
+      cocoapods: 1.16.2
+      ruby: 3.2.2
+      vars:
+        <<: *common_vars
+        <<: *ios_build_acceleration
+        <<: *app_config
+        WORKFLOW_ID: "auto-ios-workflow"
+        BUNDLE_ID: $BUNDLE_ID
+        PROFILE_TYPE: $PROFILE_TYPE # app-store, ad-hoc, enterprise, development
+        APPLE_ID: $APPLE_ID # Your Apple Developer email
+        FASTLANE_SESSION: $FASTLANE_SESSION # (optional, for 2FA)
+        MATCH_PASSWORD: $MATCH_PASSWORD # (if using encrypted repo)
+        MATCH_GIT_URL: $MATCH_GIT_URL # (private repo for certs/profiles)
+        APP_STORE_CONNECT_API_KEY_PATH: $APP_STORE_CONNECT_API_KEY_PATH # (for API auth)
+        # ...other vars as needed
 
+    scripts:
+      - name: Install fastlane and dependencies
+        script: |
+          gem install fastlane
+          fastlane --version
+
+      - name: Create App Identifier (if needed)
+        script: |
+          bundle install || true
+          bundle exec fastlane produce \
+            -u "$APPLE_ID" \
+            -a "$BUNDLE_ID" \
+            --skip_itc \
+            --app_name "$APP_NAME" \
+            --team_id "$APPLE_TEAM_ID" || echo "App identifier may already exist, continuing..."
+
+      - name: Fetch or Create Certificate and Profile
+        script: |
+          # Use fastlane match for universal code signing
+          # You can use 'appstore', 'adhoc', 'development', or 'enterprise'
+          bundle exec fastlane match "$PROFILE_TYPE" \
+            --type "$PROFILE_TYPE" \
+            --app_identifier "$BUNDLE_ID" \
+            --readonly false \
+            --team_id "$APPLE_TEAM_ID" \
+            --git_url "$MATCH_GIT_URL" \
+            --username "$APPLE_ID" \
+            --api_key_path "$APP_STORE_CONNECT_API_KEY_PATH" \
+            --skip_confirmation true \
+            --verbose
+
+      - name: Build and Export IPA (Universal)
+        script: |
+          # Set up environment variables for your main.sh
+          export PROFILE_TYPE="$PROFILE_TYPE"
+          export BUNDLE_ID="$BUNDLE_ID"
+          export APP_NAME="$APP_NAME"
+          export APPLE_TEAM_ID="$APPLE_TEAM_ID"
+          # ...add any other required exports
+
+          # Call your universal iOS build script
+          bash lib/scripts/ios/main.sh
+
+    artifacts:
+      - output/ios/*.ipa
+      - build/ios/ipa/*.ipa
+      - ios/build/*.ipa
+      - "*.ipa"
+      - output/ios/*.xcarchive
+      - build/ios/archive/*.xcarchive
+      - ios/build/*.xcarchive
+      - "*.xcarchive"
+      - output/ios/ARTIFACTS_SUMMARY.txt
+      - ios/ExportOptions.plist
+      - build/ios/logs/
+      - output/ios/logs/
+      - output/ios/
+      - build/ios/
   combined:
     name: Universal Combined Build (Android + iOS)
-    max_build_duration: 150
+    max_build_duration: 120
     instance_type: mac_mini_m2
     environment:
       flutter: 3.32.2
