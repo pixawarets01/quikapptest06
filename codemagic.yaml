@@ -614,12 +614,10 @@ workflows:
             # Create basic Gemfile if it doesn't exist
             if [ ! -f "Gemfile" ]; then
               echo "📝 Creating basic Gemfile for fastlane..."
-              cat > Gemfile << EOF
-source 'https://rubygems.org'
-
-gem 'fastlane'
-gem 'cocoapods'
-EOF
+              echo "source 'https://rubygems.org'" > Gemfile
+              echo "" >> Gemfile
+              echo "gem 'fastlane'" >> Gemfile
+              echo "gem 'cocoapods'" >> Gemfile
               echo "✅ Gemfile created"
             fi
             
