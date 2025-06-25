@@ -260,10 +260,10 @@ setup_code_signing() {
     local normalized_profile_type="${PROFILE_TYPE}"
     case "${PROFILE_TYPE}" in
         "appstore"|"app-store"|"app_store")
-            normalized_profile_type="app-store"
+            normalized_profile_type="appstore"
             ;;
         "adhoc"|"ad-hoc"|"ad_hoc")
-            normalized_profile_type="ad-hoc"
+            normalized_profile_type="adhoc"
             ;;
         "enterprise")
             normalized_profile_type="enterprise"
@@ -273,8 +273,8 @@ setup_code_signing() {
             ;;
         *)
             log "❌ Invalid PROFILE_TYPE: ${PROFILE_TYPE}"
-            log "   Valid types: app-store, ad-hoc, enterprise, development"
-            log "   Also accepts: appstore, adhoc, dev"
+            log "   Valid types: appstore, adhoc, enterprise, development"
+            log "   Also accepts: app-store, ad-hoc, dev"
             return 1
             ;;
     esac
@@ -283,7 +283,7 @@ setup_code_signing() {
     export PROFILE_TYPE="${normalized_profile_type}"
     
     # Validate profile type
-    local valid_types=("app-store" "ad-hoc" "enterprise" "development")
+    local valid_types=("appstore" "adhoc" "enterprise" "development")
     local is_valid=false
     
     for type in "${valid_types[@]}"; do
@@ -402,18 +402,16 @@ setup_code_signing() {
         fi
     fi
     
-    # Verify that certificates were created/downloaded
+    # Verify certificate setup
     log "🔍 Verifying certificate setup..."
-    if [ -d "fastlane/certs" ] && [ "$(ls -A fastlane/certs 2>/dev/null)" ]; then
+    if [[ -d "fastlane/certs" ]] && [[ "$(ls -A fastlane/certs 2>/dev/null)" ]]; then
         log "✅ Certificates found in fastlane/certs/"
-        ls -la fastlane/certs/
     else
         log "⚠️ No certificates found in fastlane/certs/"
     fi
     
-    if [ -d "fastlane/profiles" ] && [ "$(ls -A fastlane/profiles 2>/dev/null)" ]; then
+    if [[ -d "fastlane/profiles" ]] && [[ "$(ls -A fastlane/profiles 2>/dev/null)" ]]; then
         log "✅ Profiles found in fastlane/profiles/"
-        ls -la fastlane/profiles/
     else
         log "⚠️ No profiles found in fastlane/profiles/"
     fi
@@ -425,19 +423,7 @@ setup_code_signing() {
 inject_signing_assets() {
     log "💉 Injecting signing assets into build environment..."
     
-    # Set environment variables for the main build script
-    export CERT_PASSWORD="match" # fastlane match uses "match" as default password
-    export PROFILE_TYPE="${PROFILE_TYPE}"
-    export BUNDLE_ID="${BUNDLE_ID}"
-    export APP_NAME="${APP_NAME}"
-    export APPLE_TEAM_ID="${APPLE_TEAM_ID}"
-    
-    # Set Firebase configuration if provided
-    if [[ -n "${FIREBASE_CONFIG_IOS:-}" ]]; then
-        export FIREBASE_CONFIG_IOS="${FIREBASE_CONFIG_IOS}"
-    fi
-    
-    # Set WORKFLOW_ID first
+    # Set WORKFLOW_ID for auto-ios-workflow
     export WORKFLOW_ID="auto-ios-workflow"
     
     # Handle certificate URLs for auto-ios-workflow
@@ -463,6 +449,18 @@ inject_signing_assets() {
         export CERT_CER_URL="auto-generated"
         export CERT_KEY_URL="auto-generated"
         export PROFILE_URL="auto-generated"
+    fi
+    
+    # Set environment variables for the main build script
+    export CERT_PASSWORD="match" # fastlane match uses "match" as default password
+    export PROFILE_TYPE="${PROFILE_TYPE}"
+    export BUNDLE_ID="${BUNDLE_ID}"
+    export APP_NAME="${APP_NAME}"
+    export APPLE_TEAM_ID="${APPLE_TEAM_ID}"
+    
+    # Set Firebase configuration if provided
+    if [[ -n "${FIREBASE_CONFIG_IOS:-}" ]]; then
+        export FIREBASE_CONFIG_IOS="${FIREBASE_CONFIG_IOS}"
     fi
     
     # Set all other required variables
@@ -516,6 +514,45 @@ inject_signing_assets() {
     export USER_NAME="${USER_NAME:-}"
     
     log "✅ Signing assets injected into build environment"
+}
+
+# Function to setup build environment
+setup_build_environment() {
+    log "🔧 Setting up build environment..."
+    
+    # Install CocoaPods if not available
+    if ! command -v pod &> /dev/null; then
+        log "📦 Installing CocoaPods..."
+        
+        # Try to install CocoaPods using gem
+        if command -v gem &> /dev/null; then
+            gem install cocoapods || {
+                log "⚠️ Failed to install CocoaPods via gem, trying alternative methods..."
+                
+                # Try using rbenv if available
+                if command -v rbenv &> /dev/null; then
+                    log "🔧 Using rbenv to install CocoaPods..."
+                    rbenv exec gem install cocoapods || {
+                        log "⚠️ Failed to install CocoaPods via rbenv"
+                    }
+                else
+                    log "⚠️ Could not install CocoaPods - build may fail"
+                fi
+            }
+        else
+            log "⚠️ Ruby gem not available - CocoaPods installation skipped"
+        fi
+    else
+        log "✅ CocoaPods is already installed"
+    fi
+    
+    # Install Flutter dependencies
+    log "📦 Installing Flutter Dependencies..."
+    flutter pub get || {
+        log "⚠️ Flutter pub get failed, but continuing..."
+    }
+    
+    log "✅ Build environment setup completed"
 }
 
 # Function to run the main iOS build
@@ -624,10 +661,13 @@ main() {
     # Step 5: Inject signing assets
     inject_signing_assets
     
-    # Step 6: Run main iOS build
+    # Step 6: Setup build environment
+    setup_build_environment
+    
+    # Step 7: Run main iOS build
     run_ios_build
     
-    # Step 7: Create artifacts summary
+    # Step 8: Create artifacts summary
     create_artifacts_summary
     
     log "🎉 Auto iOS Workflow completed successfully!"
