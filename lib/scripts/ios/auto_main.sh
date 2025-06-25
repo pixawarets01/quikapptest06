@@ -4,6 +4,10 @@ set -euo pipefail
 # Initialize logging
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*"; }
 
+# Set WORKFLOW_ID for auto-ios-workflow immediately
+export WORKFLOW_ID="auto-ios-workflow"
+log "🚀 Auto iOS Workflow initialized (WORKFLOW_ID: ${WORKFLOW_ID})"
+
 # Error handling
 trap 'handle_error $LINENO $?' ERR
 handle_error() {
@@ -426,9 +430,6 @@ setup_code_signing() {
 # Function to inject signing assets into build environment
 inject_signing_assets() {
     log "💉 Injecting signing assets into build environment..."
-    
-    # Set WORKFLOW_ID for auto-ios-workflow
-    export WORKFLOW_ID="auto-ios-workflow"
     
     # Handle certificate URLs for auto-ios-workflow
     log "🔐 Auto-ios-workflow detected - handling certificate setup..."
