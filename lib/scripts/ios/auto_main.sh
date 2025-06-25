@@ -211,7 +211,7 @@ generate_apple_certs(true)
 EOF
     fi
     
-    # Create Appfile for fastlane configuration
+    # Create Appfile for fastlane configuration (simplified)
     if [ ! -f "fastlane/Appfile" ]; then
         log "📝 Creating Appfile..."
         cat > fastlane/Appfile <<EOF
@@ -219,11 +219,6 @@ EOF
 app_identifier(ENV["BUNDLE_ID"])
 apple_id(ENV["APPLE_ID"])
 team_id(ENV["APP_STORE_CONNECT_KEY_IDENTIFIER"])
-
-# API Key configuration
-api_key_path(ENV["APP_STORE_CONNECT_API_KEY_PATH"])
-api_key_id(ENV["APP_STORE_CONNECT_KEY_IDENTIFIER"])
-issuer_id(ENV["APP_STORE_CONNECT_ISSUER_ID"])
 EOF
     fi
     
@@ -260,6 +255,33 @@ create_app_identifier() {
 setup_code_signing() {
     log "🔐 Setting up code signing..."
     
+    # Normalize profile type (handle common variations)
+    local original_profile_type="${PROFILE_TYPE}"
+    local normalized_profile_type="${PROFILE_TYPE}"
+    case "${PROFILE_TYPE}" in
+        "appstore"|"app-store"|"app_store")
+            normalized_profile_type="app-store"
+            ;;
+        "adhoc"|"ad-hoc"|"ad_hoc")
+            normalized_profile_type="ad-hoc"
+            ;;
+        "enterprise")
+            normalized_profile_type="enterprise"
+            ;;
+        "development"|"dev")
+            normalized_profile_type="development"
+            ;;
+        *)
+            log "❌ Invalid PROFILE_TYPE: ${PROFILE_TYPE}"
+            log "   Valid types: app-store, ad-hoc, enterprise, development"
+            log "   Also accepts: appstore, adhoc, dev"
+            return 1
+            ;;
+    esac
+    
+    # Update the environment variable with normalized value
+    export PROFILE_TYPE="${normalized_profile_type}"
+    
     # Validate profile type
     local valid_types=("app-store" "ad-hoc" "enterprise" "development")
     local is_valid=false
@@ -278,7 +300,7 @@ setup_code_signing() {
     fi
     
     log "📋 Code Signing Details:"
-    log "   Profile Type: ${PROFILE_TYPE}"
+    log "   Profile Type: ${PROFILE_TYPE} (normalized from: ${original_profile_type})"
     log "   Bundle ID: ${BUNDLE_ID}"
     log "   Team ID: ${APPLE_TEAM_ID}"
     log "   API Key Path: ${APP_STORE_CONNECT_API_KEY_PATH}"
