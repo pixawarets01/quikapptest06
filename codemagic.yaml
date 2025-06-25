@@ -611,12 +611,40 @@ workflows:
             echo "📋 ExportOptions.plist contents:"
             cat ios/ExportOptions.plist
             
+            # Create basic Gemfile if it doesn't exist
+            if [ ! -f "Gemfile" ]; then
+              echo "📝 Creating basic Gemfile for fastlane..."
+              cat > Gemfile << EOF
+source 'https://rubygems.org'
+
+gem 'fastlane'
+gem 'cocoapods'
+EOF
+              echo "✅ Gemfile created"
+            fi
+            
+            # Install fastlane if needed
+            if [ ! -d ".bundle" ]; then
+              echo "📦 Installing fastlane dependencies..."
+              bundle install --path .bundle || echo "⚠️ Bundle install failed, trying without bundle"
+            fi
+            
             # Try fastlane gym export
-            bundle exec fastlane gym \
-              --archive_path output/ios/Runner.xcarchive \
-              --export_options ios/ExportOptions.plist \
-              --export_path output/ios/ \
-              --clean
+            if [ -d ".bundle" ]; then
+              echo "🔧 Using bundle exec for fastlane..."
+              bundle exec fastlane gym \
+                --archive_path output/ios/Runner.xcarchive \
+                --export_options ios/ExportOptions.plist \
+                --export_path output/ios/ \
+                --clean
+            else
+              echo "🔧 Using direct fastlane command..."
+              fastlane gym \
+                --archive_path output/ios/Runner.xcarchive \
+                --export_options ios/ExportOptions.plist \
+                --export_path output/ios/ \
+                --clean
+            fi
             
             # Check if export was successful
             if [ -f "output/ios/Runner.ipa" ]; then
@@ -639,6 +667,92 @@ workflows:
               echo "ℹ️ Archive not found, skipping fastlane export"
             elif [ ! -f "ios/ExportOptions.plist" ]; then
               echo "ℹ️ ExportOptions.plist not found, skipping fastlane export"
+            fi
+          fi
+
+      - name: Direct IPA Export (if archive exists)
+        script: |
+          # Check if archive exists and IPA doesn't
+          if [ -d "output/ios/Runner.xcarchive" ] && [ ! -f "output/ios/Runner.ipa" ] && [ -f "ios/ExportOptions.plist" ]; then
+            echo "🚀 Attempting direct IPA export with App Store Connect API..."
+            echo "📋 ExportOptions.plist contents:"
+            cat ios/ExportOptions.plist
+            
+            # Check if App Store Connect API credentials are available
+            if [[ -n "${APP_STORE_CONNECT_KEY_IDENTIFIER}" && -n "${APP_STORE_CONNECT_API_KEY_PATH}" && -n "${APP_STORE_CONNECT_ISSUER_ID}" ]]; then
+              echo "🔐 App Store Connect API credentials detected"
+              echo "   Key ID: ${APP_STORE_CONNECT_KEY_IDENTIFIER}"
+              echo "   Issuer ID: ${APP_STORE_CONNECT_ISSUER_ID}"
+              echo "   API Key Path: ${APP_STORE_CONNECT_API_KEY_PATH}"
+              
+              # Download API key if it's a URL
+              if [[ "${APP_STORE_CONNECT_API_KEY_PATH}" == http* ]]; then
+                echo "📥 Downloading API key from URL..."
+                API_KEY_PATH="/tmp/AuthKey.p8"
+                if curl -fsSL -o "${API_KEY_PATH}" "${APP_STORE_CONNECT_API_KEY_PATH}"; then
+                  echo "✅ API key downloaded to ${API_KEY_PATH}"
+                  
+                  # Try export with App Store Connect API authentication
+                  echo "🔐 Attempting export with App Store Connect API authentication..."
+                  xcodebuild -exportArchive \
+                    -archivePath output/ios/Runner.xcarchive \
+                    -exportPath output/ios/ \
+                    -exportOptionsPlist ios/ExportOptions.plist \
+                    -authenticationKeyPath "${API_KEY_PATH}" \
+                    -authenticationKeyID "${APP_STORE_CONNECT_KEY_IDENTIFIER}" \
+                    -authenticationKeyIssuerID "${APP_STORE_CONNECT_ISSUER_ID}"
+                  
+                  if [ -f "output/ios/Runner.ipa" ]; then
+                    echo "✅ Direct export with App Store Connect API successful!"
+                    echo "📊 IPA size: $(du -h output/ios/Runner.ipa | cut -f1)"
+                    echo "🎯 Profile Type: $PROFILE_TYPE"
+                    echo "📦 Ready for App Store Connect upload"
+                  else
+                    echo "⚠️ Direct export failed, but archive is still available"
+                  fi
+                else
+                  echo "❌ Failed to download API key, trying standard export..."
+                  xcodebuild -exportArchive \
+                    -archivePath output/ios/Runner.xcarchive \
+                    -exportPath output/ios/ \
+                    -exportOptionsPlist ios/ExportOptions.plist \
+                    -allowProvisioningUpdates
+                fi
+              else
+                echo "⚠️ API key path is not a URL, trying standard export..."
+                xcodebuild -exportArchive \
+                  -archivePath output/ios/Runner.xcarchive \
+                  -exportPath output/ios/ \
+                  -exportOptionsPlist ios/ExportOptions.plist \
+                  -allowProvisioningUpdates
+              fi
+            else
+              echo "ℹ️ App Store Connect API credentials not provided, trying standard export..."
+              xcodebuild -exportArchive \
+                -archivePath output/ios/Runner.xcarchive \
+                -exportPath output/ios/ \
+                -exportOptionsPlist ios/ExportOptions.plist \
+                -allowProvisioningUpdates
+            fi
+            
+            # Final check
+            if [ -f "output/ios/Runner.ipa" ]; then
+              echo "✅ IPA export completed successfully!"
+              echo "📊 IPA size: $(du -h output/ios/Runner.ipa | cut -f1)"
+              echo "📦 Ready for distribution"
+            else
+              echo "⚠️ All export attempts failed, but archive is available"
+              echo "📦 Archive available at: output/ios/Runner.xcarchive"
+              echo "🔧 Manual export command:"
+              echo "   xcodebuild -exportArchive -archivePath output/ios/Runner.xcarchive -exportPath output/ios/ -exportOptionsPlist ios/ExportOptions.plist"
+            fi
+          else
+            if [ ! -d "output/ios/Runner.xcarchive" ]; then
+              echo "ℹ️ Archive not found, skipping direct export"
+            elif [ -f "output/ios/Runner.ipa" ]; then
+              echo "ℹ️ IPA already exists, skipping direct export"
+            elif [ ! -f "ios/ExportOptions.plist" ]; then
+              echo "ℹ️ ExportOptions.plist not found, skipping direct export"
             fi
           fi
 
