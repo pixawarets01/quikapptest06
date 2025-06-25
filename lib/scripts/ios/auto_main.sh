@@ -316,6 +316,10 @@ setup_code_signing() {
         }
         api_key_path="$(pwd)/${api_key_file}"
         log "✅ API key file downloaded: ${api_key_path}"
+        
+        # Update the environment variable to use the local path
+        export APP_STORE_CONNECT_API_KEY_PATH="${api_key_path}"
+        log "🔧 Updated APP_STORE_CONNECT_API_KEY_PATH to local path: ${api_key_path}"
     fi
     
     # Create fastlane directory structure
