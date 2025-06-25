@@ -1099,6 +1099,18 @@ else
     exit 1
 fi
 
+# After archive creation, attempt to export IPA automatically
+if [ -d "output/ios/Runner.xcarchive" ] && [ -f "ios/ExportOptions.plist" ]; then
+    log "🚀 Attempting automatic IPA export using export_ipa.sh..."
+    if bash lib/scripts/ios/export_ipa.sh output/ios/Runner.xcarchive ios/ExportOptions.plist output/ios; then
+        log "✅ Automatic IPA export completed."
+    else
+        log "⚠️ Automatic IPA export failed. Manual export may be required."
+    fi
+else
+    log "⚠️ Archive or ExportOptions.plist not found, skipping automatic IPA export."
+fi
+
 # 📧 Send Success Email
 log "📧 Sending build success email..."
 
