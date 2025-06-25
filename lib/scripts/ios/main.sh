@@ -1383,4 +1383,17 @@ log "   Flutter Build (No Code Signing): ✅ Completed"
 log "   xcodebuild (With Code Signing): ✅ Completed"
 log "   Artifacts Directory: ${OUTPUT_DIR}"
 
+# --- Set iOS Project Name to App Name (for ios-workflow only) ---
+if [[ "${WORKFLOW_ID:-}" == "ios-workflow" && -n "${APP_NAME:-}" ]]; then
+    log "🔧 Setting iOS project name (CFBundleName) to: $APP_NAME"
+    INFO_PLIST_PATH="ios/Runner/Info.plist"
+    if [ -f "$INFO_PLIST_PATH" ]; then
+        /usr/libexec/PlistBuddy -c "Set :CFBundleName '$APP_NAME'" "$INFO_PLIST_PATH" || \
+        /usr/libexec/PlistBuddy -c "Add :CFBundleName string '$APP_NAME'" "$INFO_PLIST_PATH"
+        log "✅ iOS project name set to $APP_NAME in Info.plist"
+    else
+        log "⚠️ Info.plist not found at $INFO_PLIST_PATH, skipping project name update"
+    fi
+fi
+
 exit 0 
