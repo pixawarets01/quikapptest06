@@ -1306,11 +1306,15 @@ fi
 
 # Add ExportOptions.plist content for manual export
 if [ -f "ios/ExportOptions.plist" ]; then
-    echo "" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
-    echo "📋 ExportOptions.plist (for manual export):" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
-    echo "```xml" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
-    cat "ios/ExportOptions.plist" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt" 2>/dev/null || echo "   (ExportOptions.plist content could not be read)" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
-    echo "```" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+    {
+      echo ""
+      echo "📋 ExportOptions.plist (for manual export):"
+      echo '```xml'
+      if ! cat ios/ExportOptions.plist 2>/dev/null; then
+        echo "   (ExportOptions.plist content could not be read)"
+      fi
+      echo '```'
+    } >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
 fi
 
 # Add build environment information

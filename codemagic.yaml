@@ -633,14 +633,16 @@ workflows:
               bundle exec fastlane gym \
                 --archive_path output/ios/Runner.xcarchive \
                 --export_options ios/ExportOptions.plist \
-                --export_path output/ios/ \
+                --output_directory output/ios/ \
+                --output_name Runner.ipa \
                 --clean
             else
               echo "🔧 Using direct fastlane command..."
               fastlane gym \
                 --archive_path output/ios/Runner.xcarchive \
                 --export_options ios/ExportOptions.plist \
-                --export_path output/ios/ \
+                --output_directory output/ios/ \
+                --output_name Runner.ipa \
                 --clean
             fi
             
