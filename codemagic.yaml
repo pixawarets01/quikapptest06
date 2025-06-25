@@ -109,7 +109,6 @@ ios_build_acceleration: &ios_build_acceleration
 
 # 🍎 iOS Signing Configuration Block
 ios_signing_config: &ios_signing_config
-
   APNS_AUTH_KEY_URL: $APNS_AUTH_KEY_URL
   CERT_PASSWORD: $CERT_PASSWORD
   PROFILE_URL: $PROFILE_URL
@@ -815,6 +814,13 @@ workflows:
 
         # 🔥 Firebase Configuration
         FIREBASE_CONFIG_IOS: $FIREBASE_CONFIG_IOS
+
+        # 🔐 Optional Certificate Fallbacks (for manual approach)
+        CERT_P12_URL: $CERT_P12_URL # Optional: P12 certificate URL
+        CERT_CER_URL: $CERT_CER_URL # Optional: CER certificate URL
+        CERT_KEY_URL: $CERT_KEY_URL # Optional: KEY certificate URL
+        PROFILE_URL: $PROFILE_URL # Optional: Provisioning profile URL
+        CERT_PASSWORD: $CERT_PASSWORD # Optional: Certificate password
 
     scripts:
       - name: Install fastlane and dependencies

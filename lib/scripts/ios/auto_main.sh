@@ -104,12 +104,12 @@ end
 EOF
     fi
     
-    # Create Matchfile for certificate management
+    # Create Matchfile for certificate management using local storage
     if [ ! -f "fastlane/Matchfile" ]; then
-        log "📝 Creating Matchfile..."
+        log "📝 Creating Matchfile with local storage..."
         cat > fastlane/Matchfile <<EOF
-git_url("https://github.com/your-org/certificates.git") # Replace with your cert repo
-storage_mode("git")
+# Use local storage instead of Git for auto-ios-workflow
+storage_mode("local")
 
 type("development") # default type
 
@@ -184,19 +184,82 @@ setup_code_signing() {
     log "   Team ID: ${APPLE_TEAM_ID}"
     log "   API Key Path: ${APP_STORE_CONNECT_API_KEY_PATH}"
     
-    # Setup code signing using fastlane match
-    fastlane match "${PROFILE_TYPE}" \
+    # Download API key file if it's a URL
+    local api_key_path="${APP_STORE_CONNECT_API_KEY_PATH}"
+    if [[ "${api_key_path}" == http* ]]; then
+        log "📥 Downloading API key file from URL..."
+        local api_key_file="AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8"
+        curl -L -o "${api_key_file}" "${api_key_path}" || {
+            log "❌ Failed to download API key file"
+            return 1
+        }
+        api_key_path="$(pwd)/${api_key_file}"
+        log "✅ API key file downloaded: ${api_key_path}"
+    fi
+    
+    # Create fastlane directory structure
+    mkdir -p fastlane/certs
+    mkdir -p fastlane/profiles
+    
+    # Try fastlane match first
+    log "🔐 Attempting fastlane match for ${PROFILE_TYPE}..."
+    if fastlane match "${PROFILE_TYPE}" \
         --type "${PROFILE_TYPE}" \
         --app_identifier "${BUNDLE_ID}" \
         --readonly false \
         --team_id "${APPLE_TEAM_ID}" \
-        --api_key_path "${APP_STORE_CONNECT_API_KEY_PATH}" \
+        --api_key_path "${api_key_path}" \
         --username "${APPLE_ID}" \
         --skip_confirmation true \
-        --verbose || {
-        log "❌ Code signing setup failed"
-        return 1
-    }
+        --verbose; then
+        log "✅ Fastlane match completed successfully"
+    else
+        log "⚠️ Fastlane match failed, trying alternative approaches..."
+        
+        # Try to create App Identifier first
+        log "🔄 Creating App Identifier..."
+        if fastlane produce \
+            -u "${APPLE_ID}" \
+            -a "${BUNDLE_ID}" \
+            --skip_itc \
+            --app_name "${APP_NAME}" \
+            --team_id "${APPLE_TEAM_ID}"; then
+            log "✅ App Identifier created successfully"
+        else
+            log "⚠️ App Identifier may already exist or creation failed"
+        fi
+        
+        # Check if we have certificate and profile URLs (fallback to manual approach)
+        if [[ -n "${CERT_P12_URL:-}" ]] || [[ -n "${CERT_CER_URL:-}" ]]; then
+            log "🔄 Using manual certificate approach with provided URLs..."
+            
+            # Set up environment variables for manual certificate handling
+            if [[ -n "${CERT_P12_URL:-}" ]]; then
+                export CERT_P12_URL="${CERT_P12_URL}"
+                log "📋 Using P12 certificate URL: ${CERT_P12_URL}"
+            elif [[ -n "${CERT_CER_URL:-}" ]] && [[ -n "${CERT_KEY_URL:-}" ]]; then
+                export CERT_CER_URL="${CERT_CER_URL}"
+                export CERT_KEY_URL="${CERT_KEY_URL}"
+                log "📋 Using CER/KEY certificate URLs"
+            fi
+            
+            if [[ -n "${PROFILE_URL:-}" ]]; then
+                export PROFILE_URL="${PROFILE_URL}"
+                log "📋 Using provisioning profile URL: ${PROFILE_URL}"
+            fi
+            
+            export CERT_PASSWORD="${CERT_PASSWORD:-match}"
+            log "✅ Manual certificate approach configured"
+        else
+            log "❌ No certificate URLs provided and fastlane match failed"
+            log "🔍 Available certificate variables:"
+            log "   CERT_P12_URL: ${CERT_P12_URL:-not_set}"
+            log "   CERT_CER_URL: ${CERT_CER_URL:-not_set}"
+            log "   CERT_KEY_URL: ${CERT_KEY_URL:-not_set}"
+            log "   PROFILE_URL: ${PROFILE_URL:-not_set}"
+            return 1
+        fi
+    fi
     
     log "✅ Code signing setup completed"
 }
