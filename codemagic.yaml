@@ -705,12 +705,29 @@ workflows:
           echo "   xcodebuild (With Code Signing): ✅ Success"
 
     artifacts:
+      # 📱 IPA Files (Primary artifacts)
+      - output/ios/*.ipa
       - build/ios/ipa/*.ipa
-      - ios/build/ios/ipa/*.ipa
-      - output/ios/Runner.ipa
-      - output/ios/Runner.xcarchive
-      - build/ios/archive/Runner.xcarchive
+      - ios/build/*.ipa
+      - "*.ipa"
+
+      # 📦 Archive Files (When IPA export fails)
+      - output/ios/*.xcarchive
+      - build/ios/archive/*.xcarchive
+      - ios/build/*.xcarchive
+      - "*.xcarchive"
+
+      # 📋 Build Documentation
+      - output/ios/ARTIFACTS_SUMMARY.txt
+      - ios/ExportOptions.plist
+
+      # 📊 Build Logs
       - build/ios/logs/
+      - output/ios/logs/
+
+      # 🔧 Additional Build Artifacts
+      - output/ios/
+      - build/ios/
 
   combined:
     name: Universal Combined Build (Android + iOS)
@@ -850,15 +867,35 @@ workflows:
           done
 
     artifacts:
+      # 📱 Android Artifacts
       - build/app/outputs/flutter-apk/app-release.apk
       - build/app/outputs/bundle/release/app-release.aab
-      - build/ios/ipa/*.ipa
-      - ios/build/ios/ipa/*.ipa
       - output/android/app-release.apk
       - output/android/app-release.aab
-      - output/ios/Runner.ipa
-      - output/ios/Runner.xcarchive
-      - build/ios/archive/Runner.xcarchive
       - build/app/outputs/mapping/release/mapping.txt
+
+      # 📱 iOS IPA Files (Primary artifacts)
+      - output/ios/*.ipa
+      - build/ios/ipa/*.ipa
+      - ios/build/*.ipa
+      - "*.ipa"
+
+      # 📦 iOS Archive Files (When IPA export fails)
+      - output/ios/*.xcarchive
+      - build/ios/archive/*.xcarchive
+      - ios/build/*.xcarchive
+      - "*.xcarchive"
+
+      # 📋 Build Documentation
+      - output/ios/ARTIFACTS_SUMMARY.txt
+      - ios/ExportOptions.plist
+
+      # 📊 Build Logs
       - build/app/outputs/logs/
       - build/ios/logs/
+      - output/ios/logs/
+
+      # 🔧 Additional Build Artifacts
+      - output/android/
+      - output/ios/
+      - build/ios/

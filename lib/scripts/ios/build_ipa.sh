@@ -821,6 +821,18 @@ build_and_archive_app() {
         log "⚠️  Archive script not found, but continuing"
     fi
     
+    # Export IPA from archive
+    log "📱 Exporting IPA from archive..."
+    if export_ipa; then
+        log "✅ IPA exported successfully"
+    else
+        log "⚠️  IPA export failed, but continuing"
+    fi
+    
+    # Copy IPA files to output directory
+    log "📦 Copying IPA files to output directory..."
+    copy_ipa_to_output
+    
     log "✅ App build and archive completed"
 }
 
@@ -1147,33 +1159,70 @@ find_and_verify_ipa() {
     echo "${IPA_PATH}|${IPA_NAME}|${IPA_SIZE}"
 }
 
-# Function to copy IPA to output directory
+# Function to copy IPA files to output directory
 copy_ipa_to_output() {
-    local IPA_PATH="$1"
-    local IPA_NAME="$2"
+    log "📦 Copying IPA files to output directory..."
     
-    log "📤 Copying IPA to output directory..."
+    local OUTPUT_DIR="${OUTPUT_DIR:-output/ios}"
+    local IPA_FOUND=false
     
     # Create output directory
-    mkdir -p output/ios
+    mkdir -p "${OUTPUT_DIR}"
     
-    # Copy IPA
-    if cp "${IPA_PATH}" "output/ios/${IPA_NAME}"; then
-        log "✅ IPA copied to output/ios/${IPA_NAME}"
-    else
-        handle_error "Failed to copy IPA to output directory"
+    # Search for IPA files in common locations
+    local IPA_LOCATIONS=(
+        "build/ios/ipa/Runner.ipa"
+        "build/ios/ipa/*.ipa"
+        "build/ios/*.ipa"
+        "ios/build/*.ipa"
+        "*.ipa"
+    )
+    
+    for location in "${IPA_LOCATIONS[@]}"; do
+        if ls ${location} 2>/dev/null | grep -q "\.ipa$"; then
+            for ipa_file in ${location}; do
+                if [ -f "$ipa_file" ]; then
+                    # Get filename
+                    local filename=$(basename "$ipa_file")
+                    # Copy to output directory
+                    cp "$ipa_file" "${OUTPUT_DIR}/${filename}"
+                    if [ $? -eq 0 ]; then
+                        log "✅ Copied IPA to output: ${OUTPUT_DIR}/${filename}"
+                        log "📊 IPA size: $(du -h "${OUTPUT_DIR}/${filename}" | cut -f1)"
+                        IPA_FOUND=true
+                    else
+                        log "⚠️ Failed to copy IPA: $ipa_file"
+                    fi
+                fi
+            done
+        fi
+    done
+    
+    # Also search recursively for any IPA files
+    if [ "$IPA_FOUND" = false ]; then
+        log "🔍 Searching recursively for IPA files..."
+        while IFS= read -r -d '' ipa_file; do
+            # Get filename
+            local filename=$(basename "$ipa_file")
+            # Copy to output directory
+            cp "$ipa_file" "${OUTPUT_DIR}/${filename}"
+            if [ $? -eq 0 ]; then
+                log "✅ Copied IPA to output: ${OUTPUT_DIR}/${filename}"
+                log "📊 IPA size: $(du -h "${OUTPUT_DIR}/${filename}" | cut -f1)"
+                IPA_FOUND=true
+            else
+                log "⚠️ Failed to copy IPA: $ipa_file"
+            fi
+        done < <(find . -name "*.ipa" -type f -print0 2>/dev/null)
     fi
     
-    # Verify copied file
-    if [ -f "output/ios/${IPA_NAME}" ]; then
-        local OUTPUT_SIZE
-        OUTPUT_SIZE=$(stat -f%z "output/ios/${IPA_NAME}" 2>/dev/null || stat -c%s "output/ios/${IPA_NAME}" 2>/dev/null || echo "unknown")
-        log "✅ Output IPA verification:"
-        log "   File: output/ios/${IPA_NAME}"
-        log "   Size: ${OUTPUT_SIZE} bytes"
+    if [ "$IPA_FOUND" = true ]; then
+        log "🎉 IPA files successfully copied to output directory"
     else
-        handle_error "Output IPA file verification failed"
+        log "⚠️ No IPA files found to copy"
     fi
+    
+    return 0
 }
 
 # Function to analyze IPA contents

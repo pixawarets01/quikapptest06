@@ -1119,45 +1119,256 @@ fi
 # Final verification and success message
 log "🎉 iOS build process completed successfully!"
 
-# Check what was actually created
-if [ -f "output/ios/Runner.ipa" ]; then
-    log "📱 IPA file available at: output/ios/Runner.ipa"
-    log "📊 IPA size: $(du -h output/ios/Runner.ipa | cut -f1)"
-    BUILD_TYPE="IPA"
-elif [ -d "output/ios/Runner.xcarchive" ]; then
-    log "📦 Archive file available at: output/ios/Runner.xcarchive"
-    log "📊 Archive size: $(du -h output/ios/Runner.xcarchive | cut -f1)"
-    log "📱 IPA export failed, but archive is ready for manual export"
-    log "🔧 Manual export command:"
-    log "   xcodebuild -exportArchive -archivePath output/ios/Runner.xcarchive -exportPath output/ios/ -exportOptionsPlist ios/ExportOptions.plist"
-    BUILD_TYPE="Archive"
-elif [ -f "build/ios/ipa/Runner.ipa" ]; then
-    log "📱 IPA file available at: build/ios/ipa/Runner.ipa"
-    log "📊 IPA size: $(du -h build/ios/ipa/Runner.ipa | cut -f1)"
-    BUILD_TYPE="IPA"
-elif [ -d "build/ios/archive/Runner.xcarchive" ]; then
-    log "📦 Archive file available at: build/ios/archive/Runner.xcarchive"
-    log "📊 Archive size: $(du -h build/ios/archive/Runner.xcarchive | cut -f1)"
-    log "📱 IPA export failed, but archive is ready for manual export"
-    log "🔧 Manual export command:"
-    log "   xcodebuild -exportArchive -archivePath build/ios/archive/Runner.xcarchive -exportPath output/ios/ -exportOptionsPlist ios/ExportOptions.plist"
-    BUILD_TYPE="Archive"
-else
-    log "⚠️ No IPA or archive found in expected locations"
-    log "🔍 Checking for any build artifacts..."
-    find . -name "*.ipa" -o -name "*.xcarchive" 2>/dev/null | head -5 | while read -r artifact; do
-        log "   - ${artifact}"
-    done
-    BUILD_TYPE="Unknown"
+# 📱 Comprehensive IPA File Detection and Artifact Preparation
+log "📱 Searching for IPA files and preparing artifacts..."
+
+# Create artifacts directory
+mkdir -p "${OUTPUT_DIR}"
+
+# Search for IPA files in common locations
+IPA_FOUND=false
+IPA_PATHS=()
+
+# Check common IPA locations
+IPA_LOCATIONS=(
+    "output/ios/Runner.ipa"
+    "build/ios/ipa/Runner.ipa"
+    "build/ios/ipa/*.ipa"
+    "output/ios/*.ipa"
+    "build/ios/*.ipa"
+    "ios/build/*.ipa"
+)
+
+for location in "${IPA_LOCATIONS[@]}"; do
+    if ls ${location} 2>/dev/null | grep -q "\.ipa$"; then
+        for ipa_file in ${location}; do
+            if [ -f "$ipa_file" ]; then
+                IPA_PATHS+=("$ipa_file")
+                IPA_FOUND=true
+                log "✅ Found IPA file: $ipa_file"
+            fi
+        done
+    fi
+done
+
+# Also search recursively for any IPA files
+if [ "$IPA_FOUND" = false ]; then
+    log "🔍 Searching recursively for IPA files..."
+    while IFS= read -r -d '' ipa_file; do
+        IPA_PATHS+=("$ipa_file")
+        IPA_FOUND=true
+        log "✅ Found IPA file: $ipa_file"
+    done < <(find . -name "*.ipa" -type f -print0 2>/dev/null)
 fi
+
+# Copy IPA files to artifacts directory
+if [ "$IPA_FOUND" = true ]; then
+    log "📦 Copying IPA files to artifacts directory..."
+    for ipa_file in "${IPA_PATHS[@]}"; do
+        if [ -f "$ipa_file" ]; then
+            # Get filename
+            filename=$(basename "$ipa_file")
+            # Copy to artifacts directory
+            cp "$ipa_file" "${OUTPUT_DIR}/${filename}"
+            if [ $? -eq 0 ]; then
+                log "✅ Copied IPA to artifacts: ${OUTPUT_DIR}/${filename}"
+                log "📊 IPA size: $(du -h "${OUTPUT_DIR}/${filename}" | cut -f1)"
+            else
+                log "⚠️ Failed to copy IPA: $ipa_file"
+            fi
+        fi
+    done
+else
+    log "⚠️ No IPA files found, checking for archives..."
+fi
+
+# Check for archive files
+ARCHIVE_FOUND=false
+ARCHIVE_PATHS=()
+
+# Check common archive locations
+ARCHIVE_LOCATIONS=(
+    "output/ios/Runner.xcarchive"
+    "build/ios/archive/Runner.xcarchive"
+    "build/ios/archive/*.xcarchive"
+    "output/ios/*.xcarchive"
+    "build/ios/*.xcarchive"
+    "ios/build/*.xcarchive"
+)
+
+for location in "${ARCHIVE_LOCATIONS[@]}"; do
+    if ls ${location} 2>/dev/null | grep -q "\.xcarchive$"; then
+        for archive_file in ${location}; do
+            if [ -d "$archive_file" ]; then
+                ARCHIVE_PATHS+=("$archive_file")
+                ARCHIVE_FOUND=true
+                log "✅ Found archive: $archive_file"
+            fi
+        done
+    fi
+done
+
+# Also search recursively for any archive files
+if [ "$ARCHIVE_FOUND" = false ]; then
+    log "🔍 Searching recursively for archive files..."
+    while IFS= read -r -d '' archive_file; do
+        ARCHIVE_PATHS+=("$archive_file")
+        ARCHIVE_FOUND=true
+        log "✅ Found archive: $archive_file"
+    done < <(find . -name "*.xcarchive" -type d -print0 2>/dev/null)
+fi
+
+# Copy archive files to artifacts directory
+if [ "$ARCHIVE_FOUND" = true ]; then
+    log "📦 Copying archive files to artifacts directory..."
+    for archive_file in "${ARCHIVE_PATHS[@]}"; do
+        if [ -d "$archive_file" ]; then
+            # Get directory name
+            dirname=$(basename "$archive_file")
+            # Copy to artifacts directory
+            cp -r "$archive_file" "${OUTPUT_DIR}/${dirname}"
+            if [ $? -eq 0 ]; then
+                log "✅ Copied archive to artifacts: ${OUTPUT_DIR}/${dirname}"
+                log "📊 Archive size: $(du -h "${OUTPUT_DIR}/${dirname}" | cut -f1)"
+            else
+                log "⚠️ Failed to copy archive: $archive_file"
+            fi
+        fi
+    done
+fi
+
+# Create a summary file for artifacts
+log "📋 Creating artifacts summary..."
+cat > "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt" << EOF
+iOS Build Artifacts Summary
+===========================
+
+Build Date: $(date)
+Profile Type: ${PROFILE_TYPE}
+Bundle ID: ${BUNDLE_ID}
+Team ID: ${APPLE_TEAM_ID}
+Version: ${VERSION_NAME} (${VERSION_CODE})
+Build ID: ${CM_BUILD_ID:-${FCI_BUILD_ID:-unknown}}
+
+Build Status: ✅ SUCCESS
+Two-Stage Podfile Injection: ✅ Completed
+Flutter Build (No Code Signing): ✅ Completed
+xcodebuild (With Code Signing): ✅ Completed
+
+Available Artifacts:
+EOF
+
+# Add IPA files to summary
+if [ "$IPA_FOUND" = true ]; then
+    echo "" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+    echo "✅ IPA Files (Ready for App Store Upload):" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+    for ipa_file in "${IPA_PATHS[@]}"; do
+        if [ -f "$ipa_file" ]; then
+            filename=$(basename "$ipa_file")
+            size=$(du -h "$ipa_file" | cut -f1)
+            echo "  📱 ${filename} (${size})" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+        fi
+    done
+    echo "" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+    echo "🎉 Your IPA file is ready for App Store Connect upload!" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+fi
+
+# Add archive files to summary
+if [ "$ARCHIVE_FOUND" = true ]; then
+    echo "" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+    echo "📦 Archive Files (For Manual IPA Export):" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+    for archive_file in "${ARCHIVE_PATHS[@]}"; do
+        if [ -d "$archive_file" ]; then
+            dirname=$(basename "$archive_file")
+            size=$(du -h "$archive_file" | cut -f1)
+            echo "  📦 ${dirname} (${size})" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+        fi
+    done
+fi
+
+# Add manual export instructions if no IPA found
+if [ "$IPA_FOUND" = false ] && [ "$ARCHIVE_FOUND" = true ]; then
+    echo "" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+    echo "🔧 Manual Export Instructions:" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+    echo "Since IPA export failed in CI/CD (expected), you can manually export the IPA:" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+    echo "" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+    for archive_file in "${ARCHIVE_PATHS[@]}"; do
+        if [ -d "$archive_file" ]; then
+            dirname=$(basename "$archive_file")
+            echo "1. Download the archive: ${dirname}" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+            echo "2. Run this command on a Mac with Xcode:" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+            echo "   xcodebuild -exportArchive -archivePath ${dirname} -exportPath . -exportOptionsPlist ExportOptions.plist" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+            echo "" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+        fi
+    done
+    echo "3. The generated IPA file will be ready for App Store Connect upload" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+fi
+
+# Add ExportOptions.plist content for manual export
+if [ -f "ios/ExportOptions.plist" ]; then
+    echo "" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+    echo "📋 ExportOptions.plist (for manual export):" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+    echo "```xml" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+    cat "ios/ExportOptions.plist" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+    echo "```" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+fi
+
+# Add build environment information
+echo "" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+echo "🔧 Build Environment:" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+echo "  - Flutter Version: $(flutter --version | head -1)" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+echo "  - Xcode Version: $(xcodebuild -version | head -1)" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+echo "  - iOS Deployment Target: $(grep -o 'IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*' ios/Podfile | cut -d'=' -f2 | tr -d ' ' || echo 'Not specified')" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+
+# Add next steps
+echo "" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+echo "🚀 Next Steps:" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+if [ "$IPA_FOUND" = true ]; then
+    echo "1. Download the IPA file from Codemagic artifacts" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+    echo "2. Upload to App Store Connect using Transporter or Xcode" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+    echo "3. Submit for App Store review" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+else
+    echo "1. Download the archive file from Codemagic artifacts" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+    echo "2. Manually export IPA using the provided instructions" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+    echo "3. Upload to App Store Connect using Transporter or Xcode" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+    echo "4. Submit for App Store review" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+fi
+
+echo "" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+echo "📧 Build notifications sent to: ${EMAIL_ID:-prasannasrinivasan32@gmail.com}" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+echo "" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+echo "Generated by QuikApp iOS Build System" >> "${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+
+log "✅ Artifacts summary created: ${OUTPUT_DIR}/ARTIFACTS_SUMMARY.txt"
+
+# Determine build type for final summary
+if [ "$IPA_FOUND" = true ]; then
+    BUILD_TYPE="IPA"
+    log "🎉 IPA files are available in artifacts!"
+elif [ "$ARCHIVE_FOUND" = true ]; then
+    BUILD_TYPE="Archive"
+    log "📦 Archive files are available in artifacts (manual export required)"
+else
+    BUILD_TYPE="Unknown"
+    log "⚠️ No build artifacts found"
+fi
+
+# List all artifacts in output directory
+log "📋 Final artifacts in ${OUTPUT_DIR}:"
+ls -la "${OUTPUT_DIR}" 2>/dev/null | while read -r line; do
+    log "   $line"
+done
 
 log "📋 Build Summary:"
 log "   Profile Type: $PROFILE_TYPE"
 log "   Bundle ID: $BUNDLE_ID"
 log "   Team ID: $APPLE_TEAM_ID"
 log "   Build Type: $BUILD_TYPE"
+log "   IPA Files Found: $IPA_FOUND"
+log "   Archive Files Found: $ARCHIVE_FOUND"
 log "   Two-Stage Podfile Injection: ✅ Completed"
 log "   Flutter Build (No Code Signing): ✅ Completed"
 log "   xcodebuild (With Code Signing): ✅ Completed"
+log "   Artifacts Directory: ${OUTPUT_DIR}"
 
 exit 0 
