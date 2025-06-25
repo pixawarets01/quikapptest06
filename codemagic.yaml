@@ -592,11 +592,55 @@ workflows:
           fi
 
           echo "✅ Build process components validated"
-
+      - name: Setup Fastlane
+        script: |
+          echo "📦 Installing fastlane..."
+          gem install fastlane
+          fastlane --version
+          echo "✅ Fastlane setup completed"
       - name: Build iOS app
         script: |
           chmod +x lib/scripts/ios/main.sh
           ./lib/scripts/ios/main.sh
+
+      - name: Optional Fastlane Export (if available)
+        script: |
+          # Check if fastlane is available and IPA wasn't already created
+          if command -v fastlane &> /dev/null && [ ! -f "output/ios/Runner.ipa" ] && [ -d "output/ios/Runner.xcarchive" ] && [ -f "ios/ExportOptions.plist" ]; then
+            echo "🚀 Fastlane available - attempting alternative export..."
+            echo "📋 ExportOptions.plist contents:"
+            cat ios/ExportOptions.plist
+            
+            # Try fastlane gym export
+            bundle exec fastlane gym \
+              --archive_path output/ios/Runner.xcarchive \
+              --export_options ios/ExportOptions.plist \
+              --export_path output/ios/ \
+              --clean
+            
+            # Check if export was successful
+            if [ -f "output/ios/Runner.ipa" ]; then
+              echo "✅ Fastlane export successful!"
+              echo "📊 IPA size: $(du -h output/ios/Runner.ipa | cut -f1)"
+              echo "🎯 Profile Type: $PROFILE_TYPE"
+              echo "📦 Ready for distribution"
+            else
+              echo "⚠️ Fastlane export failed, but archive is still available"
+              echo "📦 Archive available at: output/ios/Runner.xcarchive"
+              echo "🔧 Manual export command:"
+              echo "   xcodebuild -exportArchive -archivePath output/ios/Runner.xcarchive -exportPath output/ios/ -exportOptionsPlist ios/ExportOptions.plist"
+            fi
+          else
+            if ! command -v fastlane &> /dev/null; then
+              echo "ℹ️ Fastlane not available, skipping fastlane export"
+            elif [ -f "output/ios/Runner.ipa" ]; then
+              echo "ℹ️ IPA already exists from main build, skipping fastlane export"
+            elif [ ! -d "output/ios/Runner.xcarchive" ]; then
+              echo "ℹ️ Archive not found, skipping fastlane export"
+            elif [ ! -f "ios/ExportOptions.plist" ]; then
+              echo "ℹ️ ExportOptions.plist not found, skipping fastlane export"
+            fi
+          fi
 
     artifacts:
       # 📱 IPA Files (Primary artifacts)

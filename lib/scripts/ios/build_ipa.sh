@@ -64,6 +64,11 @@ OUTPUT_DIR="${OUTPUT_DIR:-output/ios}"
 EXPORT_OPTIONS_PLIST="ios/ExportOptions.plist"
 APPLE_TEAM_ID="${APPLE_TEAM_ID:-}"
 
+# App Store Connect API variables (optional)
+APP_STORE_CONNECT_KEY_IDENTIFIER="${APP_STORE_CONNECT_KEY_IDENTIFIER:-}"
+APP_STORE_CONNECT_API_KEY_PATH="${APP_STORE_CONNECT_API_KEY_PATH:-}"
+APP_STORE_CONNECT_ISSUER_ID="${APP_STORE_CONNECT_ISSUER_ID:-}"
+
 # Function to validate build environment
 validate_build_environment() {
     log "🔍 Validating build environment..."
@@ -652,14 +657,54 @@ export_ipa() {
     # Create export directory
     mkdir -p "${EXPORT_PATH}"
     
+    # Check if App Store Connect API credentials are available
+    local use_app_store_connect_auth=false
+    local api_key_path=""
+    
+    if [[ -n "${APP_STORE_CONNECT_KEY_IDENTIFIER}" && -n "${APP_STORE_CONNECT_API_KEY_PATH}" && -n "${APP_STORE_CONNECT_ISSUER_ID}" ]]; then
+        log "🔐 App Store Connect API credentials detected"
+        log "   Key ID: ${APP_STORE_CONNECT_KEY_IDENTIFIER}"
+        log "   Issuer ID: ${APP_STORE_CONNECT_ISSUER_ID}"
+        log "   API Key Path: ${APP_STORE_CONNECT_API_KEY_PATH}"
+        
+        # Download API key if it's a URL
+        if [[ "${APP_STORE_CONNECT_API_KEY_PATH}" == http* ]]; then
+            log "📥 Downloading API key from URL..."
+            api_key_path="/tmp/AuthKey.p8"
+            if curl -fsSL -o "${api_key_path}" "${APP_STORE_CONNECT_API_KEY_PATH}"; then
+                log "✅ API key downloaded to ${api_key_path}"
+                use_app_store_connect_auth=true
+            else
+                log "❌ Failed to download API key from ${APP_STORE_CONNECT_API_KEY_PATH}"
+                log "⚠️ Continuing without App Store Connect authentication"
+            fi
+        elif [[ -f "${APP_STORE_CONNECT_API_KEY_PATH}" ]]; then
+            log "✅ API key file exists at ${APP_STORE_CONNECT_API_KEY_PATH}"
+            api_key_path="${APP_STORE_CONNECT_API_KEY_PATH}"
+            use_app_store_connect_auth=true
+        else
+            log "❌ API key file not found at ${APP_STORE_CONNECT_API_KEY_PATH}"
+            log "⚠️ Continuing without App Store Connect authentication"
+        fi
+    else
+        log "ℹ️ App Store Connect API credentials not provided, using standard export"
+    fi
+    
+    # Build xcodebuild command with optional authentication
+    local xcodebuild_cmd="xcodebuild -exportArchive -archivePath \"${ARCHIVE_PATH}\" -exportPath \"${EXPORT_PATH}\" -exportOptionsPlist \"${EXPORT_OPTIONS_PLIST}\""
+    
+    if [ "${use_app_store_connect_auth}" = true ]; then
+        xcodebuild_cmd="${xcodebuild_cmd} -authenticationKeyPath \"${api_key_path}\" -authenticationKeyID \"${APP_STORE_CONNECT_KEY_IDENTIFIER}\" -authenticationKeyIssuerID \"${APP_STORE_CONNECT_ISSUER_ID}\""
+        log "🔐 Using App Store Connect API authentication for export"
+    else
+        xcodebuild_cmd="${xcodebuild_cmd} -allowProvisioningUpdates"
+        log "🔐 Using standard export with provisioning updates"
+    fi
+    
     # Run export and capture output
     local export_output
-    export_output=$(xcodebuild \
-        -exportArchive \
-        -archivePath "${ARCHIVE_PATH}" \
-        -exportPath "${EXPORT_PATH}" \
-        -exportOptionsPlist "${EXPORT_OPTIONS_PLIST}" \
-        -allowProvisioningUpdates 2>&1)
+    log "🏗️ Running: ${xcodebuild_cmd}"
+    export_output=$(eval "${xcodebuild_cmd}" 2>&1)
     
     local export_exit_code=$?
     
@@ -717,12 +762,20 @@ export_ipa() {
             
             # Try export again
             log "🔄 Retrying export with regenerated ExportOptions.plist..."
-            export_output=$(xcodebuild \
-                -exportArchive \
-                -archivePath "${ARCHIVE_PATH}" \
-                -exportPath "${EXPORT_PATH}" \
-                -exportOptionsPlist "${EXPORT_OPTIONS_PLIST}" \
-                -allowProvisioningUpdates 2>&1)
+            
+            # Build retry command with same authentication logic
+            local retry_cmd="xcodebuild -exportArchive -archivePath \"${ARCHIVE_PATH}\" -exportPath \"${EXPORT_PATH}\" -exportOptionsPlist \"${EXPORT_OPTIONS_PLIST}\""
+            
+            if [ "${use_app_store_connect_auth}" = true ]; then
+                retry_cmd="${retry_cmd} -authenticationKeyPath \"${api_key_path}\" -authenticationKeyID \"${APP_STORE_CONNECT_KEY_IDENTIFIER}\" -authenticationKeyIssuerID \"${APP_STORE_CONNECT_ISSUER_ID}\""
+                log "🔐 Retrying with App Store Connect API authentication"
+            else
+                retry_cmd="${retry_cmd} -allowProvisioningUpdates"
+                log "🔐 Retrying with standard export"
+            fi
+            
+            log "🔄 Running retry: ${retry_cmd}"
+            export_output=$(eval "${retry_cmd}" 2>&1)
             
             export_exit_code=$?
             echo "${export_output}"
