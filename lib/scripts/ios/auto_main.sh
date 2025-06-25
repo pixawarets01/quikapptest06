@@ -434,6 +434,13 @@ inject_signing_assets() {
     # Handle certificate URLs for auto-ios-workflow
     log "🔐 Auto-ios-workflow detected - handling certificate setup..."
     
+    # Debug: Show current certificate URL values
+    log "🔍 Debug: Current certificate URL values:"
+    log "   CERT_P12_URL: '${CERT_P12_URL:-not_set}'"
+    log "   CERT_CER_URL: '${CERT_CER_URL:-not_set}'"
+    log "   CERT_KEY_URL: '${CERT_KEY_URL:-not_set}'"
+    log "   PROFILE_URL: '${PROFILE_URL:-not_set}'"
+    
     # If we have actual certificate URLs, use them
     if [[ -n "${CERT_P12_URL:-}" ]] && [[ "${CERT_P12_URL}" != "auto-generated" ]]; then
         log "📋 Using provided P12 certificate URL"
@@ -454,6 +461,13 @@ inject_signing_assets() {
         export CERT_CER_URL="auto-generated"
         export CERT_KEY_URL="auto-generated"
         export PROFILE_URL="auto-generated"
+        
+        # Debug: Show the auto-generated values
+        log "🔍 Debug: Set auto-generated values:"
+        log "   CERT_P12_URL: '${CERT_P12_URL}'"
+        log "   CERT_CER_URL: '${CERT_CER_URL}'"
+        log "   CERT_KEY_URL: '${CERT_KEY_URL}'"
+        log "   PROFILE_URL: '${PROFILE_URL}'"
     fi
     
     # Set environment variables for the main build script

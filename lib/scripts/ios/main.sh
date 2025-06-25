@@ -86,6 +86,16 @@ fi
 
 # 🔍 CRITICAL: Validate Environment Variables FIRST
 log "🔍 Validating environment variables..."
+
+# Debug: Show environment variables at the start of main.sh
+log "🔍 Debug: Environment variables in main.sh:"
+log "   WORKFLOW_ID: '${WORKFLOW_ID:-not_set}'"
+log "   PROFILE_URL: '${PROFILE_URL:-not_set}'"
+log "   CERT_P12_URL: '${CERT_P12_URL:-not_set}'"
+log "   CERT_CER_URL: '${CERT_CER_URL:-not_set}'"
+log "   CERT_KEY_URL: '${CERT_KEY_URL:-not_set}'"
+log "   BUNDLE_ID: '${BUNDLE_ID:-not_set}'"
+
 if ! validate_environment_variables; then
     log "❌ Environment variable validation failed"
     exit 1
@@ -317,6 +327,12 @@ fi
 
 # Provisioning Profile
 if [ -n "${PROFILE_URL:-}" ]; then
+    # Debug: Show the condition evaluation
+    log "🔍 Debug: Provisioning profile condition evaluation:"
+    log "   WORKFLOW_ID: '${WORKFLOW_ID:-not_set}'"
+    log "   PROFILE_URL: '${PROFILE_URL:-not_set}'"
+    log "   Condition: WORKFLOW_ID == 'auto-ios-workflow' && PROFILE_URL == 'auto-generated'"
+    
     # Check if this is auto-ios-workflow with auto-generated certificates
     if [[ "${WORKFLOW_ID}" == "auto-ios-workflow" ]] && [[ "${PROFILE_URL}" == "auto-generated" ]]; then
         log "🔐 Auto-ios-workflow detected with auto-generated certificates"
@@ -324,6 +340,7 @@ if [ -n "${PROFILE_URL:-}" ]; then
         log "✅ Certificate setup handled by auto-ios-workflow"
     else
         log "📱 Downloading Provisioning Profile..."
+        log "🔍 Downloading from URL: ${PROFILE_URL}"
         if curl -L --fail --silent --show-error --output "ios/certificates/profile.mobileprovision" "${PROFILE_URL}"; then
             log "✅ Provisioning profile downloaded successfully"
             # Install provisioning profile
