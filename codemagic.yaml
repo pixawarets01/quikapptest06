@@ -109,8 +109,7 @@ ios_build_acceleration: &ios_build_acceleration
 
 # 🍎 iOS Signing Configuration Block
 ios_signing_config: &ios_signing_config
-  APPLE_TEAM_ID: $APPLE_TEAM_ID
-  APNS_KEY_ID: $APNS_KEY_ID
+
   APNS_AUTH_KEY_URL: $APNS_AUTH_KEY_URL
   CERT_PASSWORD: $CERT_PASSWORD
   PROFILE_URL: $PROFILE_URL
@@ -121,6 +120,8 @@ ios_signing_config: &ios_signing_config
   APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
   APP_STORE_CONNECT_ISSUER_ID: $APP_STORE_CONNECT_ISSUER_ID
   APP_STORE_CONNECT_API_KEY_PATH: $APP_STORE_CONNECT_API_KEY_PATH
+  APPLE_TEAM_ID: $APPLE_TEAM_ID
+  APNS_KEY_ID: $APNS_KEY_ID
   IS_TESTFLIGHT: $IS_TESTFLIGHT
 
 # 📱 iOS Distribution Options Block
@@ -798,54 +799,53 @@ workflows:
         BUNDLE_ID: $BUNDLE_ID
         PROFILE_TYPE: $PROFILE_TYPE # app-store, ad-hoc, enterprise, development
         APPLE_ID: $APPLE_ID # Your Apple Developer email
-        FASTLANE_SESSION: $FASTLANE_SESSION # (optional, for 2FA)
-        MATCH_PASSWORD: $MATCH_PASSWORD # (if using encrypted repo)
-        MATCH_GIT_URL: $MATCH_GIT_URL # (private repo for certs/profiles)
-        APP_STORE_CONNECT_API_KEY_PATH: $APP_STORE_CONNECT_API_KEY_PATH # (for API auth)
-        # ...other vars as needed
+        APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        APP_STORE_CONNECT_API_KEY_PATH: $APP_STORE_CONNECT_API_KEY_PATH
+        APP_STORE_CONNECT_ISSUER_ID: $APP_STORE_CONNECT_ISSUER_ID
+        APPLE_TEAM_ID: $APPLE_TEAM_ID
+        APNS_KEY_ID: $APNS_KEY_ID
+        IS_TESTFLIGHT: $IS_TESTFLIGHT
+
+        # 🔧 Feature Flags
+        PUSH_NOTIFY: $PUSH_NOTIFY
+        IS_DOMAIN_URL: $IS_DOMAIN_URL
+        <<: *feature_flags
+        <<: *permissions
+        <<: *ui_config
+
+        # 🔥 Firebase Configuration
+        FIREBASE_CONFIG_IOS: $FIREBASE_CONFIG_IOS
 
     scripts:
       - name: Install fastlane and dependencies
         script: |
+          echo "🚀 Installing fastlane and dependencies..."
           gem install fastlane
           fastlane --version
+          echo "✅ Fastlane installation completed"
 
-      - name: Create App Identifier (if needed)
+      - name: Auto iOS Build with Dynamic Signing
         script: |
-          bundle install || true
-          bundle exec fastlane produce \
-            -u "$APPLE_ID" \
-            -a "$BUNDLE_ID" \
-            --skip_itc \
-            --app_name "$APP_NAME" \
-            --team_id "$APPLE_TEAM_ID" || echo "App identifier may already exist, continuing..."
+          echo "🚀 Starting Auto iOS Workflow with minimal variables..."
+          echo "📊 Build Environment:"
+          echo "  - Flutter: $(flutter --version | head -1)"
+          echo "  - Xcode: $(xcodebuild -version | head -1)"
+          echo "  - CocoaPods: $(pod --version)"
+          echo "  - Fastlane: $(fastlane --version | head -1)"
+          echo "  - Bundle ID: ${BUNDLE_ID}"
+          echo "  - Profile Type: ${PROFILE_TYPE}"
+          echo "  - App Name: ${APP_NAME}"
 
-      - name: Fetch or Create Certificate and Profile
-        script: |
-          # Use fastlane match for universal code signing
-          # You can use 'appstore', 'adhoc', 'development', or 'enterprise'
-          bundle exec fastlane match "$PROFILE_TYPE" \
-            --type "$PROFILE_TYPE" \
-            --app_identifier "$BUNDLE_ID" \
-            --readonly false \
-            --team_id "$APPLE_TEAM_ID" \
-            --git_url "$MATCH_GIT_URL" \
-            --username "$APPLE_ID" \
-            --api_key_path "$APP_STORE_CONNECT_API_KEY_PATH" \
-            --skip_confirmation true \
-            --verbose
+          # Enhanced error handling
+          set -euo pipefail
+          trap 'echo "❌ Error occurred at line $LINENO. Exit code: $?" >&2; exit 1' ERR
 
-      - name: Build and Export IPA (Universal)
-        script: |
-          # Set up environment variables for your main.sh
-          export PROFILE_TYPE="$PROFILE_TYPE"
-          export BUNDLE_ID="$BUNDLE_ID"
-          export APP_NAME="$APP_NAME"
-          export APPLE_TEAM_ID="$APPLE_TEAM_ID"
-          # ...add any other required exports
+          # Make scripts executable
+          chmod +x lib/scripts/ios/auto_main.sh
+          chmod +x lib/scripts/utils/*.sh
 
-          # Call your universal iOS build script
-          bash lib/scripts/ios/main.sh
+          # Run the auto iOS build script
+          bash lib/scripts/ios/auto_main.sh
 
     artifacts:
       - output/ios/*.ipa
