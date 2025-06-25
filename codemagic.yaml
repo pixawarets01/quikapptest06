@@ -741,9 +741,23 @@ workflows:
           echo "⚠️ fastlane gym failed or not available, trying xcodebuild fallback..."
           cd ../..  # Go back to project root if needed
 
+          # Download the API key file if it's a URL
+          if [[ "$APP_STORE_CONNECT_API_KEY_PATH" == http* ]]; then
+            echo "📥 Downloading API key from URL..."
+            API_KEY_PATH="/tmp/AuthKey.p8"
+            curl -fsSL -o "$API_KEY_PATH" "$APP_STORE_CONNECT_API_KEY_PATH"
+            if [[ ! -f "$API_KEY_PATH" ]]; then
+              echo "❌ Failed to download API key from $APP_STORE_CONNECT_API_KEY_PATH"
+              exit 1
+            fi
+            echo "✅ API key downloaded to $API_KEY_PATH"
+          else
+            API_KEY_PATH="$APP_STORE_CONNECT_API_KEY_PATH"
+          fi
+
           # Add App Store Connect API authentication for app-store profile
           echo "🔐 Using App Store Connect API authentication..."
-          echo "   Key Path: $APP_STORE_CONNECT_API_KEY_PATH"
+          echo "   Key Path: $API_KEY_PATH"
           echo "   Key ID: $APP_STORE_CONNECT_KEY_IDENTIFIER"
           echo "   Issuer ID: $APP_STORE_CONNECT_ISSUER_ID"
 
@@ -751,9 +765,9 @@ workflows:
             -archivePath output/ios/Runner.xcarchive \
             -exportPath output/ios/ \
             -exportOptionsPlist ios/ExportOptions.plist \
-            --authenticationKeyPath "$APP_STORE_CONNECT_API_KEY_PATH" \
-            --authenticationKeyID "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
-            --authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
+            -authenticationKeyPath "$API_KEY_PATH" \
+            -authenticationKeyID "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
+            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
 
           cd output/ios/
           ls -al
