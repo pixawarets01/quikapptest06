@@ -422,15 +422,58 @@ install_provisioning_profile() {
     local profile_path="ios/certificates/profile.mobileprovision"
     local profile_type="${PROFILE_TYPE:-app-store}"
     
+    # Check if profile exists, if not download it from PROFILE_URL
     if [ ! -f "$profile_path" ]; then
-        log "❌ Provisioning profile not found: $profile_path"
-        return 1
+        log "📥 Provisioning profile not found locally, downloading from PROFILE_URL..."
+        
+        # Check if this is auto-ios-workflow with auto-generated profile
+        if [[ "${WORKFLOW_ID:-}" == "auto-ios-workflow" ]] && [[ "${PROFILE_URL:-}" == "auto-generated" ]]; then
+            log "🔐 Auto-ios-workflow detected with auto-generated profile"
+            log "📋 Skipping manual profile download - using fastlane-generated profile"
+            log "✅ Profile setup handled by auto-ios-workflow"
+            return 0
+        fi
+        
+        # Check if PROFILE_URL is provided
+        if [ -z "${PROFILE_URL:-}" ]; then
+            log "❌ PROFILE_URL is not provided"
+            log "🔍 Available environment variables:"
+            env | grep -i profile || log "   No profile-related variables found"
+            return 1
+        fi
+        
+        # Ensure certificates directory exists
+        mkdir -p ios/certificates
+        
+        # Download provisioning profile
+        log "📥 Downloading provisioning profile from: ${PROFILE_URL}"
+        if curl -L --fail --silent --show-error --output "$profile_path" "${PROFILE_URL}"; then
+            log "✅ Provisioning profile downloaded successfully"
+            log "🔍 Profile file size: $(ls -lh "$profile_path" | awk '{print $5}')"
+        else
+            log "❌ Failed to download provisioning profile"
+            return 1
+        fi
+        
+        # Verify downloaded profile
+        if [ ! -s "$profile_path" ]; then
+            log "❌ Downloaded provisioning profile is empty"
+            return 1
+        fi
+        
+        log "✅ Provisioning profile downloaded and verified"
+    else
+        log "✅ Provisioning profile found locally: $profile_path"
     fi
     
     # Get profile UUID
     local profile_uuid=$(security cms -D -i "$profile_path" | plutil -extract UUID raw -)
     if [ -z "$profile_uuid" ]; then
         log "❌ Failed to extract profile UUID"
+        log "🔍 Attempting to debug profile file..."
+        file "$profile_path"
+        log "🔍 Profile file content (first 100 chars):"
+        head -c 100 "$profile_path" | xxd
         return 1
     fi
     

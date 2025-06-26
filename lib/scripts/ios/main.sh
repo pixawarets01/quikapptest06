@@ -327,30 +327,7 @@ fi
 
 # Provisioning Profile
 if [ -n "${PROFILE_URL:-}" ]; then
-    # Debug: Show the condition evaluation
-    log "🔍 Debug: Provisioning profile condition evaluation:"
-    log "   WORKFLOW_ID: '${WORKFLOW_ID:-not_set}'"
-    log "   PROFILE_URL: '${PROFILE_URL:-not_set}'"
-    log "   Condition: WORKFLOW_ID == 'auto-ios-workflow' && PROFILE_URL == 'auto-generated'"
-    
-    # Check if this is auto-ios-workflow with auto-generated certificates
-    if [[ "${WORKFLOW_ID}" == "auto-ios-workflow" ]] && [[ "${PROFILE_URL}" == "auto-generated" ]]; then
-        log "🔐 Auto-ios-workflow detected with auto-generated certificates"
-        log "📋 Skipping manual certificate download - using fastlane-generated certificates"
-        log "✅ Certificate setup handled by auto-ios-workflow"
-    else
-        log "📱 Downloading Provisioning Profile..."
-        log "🔍 Downloading from URL: ${PROFILE_URL}"
-        if curl -L --fail --silent --show-error --output "ios/certificates/profile.mobileprovision" "${PROFILE_URL}"; then
-            log "✅ Provisioning profile downloaded successfully"
-            # Install provisioning profile
-            cp ios/certificates/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
-            log "✅ Provisioning profile installed"
-        else
-            log "❌ Failed to download provisioning profile"
-            exit 1
-        fi
-    fi
+    log "📱 PROFILE_URL provided, provisioning profile download will be handled by code_signing.sh"
 else
     log "❌ No provisioning profile URL provided"
     exit 1
