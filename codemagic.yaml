@@ -1039,3 +1039,349 @@ workflows:
       - output/android/
       - output/ios/
       - build/ios/
+
+  ios-appstore:
+    name: iOS App Store Build (App Store Profile Only)
+    max_build_duration: 90
+    instance_type: mac_mini_m2
+    environment:
+      flutter: 3.32.2
+      java: 17
+      xcode: 15.4
+      cocoapods: 1.16.2
+      vars:
+        <<: *common_vars
+        <<: *ios_build_acceleration
+        <<: *app_config
+        WORKFLOW_ID: "ios-appstore"
+        BUNDLE_ID: $BUNDLE_ID
+        PROFILE_TYPE: "app-store" # Fixed to app-store only
+
+        # 🔧 Feature Flags
+        PUSH_NOTIFY: $PUSH_NOTIFY
+        IS_DOMAIN_URL: $IS_DOMAIN_URL
+        <<: *feature_flags
+        <<: *permissions
+        <<: *ui_config
+
+        # 🔥 Firebase Configuration
+        FIREBASE_CONFIG_IOS: $FIREBASE_CONFIG_IOS
+
+        # 🍎 iOS Signing Configuration (App Store Only)
+        <<: *ios_signing_config
+
+        # 📱 iOS Distribution Options
+        <<: *ios_distribution_options
+
+        # 🍎 iOS Development Options
+        <<: *ios_development_options
+
+        # 📧 Email Configuration (for notifications)
+        ENABLE_EMAIL_NOTIFICATIONS: $ENABLE_EMAIL_NOTIFICATIONS
+        EMAIL_SMTP_SERVER: $EMAIL_SMTP_SERVER
+        EMAIL_SMTP_PORT: $EMAIL_SMTP_PORT
+        EMAIL_SMTP_USER: $EMAIL_SMTP_USER
+        EMAIL_SMTP_PASS: $EMAIL_SMTP_PASS
+
+        # 🔧 Build Environment Variables
+        CM_BUILD_ID: $CM_BUILD_ID
+        CM_BUILD_DIR: $CM_BUILD_DIR
+        OUTPUT_DIR: "output/ios"
+
+    scripts:
+      - name: Pre-build Setup
+        script: |
+          echo "🚀 Starting iOS App Store Build with Enhanced Success Rate Optimizations..."
+          echo "📊 Build Environment:"
+          echo "  - Flutter: $(flutter --version | head -1)"
+          echo "  - Java: $(java -version 2>&1 | head -1)"
+          echo "  - Xcode: $(xcodebuild -version | head -1)"
+          echo "  - CocoaPods: $(pod --version)"
+          echo "  - Memory: $(sysctl -n hw.memsize | awk '{print $0/1024/1024/1024 " GB"}')"
+          echo "  - Profile Type: app-store (Fixed)"
+
+          # Enhanced error handling
+          set -euo pipefail
+          trap 'echo "❌ Error occurred at line $LINENO. Exit code: $?" >&2; exit 1' ERR
+
+          # Pre-build cleanup and optimization
+          echo "🧹 Pre-build cleanup..."
+          flutter clean
+          rm -rf ~/.gradle/caches/ 2>/dev/null || true
+          rm -rf .dart_tool/ 2>/dev/null || true
+          rm -rf ios/Pods/ 2>/dev/null || true
+          rm -rf ios/build/ 2>/dev/null || true
+
+          # Optimize Xcode
+          echo "⚡ Optimizing Xcode configuration..."
+          export XCODE_FAST_BUILD=true
+          export COCOAPODS_FAST_INSTALL=true
+
+          # Verify Firebase configuration
+          if [ -n "$FIREBASE_CONFIG_IOS" ]; then
+            echo "🔥 Firebase configuration detected"
+          else
+            echo "⚠️ No Firebase configuration provided"
+          fi
+
+          # Enhanced Firebase validation based on PUSH_NOTIFY
+          echo "🔍 Validating Firebase configuration..."
+          if [ "${PUSH_NOTIFY:-false}" = "true" ]; then
+            echo "🔔 Push notifications ENABLED - Firebase required"
+            if [ -z "$FIREBASE_CONFIG_IOS" ]; then
+              echo "❌ FIREBASE_CONFIG_IOS is required when PUSH_NOTIFY is true"
+              exit 1
+            else
+              echo "✅ Firebase configuration provided for push notifications"
+            fi
+          else
+            echo "🔕 Push notifications DISABLED - Firebase optional"
+            if [ -n "$FIREBASE_CONFIG_IOS" ]; then
+              echo "⚠️ Firebase configuration provided but PUSH_NOTIFY is false"
+              echo "   Firebase will be disabled during build"
+            fi
+          fi
+
+          # Verify iOS signing configuration
+          if [ -n "$CERT_PASSWORD" ] && [ -n "$PROFILE_URL" ]; then
+            echo "🔐 iOS signing configuration detected"
+          else
+            echo "⚠️ Incomplete iOS signing configuration"
+          fi
+
+          # App Store profile type validation
+          echo "🔍 Validating profile type: app-store"
+          if [ "$PROFILE_TYPE" != "app-store" ]; then
+            echo "❌ Invalid profile type for App Store workflow: $PROFILE_TYPE"
+            echo "   This workflow only supports app-store profile type"
+            exit 1
+          else
+            echo "✅ Valid App Store profile type: $PROFILE_TYPE"
+          fi
+
+          # Verify environment
+          echo "✅ Environment verification completed"
+
+          # Enhanced build process validation
+          echo "🔍 Validating build process components..."
+
+          # Get absolute path to project root
+          PROJECT_ROOT=$(pwd)
+          echo "📁 Project root: $PROJECT_ROOT"
+
+          # Check for required scripts with absolute paths
+          if [ -f "$PROJECT_ROOT/lib/scripts/ios/as_main.sh" ]; then
+            echo "✅ App Store build script found: $PROJECT_ROOT/lib/scripts/ios/as_main.sh"
+          else
+            echo "❌ App Store build script not found at: $PROJECT_ROOT/lib/scripts/ios/as_main.sh"
+            echo "📂 Checking directory contents:"
+            ls -la "$PROJECT_ROOT/lib/scripts/ios/" 2>/dev/null || echo "Directory not accessible"
+            exit 1
+          fi
+
+          if [ -f "$PROJECT_ROOT/lib/scripts/ios/firebase.sh" ]; then
+            echo "✅ Firebase script found: $PROJECT_ROOT/lib/scripts/ios/firebase.sh"
+          else
+            echo "❌ Firebase script not found at: $PROJECT_ROOT/lib/scripts/ios/firebase.sh"
+            exit 1
+          fi
+
+          if [ -f "$PROJECT_ROOT/lib/scripts/ios/generate_podfile.sh" ]; then
+            echo "✅ Podfile generator found: $PROJECT_ROOT/lib/scripts/ios/generate_podfile.sh"
+          else
+            echo "❌ Podfile generator not found at: $PROJECT_ROOT/lib/scripts/ios/generate_podfile.sh"
+            exit 1
+          fi
+
+          echo "✅ Build process components validated"
+
+      - name: Setup Fastlane
+        script: |
+          echo "📦 Installing fastlane..."
+          gem install fastlane
+          fastlane --version
+          echo "✅ Fastlane setup completed"
+
+      - name: Build iOS App Store App
+        script: |
+          chmod +x lib/scripts/ios/as_main.sh
+          ./lib/scripts/ios/as_main.sh
+
+      - name: Optional Fastlane Export (if available)
+        script: |
+          # Check if fastlane is available and IPA wasn't already created
+          if command -v fastlane &> /dev/null && [ ! -f "output/ios/Runner.ipa" ] && [ -d "output/ios/Runner.xcarchive" ] && [ -f "ios/ExportOptions.plist" ]; then
+            echo "🚀 Fastlane available - attempting alternative export..."
+            echo "📋 ExportOptions.plist contents:"
+            cat ios/ExportOptions.plist
+            
+            # Create basic Gemfile if it doesn't exist
+            if [ ! -f "Gemfile" ]; then
+              echo "📝 Creating basic Gemfile for fastlane..."
+              echo "source 'https://rubygems.org'" > Gemfile
+              echo "" >> Gemfile
+              echo "gem 'fastlane'" >> Gemfile
+              echo "gem 'cocoapods'" >> Gemfile
+              echo "✅ Gemfile created"
+            fi
+            
+            # Install fastlane if needed
+            if [ ! -d ".bundle" ]; then
+              echo "📦 Installing fastlane dependencies..."
+              bundle install --path .bundle || echo "⚠️ Bundle install failed, trying without bundle"
+            fi
+            
+            # Try fastlane gym export
+            if [ -d ".bundle" ]; then
+              echo "🔧 Using bundle exec for fastlane..."
+              bundle exec fastlane gym \
+                --archive_path output/ios/Runner.xcarchive \
+                --export_options ios/ExportOptions.plist \
+                --output_directory output/ios/ \
+                --output_name Runner.ipa \
+                --clean
+            else
+              echo "🔧 Using direct fastlane command..."
+              fastlane gym \
+                --archive_path output/ios/Runner.xcarchive \
+                --export_options ios/ExportOptions.plist \
+                --output_directory output/ios/ \
+                --output_name Runner.ipa \
+                --clean
+            fi
+            
+            # Check if export was successful
+            if [ -f "output/ios/Runner.ipa" ]; then
+              echo "✅ Fastlane export successful!"
+              echo "📊 IPA size: $(du -h output/ios/Runner.ipa | cut -f1)"
+              echo "🎯 Profile Type: app-store"
+              echo "📦 Ready for App Store Connect upload"
+            else
+              echo "⚠️ Fastlane export failed, but archive is still available"
+              echo "📦 Archive available at: output/ios/Runner.xcarchive"
+              echo "🔧 Manual export command:"
+              echo "   xcodebuild -exportArchive -archivePath output/ios/Runner.xcarchive -exportPath output/ios/ -exportOptionsPlist ios/ExportOptions.plist"
+            fi
+          else
+            if ! command -v fastlane &> /dev/null; then
+              echo "ℹ️ Fastlane not available, skipping fastlane export"
+            elif [ -f "output/ios/Runner.ipa" ]; then
+              echo "ℹ️ IPA already exists from main build, skipping fastlane export"
+            elif [ ! -d "output/ios/Runner.xcarchive" ]; then
+              echo "ℹ️ Archive not found, skipping fastlane export"
+            elif [ ! -f "ios/ExportOptions.plist" ]; then
+              echo "ℹ️ ExportOptions.plist not found, skipping fastlane export"
+            fi
+          fi
+
+      - name: Direct IPA Export (if archive exists)
+        script: |
+          # Check if archive exists and IPA doesn't
+          if [ -d "output/ios/Runner.xcarchive" ] && [ ! -f "output/ios/Runner.ipa" ] && [ -f "ios/ExportOptions.plist" ]; then
+            echo "🚀 Attempting direct IPA export with App Store Connect API..."
+            echo "📋 ExportOptions.plist contents:"
+            cat ios/ExportOptions.plist
+            
+            # Check if App Store Connect API credentials are available
+            if [[ -n "${APP_STORE_CONNECT_KEY_IDENTIFIER}" && -n "${APP_STORE_CONNECT_API_KEY_PATH}" && -n "${APP_STORE_CONNECT_ISSUER_ID}" ]]; then
+              echo "🔐 App Store Connect API credentials detected"
+              echo "   Key ID: ${APP_STORE_CONNECT_KEY_IDENTIFIER}"
+              echo "   Issuer ID: ${APP_STORE_CONNECT_ISSUER_ID}"
+              echo "   API Key Path: ${APP_STORE_CONNECT_API_KEY_PATH}"
+              
+              # Download API key if it's a URL
+              if [[ "${APP_STORE_CONNECT_API_KEY_PATH}" == http* ]]; then
+                echo "📥 Downloading API key from URL..."
+                API_KEY_PATH="/tmp/AuthKey.p8"
+                if curl -fsSL -o "${API_KEY_PATH}" "${APP_STORE_CONNECT_API_KEY_PATH}"; then
+                  echo "✅ API key downloaded to ${API_KEY_PATH}"
+                  
+                  # Try export with App Store Connect API authentication
+                  echo "🔐 Attempting export with App Store Connect API authentication..."
+                  xcodebuild -exportArchive \
+                    -archivePath output/ios/Runner.xcarchive \
+                    -exportPath output/ios/ \
+                    -exportOptionsPlist ios/ExportOptions.plist \
+                    -authenticationKeyPath "${API_KEY_PATH}" \
+                    -authenticationKeyID "${APP_STORE_CONNECT_KEY_IDENTIFIER}" \
+                    -authenticationKeyIssuerID "${APP_STORE_CONNECT_ISSUER_ID}"
+                  
+                  if [ -f "output/ios/Runner.ipa" ]; then
+                    echo "✅ Direct export with App Store Connect API successful!"
+                    echo "📊 IPA size: $(du -h output/ios/Runner.ipa | cut -f1)"
+                    echo "🎯 Profile Type: app-store"
+                    echo "📦 Ready for App Store Connect upload"
+                  else
+                    echo "⚠️ Direct export failed, but archive is still available"
+                  fi
+                else
+                  echo "❌ Failed to download API key, trying standard export..."
+                  xcodebuild -exportArchive \
+                    -archivePath output/ios/Runner.xcarchive \
+                    -exportPath output/ios/ \
+                    -exportOptionsPlist ios/ExportOptions.plist \
+                    -allowProvisioningUpdates
+                fi
+              else
+                echo "⚠️ API key path is not a URL, trying standard export..."
+                xcodebuild -exportArchive \
+                  -archivePath output/ios/Runner.xcarchive \
+                  -exportPath output/ios/ \
+                  -exportOptionsPlist ios/ExportOptions.plist \
+                  -allowProvisioningUpdates
+              fi
+            else
+              echo "ℹ️ App Store Connect API credentials not provided, trying standard export..."
+              xcodebuild -exportArchive \
+                -archivePath output/ios/Runner.xcarchive \
+                -exportPath output/ios/ \
+                -exportOptionsPlist ios/ExportOptions.plist \
+                -allowProvisioningUpdates
+            fi
+            
+            # Final check
+            if [ -f "output/ios/Runner.ipa" ]; then
+              echo "✅ IPA export completed successfully!"
+              echo "📊 IPA size: $(du -h output/ios/Runner.ipa | cut -f1)"
+              echo "📦 Ready for App Store Connect upload"
+            else
+              echo "⚠️ All export attempts failed, but archive is available"
+              echo "📦 Archive available at: output/ios/Runner.xcarchive"
+              echo "🔧 Manual export command:"
+              echo "   xcodebuild -exportArchive -archivePath output/ios/Runner.xcarchive -exportPath output/ios/ -exportOptionsPlist ios/ExportOptions.plist"
+            fi
+          else
+            if [ ! -d "output/ios/Runner.xcarchive" ]; then
+              echo "ℹ️ Archive not found, skipping direct export"
+            elif [ -f "output/ios/Runner.ipa" ]; then
+              echo "ℹ️ IPA already exists, skipping direct export"
+            elif [ ! -f "ios/ExportOptions.plist" ]; then
+              echo "ℹ️ ExportOptions.plist not found, skipping direct export"
+            fi
+          fi
+
+    artifacts:
+      # 📱 IPA Files (Primary artifacts)
+      - output/ios/*.ipa
+      - build/ios/ipa/*.ipa
+      - ios/build/*.ipa
+      - "*.ipa"
+
+      # 📦 Archive Files (When IPA export fails)
+      - output/ios/*.xcarchive
+      - build/ios/archive/*.xcarchive
+      - ios/build/*.xcarchive
+      - "*.xcarchive"
+
+      # 📋 Build Documentation
+      - output/ios/ARTIFACTS_SUMMARY.txt
+      - ios/ExportOptions.plist
+
+      # 📊 Build Logs
+      - build/ios/logs/
+      - output/ios/logs/
+
+      # 🔧 Additional Build Artifacts
+      - output/ios/
+      - build/ios/
+
