@@ -519,120 +519,23 @@ fi
 log "🔧 Updating Xcode project bundle identifier..."
 PROJECT_FILE="ios/Runner.xcodeproj/project.pbxproj"
 
-# Backup the project file
-cp "$PROJECT_FILE" "${PROJECT_FILE}.bundle_backup"
-log "✅ Project file backed up"
-
-# Update PRODUCT_BUNDLE_IDENTIFIER for all configurations and targets
-# First, let's see what we're working with
-log "🔍 Current PRODUCT_BUNDLE_IDENTIFIER entries in project file:"
-grep -n "PRODUCT_BUNDLE_IDENTIFIER" "$PROJECT_FILE" || log "   No PRODUCT_BUNDLE_IDENTIFIER found"
-
-# Update main app bundle identifier (com.example.quikapptest06)
-if sed -i.bak \
-    -e 's/PRODUCT_BUNDLE_IDENTIFIER = com\.example\.quikapptest06;/PRODUCT_BUNDLE_IDENTIFIER = "'"$BUNDLE_ID"'";/g' \
-    "$PROJECT_FILE"; then
-    log "✅ Main app bundle identifier updated to: $BUNDLE_ID"
+# Use the dedicated bundle ID update script
+if [ -f "lib/scripts/ios/update_bundle_id.sh" ]; then
+    chmod +x lib/scripts/ios/update_bundle_id.sh
+    if ./lib/scripts/ios/update_bundle_id.sh "$PROJECT_FILE" "$BUNDLE_ID"; then
+        log "✅ Bundle ID update completed successfully using dedicated script"
+    else
+        log "❌ Bundle ID update failed"
+        exit 1
+    fi
 else
-    log "❌ Failed to update main app bundle identifier"
-    # Restore backup
-    mv "${PROJECT_FILE}.bundle_backup" "$PROJECT_FILE"
+    log "❌ Bundle ID update script not found"
     exit 1
-fi
-
-# Update test target bundle identifier (com.example.quikapptest06.RunnerTests)
-TEST_BUNDLE_ID="${BUNDLE_ID}.RunnerTests"
-if sed -i.bak \
-    -e 's/PRODUCT_BUNDLE_IDENTIFIER = com\.example\.quikapptest06\.RunnerTests;/PRODUCT_BUNDLE_IDENTIFIER = "'"$TEST_BUNDLE_ID"'";/g' \
-    "$PROJECT_FILE"; then
-    log "✅ Test target bundle identifier updated to: $TEST_BUNDLE_ID"
-else
-    log "⚠️ Failed to update test target bundle identifier (this might be expected if test target doesn't exist)"
-fi
-
-# Also try to update any other variations that might exist
-if sed -i.bak \
-    -e 's/PRODUCT_BUNDLE_IDENTIFIER = "[^"]*quikapptest06[^"]*";/PRODUCT_BUNDLE_IDENTIFIER = "'"$BUNDLE_ID"'";/g' \
-    "$PROJECT_FILE"; then
-    log "✅ Additional bundle identifier patterns updated"
-else
-    log "⚠️ No additional bundle identifier patterns found to update"
 fi
 
 # Verify the changes
 log "🔍 Verifying bundle ID updates..."
 INFO_PLIST_BUNDLE_ID=$(plutil -extract CFBundleIdentifier raw ios/Runner/Info.plist 2>/dev/null || echo "")
-
-# Function to extract bundle ID from Xcode project file
-extract_bundle_id_from_project() {
-    local project_file="$1"
-    local bundle_id=""
-    
-    log "🔍 Extracting bundle ID from project file: $project_file"
-    
-    # Method 1: Handle both quoted and unquoted bundle IDs with sed
-    bundle_id=$(grep 'PRODUCT_BUNDLE_IDENTIFIER' "$project_file" 2>/dev/null | grep -v "RunnerTests" | head -1 | sed -n 's/.*PRODUCT_BUNDLE_IDENTIFIER[[:space:]]*=[[:space:]]*"*\([^";]*\)"*;.*/\1/p' 2>/dev/null || echo "")
-    
-    # Method 2: awk fallback for quoted bundle IDs
-    if [[ -z "$bundle_id" ]]; then
-        log "🔍 Method 1 failed, trying awk for quoted bundle IDs..."
-        bundle_id=$(awk '/PRODUCT_BUNDLE_IDENTIFIER/ && !/RunnerTests/ {match($0, /PRODUCT_BUNDLE_IDENTIFIER[[:space:]]*=[[:space:]]*"([^"]*)"/, arr); if (arr[1] != "") print arr[1]; exit}' "$project_file" 2>/dev/null || echo "")
-    fi
-    
-    # Method 3: awk fallback for unquoted bundle IDs
-    if [[ -z "$bundle_id" ]]; then
-        log "🔍 Method 2 failed, trying awk for unquoted bundle IDs..."
-        bundle_id=$(awk '/PRODUCT_BUNDLE_IDENTIFIER/ && !/RunnerTests/ {match($0, /PRODUCT_BUNDLE_IDENTIFIER[[:space:]]*=[[:space:]]*([^;]*);/, arr); if (arr[1] != "") {gsub(/^[[:space:]]+|[[:space:]]+$/, "", arr[1]); print arr[1]}; exit}' "$project_file" 2>/dev/null || echo "")
-    fi
-    
-    # Method 4: grep + sed combination for quoted bundle IDs
-    if [[ -z "$bundle_id" ]]; then
-        log "🔍 Method 3 failed, trying grep + sed for quoted bundle IDs..."
-        bundle_id=$(grep 'PRODUCT_BUNDLE_IDENTIFIER' "$project_file" 2>/dev/null | grep -v "RunnerTests" | head -1 | grep -o '"[^"]*"' | head -1 | sed 's/"//g' 2>/dev/null || echo "")
-    fi
-    
-    # Method 5: Simple extraction for unquoted bundle IDs
-    if [[ -z "$bundle_id" ]]; then
-        log "🔍 Method 4 failed, trying simple extraction for unquoted bundle IDs..."
-        bundle_id=$(grep 'PRODUCT_BUNDLE_IDENTIFIER' "$project_file" 2>/dev/null | grep -v "RunnerTests" | head -1 | sed 's/.*PRODUCT_BUNDLE_IDENTIFIER[[:space:]]*=[[:space:]]*\([^;]*\);.*/\1/' | xargs 2>/dev/null || echo "")
-    fi
-    
-    # Clean up the extracted bundle ID
-    if [[ -n "$bundle_id" ]]; then
-        # Remove any whitespace and ensure it's just the bundle ID
-        bundle_id=$(echo "$bundle_id" | xargs)
-        
-        # If it still contains the full line structure, extract just the bundle ID
-        if [[ "$bundle_id" == *"PRODUCT_BUNDLE_IDENTIFIER"* ]]; then
-            bundle_id=$(echo "$bundle_id" | sed -n 's/.*PRODUCT_BUNDLE_IDENTIFIER[[:space:]]*=[[:space:]]*"*\([^";]*\)"*;.*/\1/p')
-        fi
-        
-        # Final cleanup - remove any remaining quotes
-        bundle_id=$(echo "$bundle_id" | sed 's/^"*\|"*$//g')
-    fi
-    
-    log "🔍 Extracted bundle ID: '$bundle_id'"
-    echo "$bundle_id"
-}
-
-# More robust project bundle ID extraction - specifically look for main app bundle ID
-PROJECT_BUNDLE_ID=$(extract_bundle_id_from_project "$PROJECT_FILE")
-
-log "🔍 Verification Debug Info:"
-log "   Expected BUNDLE_ID: $BUNDLE_ID"
-log "   Info.plist CFBundleIdentifier: $INFO_PLIST_BUNDLE_ID"
-log "   Xcode project PRODUCT_BUNDLE_IDENTIFIER (main app): $PROJECT_BUNDLE_ID"
-log "   Project file exists: $([ -f "$PROJECT_FILE" ] && echo 'yes' || echo 'no')"
-
-# Debug: Show the raw extraction process
-log "🔍 Bundle ID Extraction Debug:"
-log "   Raw grep output:"
-grep 'PRODUCT_BUNDLE_IDENTIFIER' "$PROJECT_FILE" 2>/dev/null | grep -v "RunnerTests" | head -1 || log "   No PRODUCT_BUNDLE_IDENTIFIER found"
-log "   Final extracted PROJECT_BUNDLE_ID: '$PROJECT_BUNDLE_ID'"
-
-# Show all PRODUCT_BUNDLE_IDENTIFIER entries for debugging
-log "🔍 All PRODUCT_BUNDLE_IDENTIFIER entries in project file:"
-grep -n "PRODUCT_BUNDLE_IDENTIFIER" "$PROJECT_FILE" 2>/dev/null || log "   No PRODUCT_BUNDLE_IDENTIFIER found"
 
 # Verify Info.plist bundle ID
 if [ "$INFO_PLIST_BUNDLE_ID" = "$BUNDLE_ID" ]; then
@@ -644,46 +547,10 @@ else
     exit 1
 fi
 
-# Verify Xcode project bundle ID (with more lenient checking)
-if [ -n "$PROJECT_BUNDLE_ID" ] && [ "$PROJECT_BUNDLE_ID" != "\$(TARGET_NAME)" ]; then
-    # Clean up the extracted bundle ID for comparison
-    CLEAN_PROJECT_BUNDLE_ID=$(echo "$PROJECT_BUNDLE_ID" | xargs)
-    
-    log "🔍 Bundle ID Comparison:"
-    log "   Expected: '$BUNDLE_ID'"
-    log "   Extracted: '$CLEAN_PROJECT_BUNDLE_ID'"
-    
-    if [ "$CLEAN_PROJECT_BUNDLE_ID" = "$BUNDLE_ID" ]; then
-        log "✅ Xcode project bundle ID verified: $CLEAN_PROJECT_BUNDLE_ID"
-    else
-        log "⚠️ Xcode project bundle ID mismatch: expected '$BUNDLE_ID', got '$CLEAN_PROJECT_BUNDLE_ID'"
-        log "🔍 Debug: Project file content around PRODUCT_BUNDLE_IDENTIFIER:"
-        grep -A2 -B2 "PRODUCT_BUNDLE_IDENTIFIER" "$PROJECT_FILE" 2>/dev/null | head -10 || log "   Could not find PRODUCT_BUNDLE_IDENTIFIER in project file"
-        
-        # Try to extract the bundle ID one more time with a different method
-        log "🔍 Attempting alternative bundle ID extraction..."
-        ALTERNATIVE_BUNDLE_ID=$(grep 'PRODUCT_BUNDLE_IDENTIFIER' "$PROJECT_FILE" 2>/dev/null | grep -v "RunnerTests" | head -1 | sed 's/.*PRODUCT_BUNDLE_IDENTIFIER[[:space:]]*=[[:space:]]*"*\([^";]*\)"*;.*/\1/' | xargs 2>/dev/null || echo "")
-        log "   Alternative extraction result: '$ALTERNATIVE_BUNDLE_ID'"
-        
-        if [ "$ALTERNATIVE_BUNDLE_ID" = "$BUNDLE_ID" ]; then
-            log "✅ Alternative extraction successful: $ALTERNATIVE_BUNDLE_ID"
-        else
-            log "⚠️ Alternative extraction also failed"
-            log "🔍 Since Info.plist bundle ID is correct, continuing with build"
-            log "🔍 Xcode project bundle ID verification will be skipped"
-        fi
-    fi
-else
-    log "⚠️ Could not extract Xcode project bundle ID or found variable reference, but Info.plist was updated successfully"
-    log "🔍 This might be acceptable if the project file uses variable references"
-    log "🔍 Continuing with build since Info.plist bundle ID is correct"
-fi
-
 log "✅ Bundle ID update completed successfully"
 log "📋 Final Bundle ID Configuration:"
 log "   Environment BUNDLE_ID: ${BUNDLE_ID}"
 log "   Info.plist CFBundleIdentifier: ${INFO_PLIST_BUNDLE_ID}"
-log "   Xcode project PRODUCT_BUNDLE_IDENTIFIER (main app): ${PROJECT_BUNDLE_ID}"
 
 # 🔍 CRITICAL: Validate Bundle ID matches Provisioning Profile
 log "🔍 Validating Bundle ID matches Provisioning Profile..."
