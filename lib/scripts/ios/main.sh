@@ -491,8 +491,8 @@ else
     exit 1
 fi
 
-# 🔧 CRITICAL: Update Bundle ID from Codemagic Environment Variables
-log "🔧 Updating Bundle ID from Codemagic environment variables..."
+# 🔍 CRITICAL: Validate Bundle ID matches Provisioning Profile BEFORE any updates
+log "🔍 Validating Bundle ID matches Provisioning Profile..."
 
 # Validate BUNDLE_ID environment variable
 if [ -z "${BUNDLE_ID:-}" ]; then
@@ -502,6 +502,61 @@ if [ -z "${BUNDLE_ID:-}" ]; then
     exit 1
 fi
 
+# Extract bundle ID from provisioning profile
+PROFILE_BUNDLE_ID=""
+if [ -f "ios/certificates/profile.mobileprovision" ]; then
+    log "🔍 Extracting bundle ID from provisioning profile..."
+    
+    # Extract bundle ID using security command
+    PROFILE_BUNDLE_ID=$(security cms -D -i ios/certificates/profile.mobileprovision 2>/dev/null | plutil -extract Entitlements.application-identifier raw - 2>/dev/null | sed 's/^[^.]*\.//' 2>/dev/null || echo "")
+    
+    # If that method failed, try alternative extraction
+    if [ -z "$PROFILE_BUNDLE_ID" ]; then
+        PROFILE_BUNDLE_ID=$(security cms -D -i ios/certificates/profile.mobileprovision 2>/dev/null | grep -o 'application-identifier.*' | head -1 | sed 's/.*<string>\([^<]*\)<\/string>.*/\1/' | sed 's/^[^.]*\.//' 2>/dev/null || echo "")
+    fi
+    
+    # If still empty, try one more method
+    if [ -z "$PROFILE_BUNDLE_ID" ]; then
+        PROFILE_BUNDLE_ID=$(security cms -D -i ios/certificates/profile.mobileprovision 2>/dev/null | grep -A1 -B1 "application-identifier" | grep "<string>" | head -1 | sed 's/.*<string>\([^<]*\)<\/string>.*/\1/' | sed 's/^[^.]*\.//' 2>/dev/null || echo "")
+    fi
+    
+    log "🔍 Bundle ID extracted from provisioning profile: $PROFILE_BUNDLE_ID"
+else
+    log "❌ Provisioning profile not found at ios/certificates/profile.mobileprovision"
+    log "🔍 Available files in ios/certificates/:"
+    ls -la ios/certificates/ 2>/dev/null || log "   Directory not accessible"
+    exit 1
+fi
+
+# Validate bundle ID match and auto-correct if needed BEFORE any updates
+if [ -n "$PROFILE_BUNDLE_ID" ]; then
+    log "🔍 Bundle ID Comparison:"
+    log "   Environment BUNDLE_ID: $BUNDLE_ID"
+    log "   Provisioning Profile Bundle ID: $PROFILE_BUNDLE_ID"
+    
+    if [ "$BUNDLE_ID" = "$PROFILE_BUNDLE_ID" ]; then
+        log "✅ Bundle ID match verified: $BUNDLE_ID"
+        log "✅ Provisioning profile is compatible with app bundle ID"
+    else
+        log "⚠️ Bundle ID mismatch detected!"
+        log "⚠️ Environment BUNDLE_ID ($BUNDLE_ID) does not match provisioning profile bundle ID ($PROFILE_BUNDLE_ID)"
+        log "🔧 Auto-correcting: Using provisioning profile bundle ID ($PROFILE_BUNDLE_ID)"
+        
+        # Update BUNDLE_ID to match provisioning profile
+        BUNDLE_ID="$PROFILE_BUNDLE_ID"
+        log "✅ Updated BUNDLE_ID to: $BUNDLE_ID"
+    fi
+else
+    log "⚠️ Could not extract bundle ID from provisioning profile"
+    log "🔍 This might be acceptable if the profile uses wildcard bundle IDs"
+    log "🔍 Continuing with build, but code signing might fail"
+    
+    # Show provisioning profile structure for debugging
+    log "🔍 Provisioning profile structure:"
+    security cms -D -i ios/certificates/profile.mobileprovision 2>/dev/null | grep -E "(application-identifier|com\.apple\.developer\.team-identifier)" | head -5 || log "   Could not extract profile structure"
+fi
+
+# Now proceed with bundle ID updates using the corrected BUNDLE_ID
 log "📋 Current Bundle ID Configuration:"
 log "   BUNDLE_ID from environment: ${BUNDLE_ID}"
 log "   Current Info.plist bundle ID: $(plutil -extract CFBundleIdentifier raw ios/Runner/Info.plist 2>/dev/null || echo 'not found')"
@@ -551,87 +606,6 @@ log "✅ Bundle ID update completed successfully"
 log "📋 Final Bundle ID Configuration:"
 log "   Environment BUNDLE_ID: ${BUNDLE_ID}"
 log "   Info.plist CFBundleIdentifier: ${INFO_PLIST_BUNDLE_ID}"
-
-# 🔍 CRITICAL: Validate Bundle ID matches Provisioning Profile
-log "🔍 Validating Bundle ID matches Provisioning Profile..."
-
-# Extract bundle ID from provisioning profile
-PROFILE_BUNDLE_ID=""
-if [ -f "ios/certificates/profile.mobileprovision" ]; then
-    log "🔍 Extracting bundle ID from provisioning profile..."
-    
-    # Extract bundle ID using security command
-    PROFILE_BUNDLE_ID=$(security cms -D -i ios/certificates/profile.mobileprovision 2>/dev/null | plutil -extract Entitlements.application-identifier raw - 2>/dev/null | sed 's/^[^.]*\.//' 2>/dev/null || echo "")
-    
-    # If that method failed, try alternative extraction
-    if [ -z "$PROFILE_BUNDLE_ID" ]; then
-        PROFILE_BUNDLE_ID=$(security cms -D -i ios/certificates/profile.mobileprovision 2>/dev/null | grep -o 'application-identifier.*' | head -1 | sed 's/.*<string>\([^<]*\)<\/string>.*/\1/' | sed 's/^[^.]*\.//' 2>/dev/null || echo "")
-    fi
-    
-    # If still empty, try one more method
-    if [ -z "$PROFILE_BUNDLE_ID" ]; then
-        PROFILE_BUNDLE_ID=$(security cms -D -i ios/certificates/profile.mobileprovision 2>/dev/null | grep -A1 -B1 "application-identifier" | grep "<string>" | head -1 | sed 's/.*<string>\([^<]*\)<\/string>.*/\1/' | sed 's/^[^.]*\.//' 2>/dev/null || echo "")
-    fi
-    
-    log "🔍 Bundle ID extracted from provisioning profile: $PROFILE_BUNDLE_ID"
-else
-    log "❌ Provisioning profile not found at ios/certificates/profile.mobileprovision"
-    log "🔍 Available files in ios/certificates/:"
-    ls -la ios/certificates/ 2>/dev/null || log "   Directory not accessible"
-    exit 1
-fi
-
-# Validate bundle ID match and auto-correct if needed
-if [ -n "$PROFILE_BUNDLE_ID" ]; then
-    log "🔍 Bundle ID Comparison:"
-    log "   Environment BUNDLE_ID: $BUNDLE_ID"
-    log "   Provisioning Profile Bundle ID: $PROFILE_BUNDLE_ID"
-    
-    if [ "$BUNDLE_ID" = "$PROFILE_BUNDLE_ID" ]; then
-        log "✅ Bundle ID match verified: $BUNDLE_ID"
-        log "✅ Provisioning profile is compatible with app bundle ID"
-    else
-        log "⚠️ Bundle ID mismatch detected!"
-        log "⚠️ Environment BUNDLE_ID ($BUNDLE_ID) does not match provisioning profile bundle ID ($PROFILE_BUNDLE_ID)"
-        log "🔧 Auto-correcting: Using provisioning profile bundle ID ($PROFILE_BUNDLE_ID)"
-        
-        # Update BUNDLE_ID to match provisioning profile
-        BUNDLE_ID="$PROFILE_BUNDLE_ID"
-        log "✅ Updated BUNDLE_ID to: $BUNDLE_ID"
-        
-        # Re-update the Xcode project with the correct bundle ID
-        log "🔧 Re-updating Xcode project with correct bundle ID..."
-        if [ -f "lib/scripts/ios/update_bundle_id.sh" ]; then
-            chmod +x lib/scripts/ios/update_bundle_id.sh
-            if ./lib/scripts/ios/update_bundle_id.sh "$PROJECT_FILE" "$BUNDLE_ID"; then
-                log "✅ Xcode project updated with correct bundle ID"
-            else
-                log "❌ Failed to update Xcode project with correct bundle ID"
-                exit 1
-            fi
-        else
-            log "❌ Bundle ID update script not found"
-            exit 1
-        fi
-        
-        # Re-verify Info.plist bundle ID
-        INFO_PLIST_BUNDLE_ID=$(plutil -extract CFBundleIdentifier raw ios/Runner/Info.plist 2>/dev/null || echo "")
-        if [ "$INFO_PLIST_BUNDLE_ID" = "$BUNDLE_ID" ]; then
-            log "✅ Info.plist bundle ID verified after correction: $INFO_PLIST_BUNDLE_ID"
-        else
-            log "❌ Info.plist bundle ID still incorrect after correction"
-            exit 1
-        fi
-    fi
-else
-    log "⚠️ Could not extract bundle ID from provisioning profile"
-    log "🔍 This might be acceptable if the profile uses wildcard bundle IDs"
-    log "🔍 Continuing with build, but code signing might fail"
-    
-    # Show provisioning profile structure for debugging
-    log "🔍 Provisioning profile structure:"
-    security cms -D -i ios/certificates/profile.mobileprovision 2>/dev/null | grep -E "(application-identifier|com\.apple\.developer\.team-identifier)" | head -5 || log "   Could not extract profile structure"
-fi
 
 # 🔐 Permissions Setup
 log "🔐 Setting up Permissions..."
