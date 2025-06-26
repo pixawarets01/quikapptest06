@@ -581,7 +581,7 @@ else
     exit 1
 fi
 
-# Validate bundle ID match
+# Validate bundle ID match and auto-correct if needed
 if [ -n "$PROFILE_BUNDLE_ID" ]; then
     log "🔍 Bundle ID Comparison:"
     log "   Environment BUNDLE_ID: $BUNDLE_ID"
@@ -591,23 +591,37 @@ if [ -n "$PROFILE_BUNDLE_ID" ]; then
         log "✅ Bundle ID match verified: $BUNDLE_ID"
         log "✅ Provisioning profile is compatible with app bundle ID"
     else
-        log "❌ Bundle ID mismatch detected!"
-        log "❌ Environment BUNDLE_ID ($BUNDLE_ID) does not match provisioning profile bundle ID ($PROFILE_BUNDLE_ID)"
-        log "🔍 This will cause code signing to fail during the build process"
-        log "🔍 Solutions:"
-        log "   1. Update BUNDLE_ID environment variable to: $PROFILE_BUNDLE_ID"
-        log "   2. Or update provisioning profile to include bundle ID: $BUNDLE_ID"
-        log "   3. Or create a new provisioning profile for bundle ID: $BUNDLE_ID"
+        log "⚠️ Bundle ID mismatch detected!"
+        log "⚠️ Environment BUNDLE_ID ($BUNDLE_ID) does not match provisioning profile bundle ID ($PROFILE_BUNDLE_ID)"
+        log "🔧 Auto-correcting: Using provisioning profile bundle ID ($PROFILE_BUNDLE_ID)"
         
-        # Show provisioning profile details for debugging
-        log "🔍 Provisioning profile details:"
-        if security cms -D -i ios/certificates/profile.mobileprovision 2>/dev/null | grep -A5 -B5 "application-identifier" | head -10; then
-            log "   (Shown above: application-identifier section from provisioning profile)"
+        # Update BUNDLE_ID to match provisioning profile
+        BUNDLE_ID="$PROFILE_BUNDLE_ID"
+        log "✅ Updated BUNDLE_ID to: $BUNDLE_ID"
+        
+        # Re-update the Xcode project with the correct bundle ID
+        log "🔧 Re-updating Xcode project with correct bundle ID..."
+        if [ -f "lib/scripts/ios/update_bundle_id.sh" ]; then
+            chmod +x lib/scripts/ios/update_bundle_id.sh
+            if ./lib/scripts/ios/update_bundle_id.sh "$PROJECT_FILE" "$BUNDLE_ID"; then
+                log "✅ Xcode project updated with correct bundle ID"
+            else
+                log "❌ Failed to update Xcode project with correct bundle ID"
+                exit 1
+            fi
         else
-            log "   Could not extract application-identifier from provisioning profile"
+            log "❌ Bundle ID update script not found"
+            exit 1
         fi
         
-        exit 1
+        # Re-verify Info.plist bundle ID
+        INFO_PLIST_BUNDLE_ID=$(plutil -extract CFBundleIdentifier raw ios/Runner/Info.plist 2>/dev/null || echo "")
+        if [ "$INFO_PLIST_BUNDLE_ID" = "$BUNDLE_ID" ]; then
+            log "✅ Info.plist bundle ID verified after correction: $INFO_PLIST_BUNDLE_ID"
+        else
+            log "❌ Info.plist bundle ID still incorrect after correction"
+            exit 1
+        fi
     fi
 else
     log "⚠️ Could not extract bundle ID from provisioning profile"
